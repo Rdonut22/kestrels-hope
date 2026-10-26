@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/worn.gdshader" id="1_7o8ju"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_7o8ju")
+shader_parameter/base_color = Color(0.76, 0.63, 0.46, 1)
+shader_parameter/chip_color = null
+shader_parameter/grime = 0.35
+shader_parameter/chips = 0.0
+shader_parameter/scratches = 0.25
+shader_parameter/fade = 0.5
+shader_parameter/noise_scale = 4.0
+shader_parameter/roughness_amount = 0.55
+shader_parameter/metallic_amount = 0.0
