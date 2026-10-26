@@ -14,3 +14,4 @@ shader_parameter/d_light = Color(0.4, 0.27, 0.16, 1)
 shader_parameter/dirt_amount = 0.0
 shader_parameter/flowers = 1.0
 shader_parameter/texel = 0.12
+shader_parameter/world_tint = Color(1, 1, 1, 1)

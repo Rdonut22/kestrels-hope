@@ -2199,6 +2199,18 @@ func _build_crash_site() -> void:
 	sun.transform = Transform3D(Basis.looking_at(Vector3(-0.65, -0.62, -0.25).normalized(), Vector3.UP), Vector3.ZERO)
 	R.add_child(sun)
 	sun.owner = R
+	var moon := DirectionalLight3D.new()
+	moon.name = "Moon"
+	moon.light_color = Color(0.55, 0.66, 1.0)
+	moon.light_energy = 0.0
+	moon.transform = Transform3D(Basis.looking_at(-Vector3(-0.8, 0.5, 0.35).normalized(), Vector3.UP), Vector3.ZERO)
+	R.add_child(moon)
+	moon.owner = R
+	var clock := Node.new()
+	clock.name = "DayNight"
+	clock.set_script(load("res://world/day_night.gd"))
+	R.add_child(clock)
+	clock.owner = R
 
 	# Swap the space ship for the crashed one, tilted and sunk into the dirt.
 	var old := R.get_node("ShipInterior")
@@ -2582,6 +2594,7 @@ func _build_crash_site() -> void:
 			bm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			var x_axis := axis.cross(Vector3.FORWARD).normalized().rotated(axis, q * PI / 2)
 			bm.transform = Transform3D(Basis(x_axis, axis, x_axis.cross(axis)), c)
+			bm.add_to_group("day_only", true)
 			_add(site, bm, "Sunbeam%d_%d" % [k, q])
 
 	# Butterflies around the meadow and pond.
@@ -2590,6 +2603,7 @@ func _build_crash_site() -> void:
 	for k in 8:
 		var fly := Node3D.new()
 		fly.set_script(load("res://world/butterfly.gd"))
+		fly.add_to_group("day_only", true)
 		var home := pond_c + Vector2(rng.randf_range(-9, 6), rng.randf_range(-8, 8))
 		fly.position = Vector3(home.x, GROUND_Y + rng.randf_range(0.6, 1.6), home.y)
 		_add(site, fly, "Butterfly%d" % k)
@@ -2602,6 +2616,42 @@ func _build_crash_site() -> void:
 			w.position = Vector3(0.06 * side, 0, 0)
 			w.rotation.x = -PI / 2
 			_add(pivot, w, "Wing")
+
+	# Fireflies over the pond and meadow at night.
+	var glow := _wmat("firefly", Color(0.85, 1.0, 0.45), 0.5, 0.0, 6.0)
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ResourceSaver.save(glow, "res://world/materials/firefly.tres")
+	var bug := SphereMesh.new()
+	bug.radius = 0.035
+	bug.height = 0.07
+	bug.radial_segments = 6
+	bug.rings = 3
+	bug.material = glow
+	for k in 3:
+		var flies := CPUParticles3D.new()
+		flies.position = Vector3(pond_c.x + [0.0, -8.0, -4.0][k], GROUND_Y + 1.2, pond_c.y + [0.0, 6.0, -8.0][k])
+		flies.amount = 45
+		flies.lifetime = 6.0
+		flies.preprocess = 6.0
+		flies.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		flies.emission_box_extents = Vector3(7, 1.0, 7)
+		flies.direction = Vector3(0, 1, 0)
+		flies.spread = 180.0
+		flies.gravity = Vector3.ZERO
+		flies.initial_velocity_min = 0.1
+		flies.initial_velocity_max = 0.4
+		var blink := Gradient.new()
+		blink.set_color(0, Color(1, 1, 1, 0))
+		blink.add_point(0.3, Color(1, 1, 1, 1))
+		blink.add_point(0.6, Color(1, 1, 1, 0.2))
+		blink.add_point(0.8, Color(1, 1, 1, 1))
+		blink.set_color(blink.get_point_count() - 1, Color(1, 1, 1, 0))
+		flies.color_ramp = blink
+		flies.mesh = bug
+		flies.visible = false
+		flies.emitting = false
+		flies.add_to_group("night_only", true)
+		_add(site, flies, "Fireflies%d" % k)
 
 	_save(R, "res://crash_site.tscn")
 

@@ -14,6 +14,9 @@ uniform float grain = 1.0;
 uniform float ragged = 0.0;
 uniform float bands = 1.0;
 
+// Set by day_night.gd so these materials darken at night.
+uniform vec3 world_tint : source_color = vec3(1.0);
+
 varying vec3 wpos;
 varying vec3 wnrm;
 varying vec3 tint;
@@ -41,7 +44,7 @@ void fragment() {
 	float t = clamp(wnrm.y * 0.35 + 0.45 + (h - 0.5) * 0.55, 0.0, 1.0);
 	t += (bands - 1.0) * 0.2 * sin(cell.y * 1.7);
 	vec3 col = t < 0.3 ? c_dark : (t < 0.55 ? c_mid : (t < 0.8 ? c_light : c_high));
-	ALBEDO = col * tint;
+	ALBEDO = col * tint * world_tint;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }

@@ -27,7 +27,9 @@ func interact(_player: Node) -> void:
 
 
 func _status() -> String:
-	return "Hull integrity  %s\nFuel            %s\nOxygen          %s\nReactor output  %s" % [
+	var clock := get_tree().get_first_node_in_group("day_night")
+	var time_line := "Local time      %s\n\n" % clock.clock_text() if clock else ""
+	return time_line + "Hull integrity  %s\nFuel            %s\nOxygen          %s\nReactor output  %s" % [
 		_bar(hull), _bar(fuel), _bar(oxygen), _bar(power)]
 
 

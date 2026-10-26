@@ -14,6 +14,10 @@ uniform vec3 snow : source_color = vec3(0.95, 0.96, 1.0);
 uniform vec3 moon_a_dir = vec3(-0.8, 0.5, 0.35);
 uniform vec3 moon_b_dir = vec3(-0.85, 0.42, -0.2);
 uniform float pixel = 0.004;
+// Driven by day_night.gd: 1 = full day, 0 = night; dusk peaks near sunrise/sunset.
+uniform float day = 1.0;
+uniform float dusk = 0.0;
+uniform vec3 sun_dir = vec3(0.6, 0.6, 0.3);
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -69,7 +73,7 @@ vec2 skyline(float az, float cell, float seed, float min_h, float max_h) {
 	return vec2(best, side);
 }
 
-vec3 rock(float az, float el, vec2 sk, float seed, float haze, float snow_line) {
+vec3 rock(float az, float el, vec2 sk, float seed, float haze, float snow_line, vec3 hz) {
 	float tex = noise(vec2(az * 70.0, el * 55.0)) + (hash(vec2(floor(az / pixel), floor(el / pixel))) - 0.5) * 0.3;
 	// Sun from the right: right-hand faces lit.
 	vec3 col = sk.y > 0.0 ? (tex > 0.5 ? rock_lit : rock_mid) : (tex > 0.62 ? rock_mid : rock_dark);
@@ -80,8 +84,10 @@ vec3 rock(float az, float el, vec2 sk, float seed, float haze, float snow_line) 
 	if (sk.x > snow_line && el > snow_at && el > sk.x * 0.78 && el < sk.x) {
 		col = sk.y > 0.0 ? snow : mix(snow, rock_mid, 0.25);
 	}
+	col *= mix(0.16, 1.0, day);
+	col = mix(col, col * vec3(1.25, 0.8, 0.7), dusk * 0.6);
 	float fade = haze + (1.0 - haze) * smoothstep(0.12, 0.0, el);
-	return mix(col, haze_color, clamp(fade, 0.0, 1.0));
+	return mix(col, hz, clamp(fade, 0.0, 1.0));
 }
 
 vec3 moon(vec3 d, vec3 dir, float size, vec3 sky_col, float lit_side) {
@@ -100,7 +106,7 @@ vec3 moon(vec3 d, vec3 dir, float size, vec3 sky_col, float lit_side) {
 	vec3 surface = mix(vec3(0.72, 0.72, 0.76), vec3(0.98, 0.97, 0.95), smoothstep(0.35, 0.65, craters));
 	vec3 lit = mix(sky_col, surface, smoothstep(0.05, 0.3, light));
 	// Daytime moons are washed out by the sky.
-	return mix(sky_col, lit, 0.85);
+	return mix(sky_col, lit, mix(1.0, 0.85, day));
 }
 
 void sky() {
@@ -111,23 +117,37 @@ void sky() {
 	float sel = floor(el / pixel) * pixel;
 	vec3 sd = vec3(sin(saz) * cos(sel), sin(sel), -cos(saz) * cos(sel));
 
-	vec3 col = mix(horizon_color, top_color, smoothstep(0.0, 0.9, el));
+	vec3 sun_flat = normalize(vec3(sun_dir.x, 0.0, sun_dir.z) + vec3(0.0001));
+	float toward_sun = 0.5 + 0.5 * dot(normalize(vec3(sd.x, 0.0, sd.z) + vec3(0.0001)), sun_flat);
+	vec3 top = mix(vec3(0.015, 0.025, 0.07), top_color, day);
+	top = mix(top, vec3(0.32, 0.28, 0.52), dusk * 0.55);
+	vec3 hor = mix(vec3(0.04, 0.06, 0.13), horizon_color, day);
+	hor = mix(hor, vec3(1.0, 0.52, 0.32), dusk * (0.45 + 0.55 * toward_sun));
+	vec3 hz = mix(vec3(0.05, 0.07, 0.13), haze_color, day);
+	hz = mix(hz, vec3(0.78, 0.5, 0.44), dusk * 0.7);
+	vec3 col = mix(hor, top, smoothstep(0.0, 0.9, el));
+	// Stars.
+	if (day < 0.7 && hash(vec2(floor(saz / pixel), floor(sel / pixel))) > 0.996) {
+		col += vec3(0.9, 0.92, 1.0) * (1.0 - day / 0.7) * hash(vec2(floor(saz / pixel) + 3.0, floor(sel / pixel)));
+	}
 	vec2 cl = vec2(saz * 1.2, sel * 3.0);
-	col = mix(col, vec3(1.0), smoothstep(0.55, 0.8, fbm(cl * 2.5 + vec2(TIME * 0.003, 0.0))) * 0.8 * step(0.05, sel));
+	vec3 cloud = mix(vec3(1.0), vec3(1.0, 0.68, 0.58), dusk) * mix(0.12, 1.0, day);
+	col = mix(col, cloud, smoothstep(0.55, 0.8, fbm(cl * 2.5 + vec2(TIME * 0.003, 0.0))) * 0.8 * step(0.05, sel));
 	col = moon(sd, moon_a_dir, 0.09, col, 1.0);
 	col = moon(sd, moon_b_dir, 0.055, col, 0.6);
-	float sun = distance(d, LIGHT0_DIRECTION);
-	col += LIGHT0_COLOR * (smoothstep(0.045, 0.035, sun) * 4.0 + smoothstep(0.6, 0.0, sun) * 0.2);
+	float sun = distance(d, normalize(sun_dir));
+	vec3 sun_col = mix(vec3(1.0, 0.55, 0.3), vec3(1.0, 0.95, 0.85), smoothstep(0.0, 0.4, sun_dir.y));
+	col += sun_col * (smoothstep(0.045, 0.035, sun) * 4.0 + smoothstep(0.6, 0.0, sun) * (0.2 + dusk * 0.3)) * step(-0.05, sun_dir.y);
 
 	vec2 far = skyline(saz, 0.55, 3.0, 0.16, 0.42);
 	vec2 near = skyline(saz, 0.8, 11.0, 0.12, 0.5);
 	if (sel < near.x) {
-		col = rock(saz, sel, near, 11.0, 0.22, 0.34);
+		col = rock(saz, sel, near, 11.0, 0.22, 0.34, hz);
 	} else if (sel < far.x) {
-		col = rock(saz, sel, far, 3.0, 0.5, 0.3);
+		col = rock(saz, sel, far, 3.0, 0.5, 0.3, hz);
 	}
 	if (el < 0.0) {
-		col = haze_color;
+		col = hz;
 	}
 	COLOR = col;
 }

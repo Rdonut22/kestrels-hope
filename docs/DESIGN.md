@@ -22,6 +22,9 @@ glance (old-growth pine forest, granite mountains), strange up close.
 - **Character**: low-poly pilot with robotic right arm (glowing palm),
   procedural walk animation. Placeholder until a proper model (.glb with
   skeleton + walk/idle animations) is made.
+- **Day–night cycle** (crash site): 24-minute day, moving sun, dusk/dawn
+  colours, stars and moonlight, fireflies at night, sleep to morning, clock
+  on the ship computer. Press **T** to skip ahead an hour.
 - **Tools**: `tools/build_scenes.gd` regenerates the scenes;
   `tools/playtest.gd` and `tools/crash_playtest.gd` test them.
 

@@ -14,6 +14,9 @@ uniform float dirt_amount = 0.0;
 uniform float flowers = 1.0;
 uniform float texel = 0.12;
 
+// Set by day_night.gd so these materials darken at night.
+uniform vec3 world_tint : source_color = vec3(1.0);
+
 varying vec3 wpos;
 
 float hash(vec2 p) {
@@ -56,7 +59,7 @@ void fragment() {
 		float k = hash(cell + 31.0);
 		col = k < 0.25 ? vec3(0.95, 0.3, 0.25) : (k < 0.5 ? vec3(0.98, 0.95, 0.9) : (k < 0.75 ? vec3(1.0, 0.82, 0.25) : vec3(0.55, 0.65, 1.0)));
 	}
-	ALBEDO = col;
+	ALBEDO = col * world_tint;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }

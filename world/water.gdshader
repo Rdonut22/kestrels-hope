@@ -8,6 +8,9 @@ uniform vec3 shallow : source_color = vec3(0.35, 0.6, 0.72);
 uniform vec3 shine : source_color = vec3(0.85, 0.95, 1.0);
 uniform float texel = 0.12;
 
+// Set by day_night.gd so these materials darken at night.
+uniform vec3 world_tint : source_color = vec3(1.0);
+
 varying vec3 wpos;
 
 float hash(vec2 p) {
@@ -26,5 +29,5 @@ void fragment() {
 	if (h > 0.985) {
 		col = shine;
 	}
-	ALBEDO = col;
+	ALBEDO = col * world_tint;
 }

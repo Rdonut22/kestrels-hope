@@ -24,3 +24,9 @@ play the game; they're here so the ship can be rebuilt and changed later.
   quarters, walks out through the hull breach into the forest and back:
 
       godot --path . --script tools/crash_playtest.gd
+
+- `daynight_playtest.gd` checks the day-night cycle: time advancing,
+  fireflies/butterflies swapping at night, sleeping to morning, and the
+  ship computer clock:
+
+      godot --path . --script tools/daynight_playtest.gd
