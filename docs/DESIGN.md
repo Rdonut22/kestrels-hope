@@ -150,6 +150,64 @@ planters.
 
 ---
 
+## Opening flow (proposal — decisions pending)
+
+**1. Start menu.** Title **KESTREL'S HOPE** in a chunky pixel font over a
+live 3D background. Background options: the Kestrel drifting in space
+(camera slowly circling), the crash site at dusk (smoke, fireflies,
+mountains), or the view out the cockpit. Menu: New Game, Continue (once
+saving exists), Settings (difficulty, volume, fullscreen), Quit.
+
+**2. Space opening.** Wake in the sleeping pod; quiet routine (coffee, log,
+window, ship computer) that teaches the controls. Crash trigger options:
+- A: after the routine (coffee + log + computer)
+- B: when he goes to sleep — alarm jolts him awake
+- C: timer after a few minutes
+- D: routine triggers it, with a timer backup
+
+**3. Crash (~15–30 s).** Proximity alarm, ship computer warnings, lights
+flicker to red, impact jolt, camera shake, sparks, things falling. Player
+may keep control (stumble to the cockpit, planet rushing up through the
+canopy) or watch a short cutscene. "BRACE FOR IMPACT" → white flash → black.
+
+**4. Wake up at the crash site.** Black screen, muffled ringing, breathing.
+Blurry vision clears: quarters floor, red emergency lights, birdsong,
+daylight through a new hole. Thought on screen: "...Ugh. Where am I?"
+Control returns; first goal: "Check the ship computer."
+
+**5. Then** the computer gives a damage report and first objectives (check
+the beacon, find water) and the game opens up.
+
+**Open questions**
+1. Start menu background?
+2. Crash trigger: A, B, C or D?
+3. Keep control during the crash, or a short cutscene?
+4. Story: what hits the ship, where was he headed? (Can stay mysterious;
+   the beacon and log fill it in later.)
+
+---
+
+## HUD plan
+
+- Always on, minimal: compass strip at top (ship + waypoints, sun/moon time
+  icon), small pixel mini-map in a corner (projected-hologram look),
+  survival icons that appear only when low, interaction prompts.
+- **Wrist computer** in the robot arm (Tab): he raises his arm, camera moves
+  in, full-screen hologram in the palm's blue. Tabs: Map (fog of war, pins),
+  Inventory, Builds, Journal, Ship status, Vitals. Could start glitchy after
+  the crash and unlock features as it's repaired.
+- Option: "clean screen" setting hiding compass and mini-map.
+
+---
+
+## Known chores
+
+- Godot adds `uid=` to `ui/terminal_theme.tres` and
+  `world/materials/smoke.tres` on first open (shows as changes in GitHub
+  Desktop — safe to discard). Fix the builder to save them with a uid.
+
+---
+
 ## Sound plan
 
 - Generate in code: ship hum, computer beeps, sparks, alarms, coffee machine.
@@ -160,8 +218,9 @@ planters.
 
 ## Suggested build order
 
-1. Day–night cycle (farming and moisture depend on time)
-2. Opening crash sequence (space → crash site)
+1. ~~Day–night cycle~~ (done)
+2. Start menu + opening crash sequence (space → crash site) — see "Opening flow"
+2b. HUD: compass + mini-map, then wrist computer
 3. Inventory, pickups and salvage (pull named parts from the ship)
 4. Moisture harvester + first garden plot
 5. Hunger / thirst / cold with difficulty modes
