@@ -54,8 +54,9 @@ func _shader_mat(name: String, shader: String, params: Dictionary) -> void:
 # Palette: blue-grey painted metal, gunmetal floors, cream seats,
 # worn leather, copper pipes, cool strip lights with warm accents.
 func _make_materials() -> void:
-	_shader_mat("hull_outer", "hull_panel", {"base_color": Color(0.7, 0.68, 0.63), "panel_size": Vector2(2.0, 1.0),
-		"seam_dark": 0.55, "grime": 0.5, "variation": 0.07, "metallic_amount": 0.35, "roughness_amount": 0.6})
+	_shader_mat("hull_outer", "worn", {"base_color": Color(0.66, 0.65, 0.62), "chip_color": Color(0.3, 0.29, 0.28),
+		"grime": 0.55, "chips": 0.35, "scratches": 0.6, "fade": 0.4, "noise_scale": 1.6,
+		"metallic_amount": 0.55, "roughness_amount": 0.5})
 	_mat("stripe", Color(0.66, 0.3, 0.14), 0.6, 0.2)
 	_mat("thruster_glow", Color(0.35, 0.7, 1.0), 0.3, 0.0, 5.0)
 	_shader_mat("wall", "hull_panel", {"base_color": Color(0.46, 0.51, 0.56), "lower_band": 0.9,
