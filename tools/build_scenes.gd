@@ -1677,10 +1677,10 @@ func _make_world_materials() -> void:
 	_wmat("scorched", Color(0.12, 0.1, 0.09), 0.85, 0.5)
 	_wmat("emergency", Color(1.0, 0.12, 0.08), 0.5, 0.0, 2.5)
 	_wmat("spark", Color(1.0, 0.7, 0.3), 0.5, 0.0, 6.0)
-	_fol_mat("bark", [Color(0.13, 0.08, 0.06), Color(0.24, 0.15, 0.09), Color(0.36, 0.23, 0.13), Color(0.52, 0.36, 0.2)], 0.12, 0.0, 3.0, 2.0)
+	_fol_mat("bark", [Color(0.16, 0.07, 0.05), Color(0.33, 0.15, 0.08), Color(0.5, 0.25, 0.13), Color(0.64, 0.38, 0.2)], 0.14, 0.0, 4.0, 2.0)
 	_fol_mat("bark_light", [Color(0.2, 0.14, 0.1), Color(0.34, 0.25, 0.17), Color(0.48, 0.37, 0.25), Color(0.62, 0.5, 0.34)], 0.12, 0.0, 3.0, 2.0)
 	_fol_mat("canopy", [Color(0.06, 0.2, 0.1), Color(0.14, 0.38, 0.13), Color(0.3, 0.58, 0.15), Color(0.5, 0.74, 0.24)], 0.2, 0.55)
-	_fol_mat("pine", [Color(0.04, 0.16, 0.12), Color(0.09, 0.28, 0.17), Color(0.17, 0.42, 0.2), Color(0.34, 0.58, 0.26)], 0.2, 0.32)
+	_fol_mat("pine", [Color(0.03, 0.13, 0.1), Color(0.07, 0.24, 0.15), Color(0.14, 0.37, 0.18), Color(0.3, 0.52, 0.22)], 0.22, 0.4)
 	_fol_mat("bush", [Color(0.07, 0.24, 0.1), Color(0.17, 0.44, 0.14), Color(0.34, 0.64, 0.18), Color(0.62, 0.84, 0.3)], 0.14, 0.38)
 	_fol_mat("rock", [Color(0.26, 0.28, 0.27), Color(0.4, 0.42, 0.4), Color(0.55, 0.56, 0.52), Color(0.68, 0.7, 0.62)], 0.12)
 	_fol_mat("moss_rock", [Color(0.2, 0.26, 0.2), Color(0.33, 0.4, 0.3), Color(0.35, 0.55, 0.2), Color(0.55, 0.72, 0.3)], 0.12)
@@ -2036,7 +2036,7 @@ func _build_crash_site() -> void:
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_density = 1.0
 	env.fog_depth_begin = 16.0
-	env.fog_depth_end = 75.0
+	env.fog_depth_end = 90.0
 	env.fog_depth_curve = 1.6
 	env.fog_sky_affect = 0.0
 	R.get_node("WorldEnvironment").environment = env
@@ -2045,7 +2045,7 @@ func _build_crash_site() -> void:
 	sun.light_color = Color(1.0, 0.95, 0.85)
 	sun.light_energy = 1.8
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 55.0
+	sun.directional_shadow_max_distance = 80.0
 	sun.transform = Transform3D(Basis.looking_at(Vector3(-0.65, -0.62, -0.25).normalized(), Vector3.UP), Vector3.ZERO)
 	R.add_child(sun)
 	sun.owner = R
@@ -2230,39 +2230,55 @@ func _build_crash_site() -> void:
 		var gz := -92.0
 		while gz <= 92.0:
 			var p := Vector2(gx + rng.randf_range(-2.6, 2.6), gz + rng.randf_range(-2.6, 2.6))
-			gz += 6.2
+			gz += 6.0
 			if _keep_clear(p, 0.0):
 				continue
 			var base := Vector3(p.x, GROUND_Y, p.y)
-			var big := 1.0 + clampf((_clear_dist(p) - 4.0) / 30.0, 0.0, 0.5)
-			var h := rng.randf_range(4.5, 8.5) * big
-			var r := rng.randf_range(0.38, 0.72) * big
+			var edge := clampf((_clear_dist(p) - 2.0) / 25.0, 0.0, 1.0)
+			var kind := rng.randf()
 			var tint := Color(1, 1, 1) * rng.randf_range(0.85, 1.12)
-			trunks.append([Transform3D(Basis().scaled(Vector3(r, h, r)), base + Vector3(0, h / 2.0, 0)), Color(1, 1, 1)])
-			trunks.append([Transform3D(Basis().scaled(Vector3(r * 1.7, 0.8, r * 1.7)), base + Vector3(0, 0.4, 0)), Color(1, 1, 1)])
-			if rng.randf() < 0.22:
-				# Tall pine.
-				for k in 4:
-					var cr := (2.6 - k * 0.55) * big
-					cones.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(cr, 2.6 * big, cr)),
-						base + Vector3(0, h * 0.55 + k * 1.5 * big + 1.3 * big, 0)), tint])
+			var h: float
+			var r: float
+			if kind < 0.72:
+				# Old-growth giant: tall bare trunk, layered drooping tiers to a point.
+				h = rng.randf_range(18.0, 26.0) + edge * rng.randf_range(0.0, 10.0)
+				r = rng.randf_range(0.7, 1.0) + edge * 0.45
+				var crown_base := h * rng.randf_range(0.38, 0.5)
+				var visible_h := crown_base + (h - crown_base) * 0.45
+				trunks.append([Transform3D(Basis().scaled(Vector3(r, visible_h, r)), base + Vector3(0, visible_h / 2.0, 0)), Color(1, 1, 1)])
+				trunks.append([Transform3D(Basis().scaled(Vector3(r * 1.6, 1.4, r * 1.6)), base + Vector3(0, 0.7, 0)), Color(1, 1, 1)])
+				var crown_h := h - crown_base + 2.5
+				var tiers := int(crown_h / 1.25)
+				var width := rng.randf_range(3.6, 5.0) * (0.8 + h / 60.0)
+				for k in tiers:
+					var f := float(k) / tiers
+					var tr := width * (1.0 - f * 0.88) * rng.randf_range(0.85, 1.1)
+					var th := 3.2 + tr * 0.45
+					var off := Vector3(rng.randf_range(-0.3, 0.3), 0, rng.randf_range(-0.3, 0.3))
+					cones.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(tr, th, tr)),
+						base + off + Vector3(0, crown_base + f * crown_h + th * 0.3, 0)), tint * (0.82 + f * 0.3)])
+			elif kind < 0.95:
+				# Young pine: full cone of tiers almost to the ground.
+				h = rng.randf_range(6.0, 12.0)
+				r = rng.randf_range(0.25, 0.4)
+				trunks.append([Transform3D(Basis().scaled(Vector3(r, h, r)), base + Vector3(0, h / 2.0, 0)), Color(1, 1, 1)])
+				var tiers := int(h / 1.1)
+				for k in tiers:
+					var f := float(k) / tiers
+					var tr := (2.4 - f * 2.0) * rng.randf_range(0.85, 1.1)
+					cones.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(tr, 2.6, tr)),
+						base + Vector3(0, 1.2 + f * (h - 0.5), 0)), tint * 1.08])
 			else:
-				# Broad oak: branches into a big lumpy canopy.
-				var top := base + Vector3(0, h, 0)
-				for k in 3:
-					var a := k * TAU / 3.0 + rng.randf()
-					var dir := Vector3(cos(a), 0.9, sin(a)).normalized()
-					var bl := 2.4 * big
-					var bb := Basis(Quaternion(Vector3.UP, dir)) * Basis.from_scale(Vector3(r * 0.45, bl, r * 0.45))
-					trunks.append([Transform3D(bb, top - Vector3(0, 1.2, 0) + dir * bl / 2.0), Color(1, 1, 1)])
-				var spread := rng.randf_range(3.2, 4.6) * big
-				for k in rng.randi_range(13, 18):
+				# Occasional small broadleaf in the understory.
+				h = rng.randf_range(4.0, 6.5)
+				r = rng.randf_range(0.22, 0.32)
+				trunks.append([Transform3D(Basis().scaled(Vector3(r, h, r)), base + Vector3(0, h / 2.0, 0)), Color(1, 1, 1)])
+				for k in rng.randi_range(5, 8):
 					var a := rng.randf() * TAU
-					var rad := sqrt(rng.randf()) * spread
-					var by := rng.randf_range(-0.6, 3.2) * big * (1.0 - rad / spread * 0.5)
-					var bs := rng.randf_range(1.6, 2.9) * big * (1.15 - rad / spread * 0.35)
+					var rad := sqrt(rng.randf()) * 1.8
+					var bs := rng.randf_range(1.3, 2.0)
 					blobs.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bs, bs * 0.8, bs)),
-						top + Vector3(cos(a) * rad, by + 0.8, sin(a) * rad)), tint])
+						base + Vector3(cos(a) * rad, h + rng.randf_range(-0.4, 1.0), sin(a) * rad)), tint])
 			if _clear_dist(p) < 45.0:
 				var body := StaticBody3D.new()
 				body.position = base + Vector3(0, h / 2.0, 0)
@@ -2279,7 +2295,7 @@ func _build_crash_site() -> void:
 				bushes.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bsz * 1.4, bsz, bsz * 1.3)),
 					Vector3(bp.x, GROUND_Y + bsz * 0.3, bp.y)), tint])
 			tree_count += 1
-		gx += 6.2
+		gx += 6.0
 	# Extra undergrowth fringing the clearing.
 	for k in 260:
 		var a := rng.randf() * TAU
@@ -2300,8 +2316,8 @@ func _build_crash_site() -> void:
 	cone_mesh.top_radius = 0.0
 	cone_mesh.bottom_radius = 1.0
 	cone_mesh.height = 1.0
-	cone_mesh.radial_segments = 9
-	cone_mesh.rings = 2
+	cone_mesh.radial_segments = 10
+	cone_mesh.rings = 3
 	var blob_mesh := SphereMesh.new()
 	blob_mesh.radius = 0.5
 	blob_mesh.height = 1.0
@@ -2461,8 +2477,8 @@ func _pond_radius(a: float) -> float:
 
 # Edge of the meadow clearing in direction `a` (centred just off the ship's right side).
 func _clear_edge(a: float) -> Vector2:
-	var rx := 25.0
-	var rz := 21.0
+	var rx := 29.0
+	var rz := 24.0
 	var wobble := 1.0 + 0.12 * sin(a * 3.0 + 0.7) + 0.08 * sin(a * 7.0 + 2.0)
 	return Vector2(4.0, 0.0) + Vector2(cos(a) * rx, sin(a) * rz) * wobble
 
