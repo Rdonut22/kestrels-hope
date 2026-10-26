@@ -54,7 +54,10 @@ func _shader_mat(name: String, shader: String, params: Dictionary) -> void:
 # Palette: blue-grey painted metal, gunmetal floors, cream seats,
 # worn leather, copper pipes, cool strip lights with warm accents.
 func _make_materials() -> void:
-	_mat("hull_outer", Color(0.3, 0.31, 0.33), 0.7, 0.4)
+	_shader_mat("hull_outer", "hull_panel", {"base_color": Color(0.7, 0.68, 0.63), "panel_size": Vector2(2.0, 1.0),
+		"seam_dark": 0.55, "grime": 0.5, "variation": 0.07, "metallic_amount": 0.35, "roughness_amount": 0.6})
+	_mat("stripe", Color(0.66, 0.3, 0.14), 0.6, 0.2)
+	_mat("thruster_glow", Color(0.35, 0.7, 1.0), 0.3, 0.0, 5.0)
 	_shader_mat("wall", "hull_panel", {"base_color": Color(0.46, 0.51, 0.56), "lower_band": 0.9,
 		"lower_color": Color(0.3, 0.32, 0.34), "panel_size": Vector2(1.2, 0.9)})
 	_shader_mat("floor", "hull_panel", {"base_color": Color(0.64, 0.59, 0.49), "panel_size": Vector2(1.6, 1.2),
@@ -555,6 +558,9 @@ func _build_ship() -> void:
 	_inspect(use, "BoardingRamp", Vector3(0, 1.2, 8.9), "Boarding ramp",
 		"Ramp sealed. Opening it out here would be a very short walk.", 1.8)
 
+	if crashed:
+		_make_world_materials()
+	_exterior()
 	if crashed:
 		_apply_crash_damage()
 		_save(scene_root, "res://ship/ship_crashed.tscn")
@@ -1627,6 +1633,149 @@ func _build_character() -> void:
 	_save(scene_root, "res://character/character.tscn")
 
 
+
+# ---------- exterior ----------
+
+# Side profile given as (z, y) points, extruded across x from x_from down to x_to.
+func _profile_x(parent: Node, name: String, pts: Array, x_from: float, x_to: float, mat: String) -> CSGPolygon3D:
+	var poly := PackedVector2Array()
+	for q: Vector2 in pts:
+		poly.append(Vector2(-q.x, q.y))
+	var c := CSGPolygon3D.new()
+	c.polygon = poly
+	c.depth = x_from - x_to
+	c.rotation.y = PI / 2
+	c.position.x = x_from
+	c.material = mats[mat]
+	return _add(parent, c, name)
+
+
+# Front profile given as (x, y) points, extruded along z from z_back to z_front.
+func _profile_z(parent: Node, name: String, pts: Array, z_back: float, z_front: float, mat: String) -> CSGPolygon3D:
+	var c := CSGPolygon3D.new()
+	c.polygon = PackedVector2Array(pts)
+	c.depth = z_back - z_front
+	c.position.z = z_back
+	c.material = mats[mat]
+	return _add(parent, c, name)
+
+
+func _exterior() -> void:
+	var R := scene_root
+	var ext := _add(R, CSGCombiner3D.new(), "Exterior")
+	ext.use_collision = true
+	# Nose under the canopy and a sloped fairing on the body's front face.
+	_profile_x(ext, "NoseCone", [Vector2(-12.85, -0.2), Vector2(-12.85, 0.95), Vector2(-13.6, 0.8),
+		Vector2(-14.3, 0.3), Vector2(-14.1, -0.2)], 5.9, 2.1, "hull_outer")
+	_profile_x(ext, "FrontFairing", [Vector2(-9.85, -0.2), Vector2(-9.85, 3.2), Vector2(-10.6, 2.6),
+		Vector2(-11.7, 0.5), Vector2(-11.6, -0.2)], 2.1, -7.7, "hull_outer")
+	# Dorsal ridge along the spine.
+	_profile_x(ext, "DorsalRidge", [Vector2(-9.8, 3.15), Vector2(-8.6, 3.75), Vector2(7.6, 3.75),
+		Vector2(9.4, 3.15)], 1.6, -4.6, "hull_outer")
+	_profile_x(ext, "DorsalCap", [Vector2(-8.0, 3.7), Vector2(-7.4, 3.9), Vector2(6.6, 3.9), Vector2(7.2, 3.7)], 0.4, -3.4, "trim")
+	# Wings sloping down to both sides, with stepped (swept) outer sections and tip fins.
+	var wing_l := _add(ext, CSGCombiner3D.new(), "WingLeft")
+	_profile_z(wing_l, "Inner", [Vector2(-7.65, 0.7), Vector2(-7.65, 1.15), Vector2(-11.0, 0.45), Vector2(-11.0, 0.2)], 7.5, -9.3, "hull_outer")
+	_profile_z(wing_l, "Outer", [Vector2(-10.9, 0.22), Vector2(-10.9, 0.47), Vector2(-14.0, -0.1), Vector2(-14.0, -0.25)], 6.5, -4.5, "hull_outer")
+	_profile_x(wing_l, "TipFin", [Vector2(-4.0, -0.15), Vector2(-3.2, 1.3), Vector2(4.5, 1.3), Vector2(6.3, -0.15)], -13.75, -14.05, "hull_outer")
+	var wing_r := _add(ext, CSGCombiner3D.new(), "WingRight")
+	_profile_z(wing_r, "Inner", [Vector2(5.85, 0.55), Vector2(5.85, 0.95), Vector2(10.0, 0.35), Vector2(10.0, 0.1)], 8.5, -6.8, "hull_outer")
+	_profile_z(wing_r, "Outer", [Vector2(9.9, 0.12), Vector2(9.9, 0.37), Vector2(12.8, -0.15), Vector2(12.8, -0.3)], 7.5, -3.0, "hull_outer")
+	_profile_x(wing_r, "TipFin", [Vector2(-2.5, -0.2), Vector2(-1.8, 1.2), Vector2(5.8, 1.2), Vector2(7.3, -0.2)], 12.85, 12.55, "hull_outer")
+	# Engine block and six thrusters around the ramp door.
+	_box(ext, "EngineBlockL", Vector3(-7.4, 0.1, 9.45), Vector3(-1.9, 3.1, 10.1), "metal_dark")
+	_box(ext, "EngineBlockR", Vector3(1.9, 0.1, 9.45), Vector3(5.7, 3.1, 10.1), "metal_dark")
+	_box(ext, "RampDoorOuter", Vector3(-1.55, -0.15, 9.45), Vector3(1.55, 2.65, 9.6), "hazard")
+	_box(ext, "RampHinge", Vector3(-1.6, -0.2, 9.5), Vector3(1.6, 0.05, 9.75), "metal_dark")
+	var thrusters := [Vector2(-6.2, 0.95), Vector2(-4.2, 0.95), Vector2(-5.2, 2.35),
+		Vector2(2.95, 0.95), Vector2(4.75, 0.95), Vector2(3.85, 2.35)]
+	for i in thrusters.size():
+		var t: Vector2 = thrusters[i]
+		var bell := CSGCylinder3D.new()
+		bell.radius = 0.72
+		bell.height = 1.3
+		bell.sides = 16
+		bell.cone = false
+		bell.rotation.x = PI / 2
+		bell.position = Vector3(t.x, t.y, 10.7)
+		bell.material = mats["metal_dark"]
+		_add(ext, bell, "Thruster%d" % i)
+		var hollow := CSGCylinder3D.new()
+		hollow.radius = 0.56
+		hollow.height = 1.0
+		hollow.sides = 16
+		hollow.rotation.x = PI / 2
+		hollow.position = Vector3(t.x, t.y, 11.0)
+		hollow.material = mats["scorched"] if mats.has("scorched") else mats["cable"]
+		hollow.operation = CSGShape3D.OPERATION_SUBTRACTION
+		_add(ext, hollow, "ThrusterHollow%d" % i)
+		var ring := CSGTorus3D.new()
+		ring.inner_radius = 0.66
+		ring.outer_radius = 0.8
+		ring.sides = 16
+		ring.ring_sides = 6
+		ring.rotation.x = PI / 2
+		ring.position = Vector3(t.x, t.y, 11.3)
+		ring.material = mats["copper"]
+		_add(ext, ring, "ThrusterRim%d" % i)
+		var core := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		disc.top_radius = 0.54
+		disc.bottom_radius = 0.54
+		disc.height = 0.02
+		disc.radial_segments = 16
+		core.mesh = disc
+		core.rotation.x = PI / 2
+		core.position = Vector3(t.x, t.y, 10.55)
+		core.material_override = mats["metal_dark"] if crashed else mats["thruster_glow"]
+		_add(R, core, "ThrusterCore%d" % i)
+	# Turret dome with twin barrels over the gunner station.
+	var turret := Node3D.new()
+	turret.position = Vector3(-5.0, 3.2, 5.6)
+	_add(R, turret, "Turret")
+	_mesh_box(turret, "Mount", Vector3(0, 0.12, 0), Vector3(1.6, 0.24, 1.6), "metal_dark")
+	var dome := MeshInstance3D.new()
+	var dm := SphereMesh.new()
+	dm.radius = 0.8
+	dm.height = 0.8
+	dm.is_hemisphere = true
+	dm.radial_segments = 16
+	dm.rings = 6
+	dome.mesh = dm
+	dome.position.y = 0.24
+	dome.material_override = mats["hull_outer"]
+	_add(turret, dome, "Dome")
+	_mesh_box(turret, "Visor", Vector3(0, 0.55, 0.55), Vector3(0.7, 0.18, 0.12), "glass")
+	for i in 2:
+		var x := -0.22 + i * 0.44
+		var barrel := Node3D.new()
+		barrel.position = Vector3(x, 0.55, 0.5)
+		_add(turret, barrel, "Barrel%d" % i)
+		_pipe(barrel, "Tube", Vector3.ZERO, Vector3(0, 0, 1.9), 0.07, "metal_dark")
+		_pipe(barrel, "Muzzle", Vector3(0, 0, 1.75), Vector3(0, 0, 2.0), 0.1, "metal_dark")
+		if crashed and i == 1:
+			barrel.rotation = Vector3(0.35, 0.4, 0)
+	# Side hatch on the cockpit tower, window trim around the lounge, side stripe.
+	_box(ext, "HatchFrame", Vector3(5.85, 0.0, -9.3), Vector3(6.05, 2.3, -7.3), "metal_dark")
+	_box(ext, "HatchDoor", Vector3(6.0, 0.15, -9.1), Vector3(6.1, 2.15, -7.5), "hull_outer")
+	_box(ext, "HatchStripe", Vector3(6.08, 2.15, -9.1), Vector3(6.12, 2.3, -7.5), "hazard")
+	var trim := _add(R, CSGCombiner3D.new(), "WindowTrim")
+	for y in [0.92, 2.58]:
+		var band := _half_cyl(trim, "Band%d" % int(y * 100), 5.05, 0.14, y, Vector3(5.95, -1, -5), Vector3(8, 4, 9), "metal_dark")
+		var inner := _ccyl(band, "Inner", 4.9, 0.3, Vector3(2.4, y, 1.6), "metal_dark")
+		inner.operation = CSGShape3D.OPERATION_SUBTRACTION
+	_box(ext, "StripeLeft", Vector3(-7.75, 1.9, -9.6), Vector3(-7.65, 2.15, 9.4), "stripe")
+	_box(ext, "StripeRight", Vector3(5.85, 2.65, -9.6), Vector3(5.95, 2.9, 9.4), "stripe")
+	_box(ext, "StripeNose", Vector3(2.05, 0.75, -12.95), Vector3(5.95, 0.92, -12.8), "stripe")
+	if crashed:
+		# Right wing torn off where the hull is breached; trim follows the breach.
+		var tear := _box(wing_r, "Torn", Vector3(5.5, -1.0, -0.4), Vector3(13.5, 2.0, 5.2), "scorched", true)
+		tear.operation = CSGShape3D.OPERATION_SUBTRACTION
+		_add(trim, _breach_cutter(1.15), "Breach")
+		var char_l := _box(ext, "Scorch", Vector3(-7.8, 0.2, 4.0), Vector3(-7.6, 2.8, 9.4), "scorched")
+		char_l.operation = CSGShape3D.OPERATION_UNION
+
+
 # ---------- crash version ----------
 
 func _wmat(name: String, color: Color, rough := 0.9, metal := 0.0, emit := 0.0) -> StandardMaterial3D:
@@ -2191,7 +2340,7 @@ func _build_crash_site() -> void:
 
 	# Smoke rising from the back of the ship.
 	var smoke := CPUParticles3D.new()
-	smoke.position = Vector3(-1.5, 3.4, 8.0)
+	smoke.position = Vector3(-5.2, 2.6, 11.0)
 	smoke.amount = 40
 	smoke.lifetime = 9.0
 	smoke.preprocess = 9.0
@@ -2490,7 +2639,7 @@ func _clear_dist(p: Vector2) -> float:
 
 
 func _in_ship_zone(p: Vector2, margin: float) -> bool:
-	return p.x > -8.0 - margin and p.x < 7.5 + margin and p.y > -13.0 - margin and p.y < 9.5 + margin
+	return p.x > -14.5 - margin and p.x < 13.5 + margin and p.y > -15.0 - margin and p.y < 11.8 + margin
 
 
 func _in_trail(p: Vector2) -> bool:
