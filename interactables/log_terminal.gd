@@ -21,5 +21,14 @@ const LOGS := [
 ]
 
 
+## Crash-landed version: adds the entry written after the crash.
+@export var crashed := false
+
+const CRASH_LOG := {
+	"title": "Entry 113",
+	"body": "Went down. Something hit us in the upper atmosphere — or we hit it.\n\nThe Kestrel held together better than I did. Lounge is open to the sky now, and there are trees where the stars used to be.\n\nBeacon's on. Coffee machine survived. Priorities.",
+}
+
+
 func interact(_player: Node) -> void:
-	hud().open_screen("PERSONAL LOG", LOGS)
+	hud().open_screen("PERSONAL LOG", [CRASH_LOG] + LOGS if crashed else LOGS)

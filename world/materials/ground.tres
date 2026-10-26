@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/terrain.gdshader" id="1_b0eue"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_b0eue")
+shader_parameter/grass_a = null
+shader_parameter/grass_b = null
+shader_parameter/dirt_color = null
+shader_parameter/dirt_amount = 0.1

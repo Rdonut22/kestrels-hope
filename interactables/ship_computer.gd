@@ -5,9 +5,19 @@ extends Interactable
 @export_range(0, 100) var fuel := 34
 @export_range(0, 100) var oxygen := 96
 @export_range(0, 100) var power := 72
+## Crash-landed version: swaps in damage reports.
+@export var crashed := false
 
 
 func interact(_player: Node) -> void:
+	if crashed:
+		hud().open_screen(ship_name + " // SHIP COMPUTER", [
+			{"title": "Status", "body": _status()},
+			{"title": "Navigation", "body": "Position: [color=#ffb347]PLANETSIDE[/color] — uncharted world\nVelocity: 0\n\nAtmosphere: breathable (marginal)\nGravity: 0.94 standard\n\nNav array: [color=#ff5555]DESTROYED[/color]"},
+			{"title": "Comms", "body": "Long-range transmitter: [color=#ff5555]DAMAGED[/color]\n\nDistress beacon: [color=#ffb347]BROADCASTING[/color]\nNo replies."},
+			{"title": "Diagnostics", "body": "Life support ....... [color=#ffb347]DEGRADED[/color]\nReactor ............ [color=#ffb347]EMERGENCY POWER[/color]\nArtificial gravity . [color=#888888]OFFLINE[/color]\nHull ............... [color=#ff5555]BREACHED (lounge)[/color]\nMain engines ....... [color=#ff5555]FAULT[/color]\nCoffee machine ..... [color=#7CFC00]OK[/color]"},
+		])
+		return
 	hud().open_screen(ship_name + " // SHIP COMPUTER", [
 		{"title": "Status", "body": _status()},
 		{"title": "Navigation", "body": "Position: [color=#ffb347]UNKNOWN[/color]\nVelocity: drifting\n\nNav array offline. Last good fix 41 days ago.\nRecommend manual star sighting."},

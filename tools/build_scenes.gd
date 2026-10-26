@@ -2,14 +2,19 @@ extends SceneTree
 
 var mats := {}
 var scene_root: Node
+var crashed := false
 
 
 func _init() -> void:
 	_make_materials()
 	_build_hud()
 	_build_ship()
+	crashed = true
+	_build_ship()
+	crashed = false
 	_build_character()
 	_update_main()
+	_build_crash_site()
 	print("BUILD DONE")
 	quit()
 
@@ -151,7 +156,8 @@ func _glass(parent: Node, name: String, pos: Vector3, size: Vector3) -> void:
 	shape.size = size
 	cs.shape = shape
 	_add(body, cs, "CollisionShape3D")
-	_mesh_box(body, "Pane", Vector3.ZERO, size, "glass")
+	var pane := _mesh_box(body, "Pane", Vector3.ZERO, size, "glass")
+	pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _interactable(parent: Node, name: String, script: String, pos: Vector3, props := {}) -> Node3D:
@@ -549,7 +555,11 @@ func _build_ship() -> void:
 	_inspect(use, "BoardingRamp", Vector3(0, 1.2, 8.9), "Boarding ramp",
 		"Ramp sealed. Opening it out here would be a very short walk.", 1.8)
 
-	_save(scene_root, "res://ship/ship_interior.tscn")
+	if crashed:
+		_apply_crash_damage()
+		_save(scene_root, "res://ship/ship_crashed.tscn")
+	else:
+		_save(scene_root, "res://ship/ship_interior.tscn")
 
 
 # Warm orange accent light with no fixture (doorway / ramp glow).
@@ -612,6 +622,7 @@ func _glass_quad(parent: Node, name: String, a: Vector3, b: Vector3, c: Vector3,
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
 	mi.material_override = mats["glass"]
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_add(body, mi, "Pane")
 
 
@@ -1614,3 +1625,680 @@ func _build_character() -> void:
 	_add(elbow_r, palm_light, "PalmLight")
 
 	_save(scene_root, "res://character/character.tscn")
+
+
+# ---------- crash version ----------
+
+func _wmat(name: String, color: Color, rough := 0.9, metal := 0.0, emit := 0.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.roughness = rough
+	m.metallic = metal
+	if emit > 0.0:
+		m.emission_enabled = true
+		m.emission = color
+		m.emission_energy_multiplier = emit
+	var path := "res://world/materials/%s.tres" % name
+	ResourceSaver.save(m, path)
+	m.take_over_path(path)
+	mats[name] = m
+	return m
+
+
+func _terrain_mat(name: String, dirt: float) -> void:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://world/terrain.gdshader")
+	m.set_shader_parameter("dirt_amount", dirt)
+	var path := "res://world/materials/%s.tres" % name
+	ResourceSaver.save(m, path)
+	m.take_over_path(path)
+	mats[name] = m
+
+
+func _make_world_materials() -> void:
+	if mats.has("scorched"):
+		return
+	_wmat("scorched", Color(0.12, 0.1, 0.09), 0.85, 0.5)
+	_wmat("emergency", Color(1.0, 0.12, 0.08), 0.5, 0.0, 2.5)
+	_wmat("spark", Color(1.0, 0.7, 0.3), 0.5, 0.0, 6.0)
+	_wmat("bark", Color(0.3, 0.21, 0.14))
+	_wmat("bark_light", Color(0.45, 0.36, 0.27))
+	_wmat("leaf_a", Color(0.2, 0.38, 0.14))
+	_wmat("leaf_b", Color(0.3, 0.46, 0.17))
+	_wmat("leaf_c", Color(0.14, 0.3, 0.16))
+	_wmat("leaf_alien", Color(0.48, 0.32, 0.52))
+	_wmat("rock", Color(0.42, 0.41, 0.39))
+	_wmat("rock_dark", Color(0.28, 0.27, 0.26))
+	_wmat("mesa", Color(0.66, 0.4, 0.27))
+	_wmat("mesa_dark", Color(0.52, 0.31, 0.24))
+	_wmat("hill", Color(0.25, 0.37, 0.18))
+	_wmat("flower", Color(0.95, 0.75, 0.3), 0.6)
+	var grass := _wmat("grass_blade", Color(1, 1, 1))
+	grass.vertex_color_use_as_albedo = true
+	grass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var smoke := _wmat("smoke", Color(0.35, 0.35, 0.36, 0.35))
+	smoke.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smoke.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smoke.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smoke.vertex_color_use_as_albedo = true
+	var puff := GradientTexture2D.new()
+	puff.fill = GradientTexture2D.FILL_RADIAL
+	puff.fill_from = Vector2(0.5, 0.5)
+	puff.fill_to = Vector2(1.0, 0.5)
+	puff.width = 64
+	puff.height = 64
+	var pg := Gradient.new()
+	pg.set_color(0, Color(1, 1, 1, 1))
+	pg.set_color(1, Color(1, 1, 1, 0))
+	puff.gradient = pg
+	smoke.albedo_texture = puff
+	smoke.albedo_color = Color(1, 1, 1, 1)
+	ResourceSaver.save(smoke, "res://world/materials/smoke.tres")
+	_terrain_mat("ground", 0.1)
+	_terrain_mat("dirt", 1.0)
+
+
+# Jagged breach through the lounge wall, as (z, y) points in ship space.
+const BREACH := [Vector2(0.5, 0.0), Vector2(0.3, 0.6), Vector2(0.65, 1.1), Vector2(0.2, 1.75),
+	Vector2(0.75, 2.25), Vector2(1.2, 2.6), Vector2(1.75, 2.35), Vector2(2.3, 2.8),
+	Vector2(2.9, 2.45), Vector2(3.45, 2.65), Vector2(3.85, 2.1), Vector2(4.35, 1.8),
+	Vector2(4.05, 1.2), Vector2(4.5, 0.7), Vector2(4.2, 0.0)]
+
+
+func _breach_cutter(scale := 1.0) -> CSGPolygon3D:
+	var poly := PackedVector2Array()
+	var mid := Vector2(2.35, 1.3)
+	for q: Vector2 in BREACH:
+		var v := mid + (q - mid) * scale
+		if q.y == 0.0:
+			v.y = 0.0
+		poly.append(Vector2(-v.x, v.y))
+	var c := CSGPolygon3D.new()
+	c.polygon = poly
+	c.depth = 3.6
+	c.rotation.y = PI / 2
+	c.position.x = 9.0
+	c.material = mats["scorched"]
+	c.operation = CSGShape3D.OPERATION_SUBTRACTION
+	return c
+
+
+func _apply_crash_damage() -> void:
+	_make_world_materials()
+	var R := scene_root
+	var hull: CSGCombiner3D = R.get_node("Hull")
+	# Keel: the hull sits buried in the dirt.
+	_box(hull, "Keel", Vector3(-7.7, -1.6, -12.9), Vector3(5.9, -0.19, 9.5), "hull_outer")
+	_ccyl(hull, "LoungeKeel", 4.95, 1.4, Vector3(2.4, -0.9, 1.6), "hull_outer")
+	_add(hull, _breach_cutter(), "Breach")
+	_add(R.get_node("Windows/LoungeGlass"), _breach_cutter(1.15), "Breach")
+	var couch: CSGCombiner3D = R.get_node("LoungeFurniture/CurvedCouch")
+	var gone := _box(couch, "Torn", Vector3(5.2, -0.2, 0.1), Vector3(8.0, 1.5, 4.7), "leather", true)
+	gone.operation = CSGShape3D.OPERATION_SUBTRACTION
+	R.get_node("Windows/LoungeGlass").cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# Lights: mostly dead or dim, red emergency lights, one flickering.
+	var lights := R.get_node("Lights")
+	var dead := ["DeckMid", "Kitchen", "Gunner", "Bathroom", "CanopyFill"]
+	for l in lights.get_children():
+		if l is OmniLight3D:
+			if l.name in dead:
+				l.light_energy = 0.0
+				if l.has_node("Fixture"):
+					l.get_node("Fixture").material_override = mats["metal_dark"]
+			else:
+				l.light_energy *= 0.35
+	var flicker: OmniLight3D = lights.get_node("DeckFore")
+	flicker.set_script(load("res://ship/flicker_light.gd"))
+	flicker.set("base_energy", 0.7)
+	for e in [[Vector3(-0.15, 2.7, 1.0), "EmergencyDeck"], [Vector3(-0.4, 2.7, -7.0), "EmergencyQuarters"],
+			[Vector3(4.0, 2.7, -8.0), "EmergencyCockpit"], [Vector3(-4.5, 2.7, 1.0), "EmergencyEngineering"]]:
+		var red := OmniLight3D.new()
+		red.position = e[0]
+		red.light_color = Color(1.0, 0.18, 0.1)
+		red.light_energy = 0.7
+		red.omni_range = 5.0
+		_add(lights, red, e[1])
+		_mesh_box(red, "Lamp", Vector3(0, 0.22, 0), Vector3(0.18, 0.08, 0.18), "emergency")
+	for i in [1, 3]:
+		var strip := R.get_node_or_null("LedStrip%d" % i)
+		if strip:
+			strip.visible = false
+
+	# Knocked-over and shifted things.
+	var deck: CSGCombiner3D = R.get_node("DeckFurniture")
+	var crate_a: CSGBox3D = deck.get_node("CrateA")
+	crate_a.position = Vector3(-1.1, 0.4, 6.4)
+	crate_a.rotation = Vector3(0.0, 0.6, 0.0)
+	var crate_b: CSGBox3D = deck.get_node("CrateB")
+	crate_b.position = Vector3(0.3, 0.3, 7.2)
+	crate_b.rotation = Vector3(0.25, -0.4, 0.5)
+	crate_b.position.y = 0.42
+	var clutter: CSGCombiner3D = R.get_node("Clutter")
+	var barrel: CSGCylinder3D = clutter.get_node("BarrelA")
+	barrel.rotation = Vector3(0.0, 0.7, PI / 2)
+	barrel.position = Vector3(0.6, 0.28, 5.6)
+	var lounge: CSGCombiner3D = R.get_node("LoungeFurniture")
+	var top: CSGCylinder3D = lounge.get_node("TableTop")
+	top.rotation = Vector3(PI / 2 - 0.15, 0.0, 0.4)
+	top.position = Vector3(4.3, 0.68, 2.6)
+	var leg: CSGCylinder3D = lounge.get_node("TableLeg")
+	leg.rotation = Vector3(0.0, 0.0, PI / 2)
+	leg.position = Vector3(4.5, 0.12, 2.3)
+	R.get_node("PilotChair").rotation.y = 0.35
+	R.get_node("CopilotChair").rotation.y = -0.5
+	R.get_node("CopilotChair").position.x += 0.1
+	R.get_node("GunnerChair").rotation.y = PI - 0.4
+	var canopy := R.get_node("Canopy")
+	for n in ["OverheadPost", "OverheadConsole", "OverheadScreen"]:
+		var part: Node3D = canopy.get_node(n)
+		part.rotation.z = 0.55
+		part.position.x -= 0.12
+		part.position.y -= 0.12
+	canopy.get_node("OverheadScreen").material_override = mats["metal_dark"]
+	R.get_node("ConsoleScreenRight").material_override = mats["metal_dark"]
+
+	# Cracked windshield (right pane).
+	var crack := Node3D.new()
+	_add(canopy, crack, "Crack")
+	var mid0 := C_FL0.lerp(C_FR0, 0.5)
+	var mid1 := C_FL1.lerp(C_FR1, 0.5)
+	var pane_at := func(u: float, v: float) -> Vector3:
+		return mid0.lerp(C_FR0, u).lerp(mid1.lerp(C_FR1, u), v) + Vector3(0, 0, 0.03)
+	var hub: Vector3 = pane_at.call(0.45, 0.4)
+	var tips := [[0.1, 0.9], [0.8, 0.95], [0.95, 0.5], [0.85, 0.05], [0.2, 0.1], [0.05, 0.45], [0.55, 0.75]]
+	for i in tips.size():
+		var tip: Vector3 = pane_at.call(tips[i][0], tips[i][1])
+		var bend: Vector3 = hub.lerp(tip, 0.5) + Vector3(0.03 * (i % 3 - 1), 0.04 * (i % 2), 0)
+		_pipe(crack, "LineA%d" % i, hub, bend, 0.005, "cable")
+		_pipe(crack, "LineB%d" % i, bend, tip, 0.004, "cable")
+
+	# Fallen ceiling panel, dangling cables and sparks on the deck.
+	var fallen := _mesh_box(R, "FallenPanel", Vector3(0.9, 0.12, -0.6), Vector3(1.3, 0.04, 0.9), "ceiling")
+	fallen.rotation = Vector3(0.12, 0.5, 0.18)
+	_mesh_box(R, "CeilingGap", Vector3(0.9, 2.975, -0.6), Vector3(1.1, 0.01, 0.8), "cable")
+	for i in 3:
+		_pipe(R, "Dangle%d" % i, Vector3(0.7 + i * 0.15, 2.95, -0.5 - i * 0.1),
+			Vector3(0.6 + i * 0.25, 1.5 + i * 0.25, -0.2 - i * 0.15), 0.018, "cable")
+	var sparks := CPUParticles3D.new()
+	sparks.position = Vector3(0.85, 1.55, -0.35)
+	sparks.amount = 24
+	sparks.lifetime = 0.7
+	sparks.explosiveness = 0.85
+	sparks.direction = Vector3(0, -1, 0)
+	sparks.spread = 70.0
+	sparks.initial_velocity_min = 1.0
+	sparks.initial_velocity_max = 2.5
+	sparks.gravity = Vector3(0, -9.8, 0)
+	sparks.scale_amount_min = 0.5
+	sparks.scale_amount_max = 1.0
+	var spark_mesh := BoxMesh.new()
+	spark_mesh.size = Vector3(0.015, 0.015, 0.05)
+	spark_mesh.material = mats["spark"]
+	sparks.mesh = spark_mesh
+	_add(R, sparks, "Sparks")
+	var spark_light := OmniLight3D.new()
+	spark_light.position = Vector3(0.85, 1.5, -0.35)
+	spark_light.light_color = Color(1.0, 0.65, 0.3)
+	spark_light.light_energy = 0.5
+	spark_light.omni_range = 2.5
+	spark_light.set_script(load("res://ship/flicker_light.gd"))
+	spark_light.set("base_energy", 0.6)
+	_add(R, spark_light, "SparkLight")
+
+	# Debris and shards near the breach, plants creeping in.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 26
+	var debris := _add(R, Node3D.new(), "Debris")
+	for i in 14:
+		var chunk := _mesh_box(debris, "Chunk%d" % i,
+			Vector3(rng.randf_range(4.8, 6.6), 0.05, rng.randf_range(0.5, 4.3)),
+			Vector3(rng.randf_range(0.1, 0.45), rng.randf_range(0.04, 0.12), rng.randf_range(0.1, 0.4)),
+			"hull_outer" if i % 3 else "scorched")
+		chunk.rotation = Vector3(rng.randf_range(-0.3, 0.3), rng.randf() * TAU, rng.randf_range(-0.3, 0.3))
+	for i in 18:
+		var shard := _mesh_box(debris, "Shard%d" % i,
+			Vector3(rng.randf_range(4.0, 6.5), 0.03, rng.randf_range(0.0, 4.6)),
+			Vector3(rng.randf_range(0.05, 0.18), 0.01, rng.randf_range(0.04, 0.15)), "glass")
+		shard.rotation.y = rng.randf() * TAU
+	var blade := CylinderMesh.new()
+	blade.top_radius = 0.0
+	blade.bottom_radius = 0.025
+	blade.height = 0.3
+	blade.radial_segments = 3
+	for i in 40:
+		var g := MeshInstance3D.new()
+		g.mesh = blade
+		g.material_override = mats["leaf_b" if i % 2 else "leaf_a"]
+		g.position = Vector3(rng.randf_range(5.9, 7.2), 0.15, rng.randf_range(0.6, 4.2))
+		g.rotation = Vector3(rng.randf_range(-0.3, 0.3), 0, rng.randf_range(-0.3, 0.3))
+		g.scale = Vector3.ONE * rng.randf_range(0.7, 1.6)
+		_add(debris, g, "Grass%d" % i)
+
+	# Updated text.
+	var use := R.get_node("Interactables")
+	use.get_node("ShipComputer").set("crashed", true)
+	use.get_node("ShipComputer").set("hull", 18)
+	use.get_node("ShipComputer").set("fuel", 6)
+	use.get_node("ShipComputer").set("oxygen", 71)
+	use.get_node("ShipComputer").set("power", 9)
+	use.get_node("LogTerminal").set("crashed", true)
+	var lines := {
+		"PilotSeat": "Not flying anywhere. Maybe not ever.",
+		"LoungeWindow": "Well. That's the new front door.",
+		"Reactor": "Output 9%. Emergency power only. It's still humming, at least.",
+		"BoardingRamp": "Ramp's buckled shut. The hole in the lounge will have to do.",
+		"TurretControls": "Turret's dead. Hopefully nothing out there needs shooting.",
+		"Workbench": "Tools everywhere. Half of them are on the floor now.",
+	}
+	for n in lines:
+		use.get_node(n).set("message", lines[n])
+	use.get_node("LoungeWindow").set("prompt", "Hull breach")
+	_inspect(use, "FallenPanel", Vector3(0.9, 0.4, -0.6), "Fallen panel",
+		"Ceiling panel came down in the landing. Those cables are still live.", 1.6)
+
+
+# ---------- crash site ----------
+
+func _tree(parent: Node, rng: RandomNumberGenerator, pos: Vector3, idx: int) -> void:
+	var t := StaticBody3D.new()
+	t.position = pos
+	t.rotation.y = rng.randf() * TAU
+	_add(parent, t, "Tree%d" % idx)
+	var kind := rng.randi() % 10
+	var s := rng.randf_range(0.8, 1.5)
+	var trunk_h := rng.randf_range(3.0, 6.0) * s
+	var trunk_r := 0.18 * s
+	var trunk := MeshInstance3D.new()
+	var tm := CylinderMesh.new()
+	tm.top_radius = trunk_r * 0.6
+	tm.bottom_radius = trunk_r
+	tm.height = trunk_h
+	tm.radial_segments = 6
+	tm.rings = 1
+	trunk.mesh = tm
+	trunk.material_override = mats["bark_light" if kind == 9 else "bark"]
+	trunk.position.y = trunk_h / 2.0
+	_add(t, trunk, "Trunk")
+	var cs := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = trunk_r
+	shape.height = trunk_h
+	cs.shape = shape
+	cs.position.y = trunk_h / 2.0
+	_add(t, cs, "Collision")
+	var leaf: String = ["leaf_a", "leaf_b", "leaf_c"][rng.randi() % 3]
+	if kind < 5:
+		# Pine: stacked cones.
+		for k in 3:
+			var cone := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.0
+			cm.bottom_radius = (1.6 - k * 0.4) * s
+			cm.height = 1.9 * s
+			cm.radial_segments = 7
+			cm.rings = 1
+			cone.mesh = cm
+			cone.material_override = mats[leaf]
+			cone.position.y = trunk_h * 0.45 + k * 1.1 * s + 0.9 * s
+			_add(t, cone, "Cone%d" % k)
+	else:
+		# Broadleaf (or alien purple): clustered low-poly blobs.
+		if kind == 9:
+			leaf = "leaf_alien"
+		for k in 4:
+			var blob := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = rng.randf_range(0.9, 1.4) * s
+			sm.height = sm.radius * 1.7
+			sm.radial_segments = 7
+			sm.rings = 4
+			blob.mesh = sm
+			blob.material_override = mats[leaf]
+			var a := k * TAU / 4.0 + rng.randf()
+			blob.position = Vector3(cos(a) * 0.8 * s, trunk_h + rng.randf_range(-0.4, 0.6) * s, sin(a) * 0.8 * s)
+			if k == 3:
+				blob.position = Vector3(0, trunk_h + 0.9 * s, 0)
+			_add(t, blob, "Blob%d" % k)
+
+
+func _blob(parent: Node, name: String, pos: Vector3, size: Vector3, mat: String, rot := 0.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.5
+	sm.height = 1.0
+	sm.radial_segments = 8
+	sm.rings = 5
+	mi.mesh = sm
+	mi.material_override = mats[mat]
+	mi.position = pos
+	mi.scale = size
+	mi.rotation.y = rot
+	return _add(parent, mi, name)
+
+
+func _build_crash_site() -> void:
+	_make_world_materials()
+	scene_root = (load("res://main.tscn") as PackedScene).instantiate()
+	var R := scene_root
+	const GROUND_Y := -0.35
+
+	# Day sky and sun.
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	var sky := Sky.new()
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://world/day_sky.gdshader")
+	sky.sky_material = sky_mat
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.62, 0.62, 0.55)
+	env.ambient_light_energy = 0.5
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.tonemap_exposure = 1.1
+	env.glow_enabled = true
+	env.glow_intensity = 0.4
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.7, 0.78, 0.8)
+	env.fog_density = 0.0045
+	env.fog_sky_affect = 0.15
+	R.get_node("WorldEnvironment").environment = env
+	var sun := DirectionalLight3D.new()
+	sun.name = "Sun"
+	sun.light_color = Color(1.0, 0.95, 0.85)
+	sun.light_energy = 1.4
+	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 70.0
+	sun.transform = Transform3D(Basis.looking_at(Vector3(-0.65, -0.62, -0.25).normalized(), Vector3.UP), Vector3.ZERO)
+	R.add_child(sun)
+	sun.owner = R
+
+	# Swap the space ship for the crashed one, tilted and sunk into the dirt.
+	var old := R.get_node("ShipInterior")
+	R.remove_child(old)
+	old.free()
+	var ship := Node3D.new()
+	ship.name = "Ship"
+	ship.rotation = Vector3(-0.03, 0.0, -0.05)
+	R.add_child(ship)
+	R.move_child(ship, 1)
+	ship.owner = R
+	var crashed_ship: Node3D = (load("res://ship/ship_crashed.tscn") as PackedScene).instantiate()
+	ship.add_child(crashed_ship)
+	crashed_ship.owner = R
+	# Dirt slope out of the breach.
+	var slope := CSGPolygon3D.new()
+	slope.name = "BreachSlope"
+	slope.polygon = PackedVector2Array([Vector2(6.9, -1.2), Vector2(6.9, 0.02), Vector2(9.0, 0.0),
+		Vector2(12.0, -0.45), Vector2(12.0, -1.2)])
+	slope.depth = 4.4
+	slope.position.z = 4.6
+	slope.material = mats["dirt"]
+	slope.use_collision = true
+	ship.add_child(slope)
+	slope.owner = R
+
+	# Player wakes up in the quarters, facing the hatch.
+	var player: Node3D = R.get_node("Player")
+	player.position = ship.transform * Vector3(-1.2, 1.1, -7.0)
+	player.get_node("CameraPivot").rotation = Vector3(-0.2, PI, 0)
+
+	scene_root = R
+	var site := Node3D.new()
+	_add(R, site, "CrashSite")
+
+	# Ground.
+	var ground := StaticBody3D.new()
+	ground.position.y = GROUND_Y
+	_add(site, ground, "Ground")
+	var gm := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(600, 600)
+	gm.mesh = plane
+	gm.material_override = mats["ground"]
+	_add(ground, gm, "Mesh")
+	var gcs := CollisionShape3D.new()
+	var gshape := BoxShape3D.new()
+	gshape.size = Vector3(600, 2, 600)
+	gcs.shape = gshape
+	gcs.position.y = -1.0
+	_add(ground, gcs, "Collision")
+	# Invisible walls so you can't wander off the map.
+	for b in [[Vector3(0, 5, -95), Vector3(200, 12, 2)], [Vector3(0, 5, 95), Vector3(200, 12, 2)],
+			[Vector3(-95, 5, 0), Vector3(2, 12, 200)], [Vector3(95, 5, 0), Vector3(2, 12, 200)]]:
+		var wall := StaticBody3D.new()
+		wall.position = b[0]
+		_add(site, wall, "Boundary")
+		var wcs := CollisionShape3D.new()
+		var ws := BoxShape3D.new()
+		ws.size = b[1]
+		wcs.shape = ws
+		_add(wall, wcs, "Shape")
+
+	# Crash trail behind the ship: torn earth, snapped trees, logs.
+	var trail := _add(site, Node3D.new(), "CrashTrail")
+	var dirt := MeshInstance3D.new()
+	var dp := PlaneMesh.new()
+	dp.size = Vector2(11, 75)
+	dirt.mesh = dp
+	dirt.material_override = mats["dirt"]
+	dirt.position = Vector3(-0.8, GROUND_Y + 0.02, 46.0)
+	_add(trail, dirt, "Furrow")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 113
+	for i in 26:
+		var side := -1.0 if i % 2 else 1.0
+		var z := rng.randf_range(10.0, 80.0)
+		_blob(trail, "Berm%d" % i, Vector3(-0.8 + side * rng.randf_range(5.3, 6.5), GROUND_Y, z),
+			Vector3(rng.randf_range(2.0, 4.0), rng.randf_range(0.6, 1.3), rng.randf_range(3.0, 6.0)), "dirt", rng.randf_range(-0.3, 0.3))
+	for i in 10:
+		var stump := StaticBody3D.new()
+		var side := -1.0 if i % 2 else 1.0
+		stump.position = Vector3(-0.8 + side * rng.randf_range(3.5, 7.0), GROUND_Y, rng.randf_range(14.0, 75.0))
+		_add(trail, stump, "Stump%d" % i)
+		var h := rng.randf_range(0.5, 1.4)
+		var smi := MeshInstance3D.new()
+		var sc := CylinderMesh.new()
+		sc.top_radius = 0.22
+		sc.bottom_radius = 0.3
+		sc.height = h
+		sc.radial_segments = 6
+		smi.mesh = sc
+		smi.material_override = mats["bark"]
+		smi.position.y = h / 2.0
+		_add(stump, smi, "Mesh")
+		var jag := MeshInstance3D.new()
+		var jc := CylinderMesh.new()
+		jc.top_radius = 0.0
+		jc.bottom_radius = 0.22
+		jc.height = 0.5
+		jc.radial_segments = 4
+		jag.mesh = jc
+		jag.material_override = mats["bark_light"]
+		jag.position = Vector3(0.05, h + 0.2, 0)
+		jag.rotation.z = 0.3
+		_add(stump, jag, "Splinter")
+		var scs := CollisionShape3D.new()
+		var ss := CylinderShape3D.new()
+		ss.radius = 0.3
+		ss.height = h
+		scs.shape = ss
+		scs.position.y = h / 2.0
+		_add(stump, scs, "Collision")
+	for i in 6:
+		var log_body := StaticBody3D.new()
+		var side := -1.0 if i % 2 else 1.0
+		log_body.position = Vector3(-0.8 + side * rng.randf_range(6.5, 10.0), GROUND_Y + 0.3, rng.randf_range(16.0, 70.0))
+		log_body.rotation = Vector3(0, rng.randf_range(-0.8, 0.8), PI / 2)
+		_add(trail, log_body, "Log%d" % i)
+		var lm := MeshInstance3D.new()
+		var lc := CylinderMesh.new()
+		lc.top_radius = 0.3
+		lc.bottom_radius = 0.34
+		lc.height = rng.randf_range(4.0, 7.0)
+		lc.radial_segments = 7
+		lm.mesh = lc
+		lm.material_override = mats["bark"]
+		_add(log_body, lm, "Mesh")
+		var lcs := CollisionShape3D.new()
+		var ls := CylinderShape3D.new()
+		ls.radius = 0.32
+		ls.height = lc.height
+		lcs.shape = ls
+		_add(log_body, lcs, "Collision")
+	# Dirt heaped against the hull.
+	for v in [[Vector3(-8.6, GROUND_Y, -2.0), Vector3(3, 1.4, 12)], [Vector3(-8.2, GROUND_Y, 7.0), Vector3(3, 1.2, 6)],
+			[Vector3(3.8, GROUND_Y, -14.0), Vector3(7, 1.2, 3)], [Vector3(7.0, GROUND_Y, -5.5), Vector3(3, 1.0, 5)],
+			[Vector3(6.2, GROUND_Y, 8.0), Vector3(3, 1.0, 5)], [Vector3(-4.0, GROUND_Y, -11.5), Vector3(5, 1.3, 3)]]:
+		_blob(trail, "HullBerm", v[0], v[1], "dirt")
+
+	# Smoke rising from the back of the ship.
+	var smoke := CPUParticles3D.new()
+	smoke.position = Vector3(-1.5, 3.4, 8.0)
+	smoke.amount = 40
+	smoke.lifetime = 9.0
+	smoke.preprocess = 9.0
+	smoke.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	smoke.emission_sphere_radius = 0.8
+	smoke.direction = Vector3(0, 1, 0)
+	smoke.spread = 12.0
+	smoke.initial_velocity_min = 0.8
+	smoke.initial_velocity_max = 1.4
+	smoke.gravity = Vector3(0.25, 0.15, 0.1)
+	smoke.scale_amount_min = 1.5
+	smoke.scale_amount_max = 3.0
+	var grow := Curve.new()
+	grow.add_point(Vector2(0, 0.4))
+	grow.add_point(Vector2(1, 2.5))
+	smoke.scale_amount_curve = grow
+	var fade := Gradient.new()
+	fade.set_color(0, Color(0.3, 0.3, 0.3, 0.55))
+	fade.set_color(1, Color(0.6, 0.6, 0.62, 0.0))
+	smoke.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.6, 1.6)
+	quad.material = mats["smoke"]
+	smoke.mesh = quad
+	_add(site, smoke, "Smoke")
+
+	# Forest.
+	var forest := _add(site, Node3D.new(), "Forest")
+	var placed := 0
+	var tries := 0
+	while placed < 230 and tries < 4000:
+		tries += 1
+		var p := Vector2(rng.randf_range(-92, 92), rng.randf_range(-92, 92))
+		if _keep_clear(p, 12.0):
+			continue
+		_tree(forest, rng, Vector3(p.x, GROUND_Y, p.y), placed)
+		placed += 1
+	var plants := _add(site, Node3D.new(), "Plants")
+	for i in 170:
+		var p := Vector2(rng.randf_range(-90, 90), rng.randf_range(-90, 90))
+		if _keep_clear(p, 9.0):
+			continue
+		var sz := rng.randf_range(0.6, 1.8)
+		_blob(plants, "Bush%d" % i, Vector3(p.x, GROUND_Y + sz * 0.25, p.y),
+			Vector3(sz * 1.4, sz, sz * 1.3), ["leaf_a", "leaf_b", "leaf_c"][i % 3], rng.randf() * TAU)
+		if i % 4 == 0:
+			for f in 3:
+				_blob(plants, "Flower%d_%d" % [i, f], Vector3(p.x + rng.randf_range(-1, 1), GROUND_Y + sz * 0.5 + 0.1, p.y + rng.randf_range(-1, 1)),
+					Vector3.ONE * 0.14, "flower")
+	for i in 45:
+		var p := Vector2(rng.randf_range(-90, 90), rng.randf_range(-90, 90))
+		if _keep_clear(p, 9.0):
+			continue
+		var rs := rng.randf_range(0.4, 2.0)
+		var rock := StaticBody3D.new()
+		rock.position = Vector3(p.x, GROUND_Y + rs * 0.2, p.y)
+		_add(plants, rock, "Rock%d" % i)
+		var rm := MeshInstance3D.new()
+		var rsm := SphereMesh.new()
+		rsm.radius = 0.5
+		rsm.height = 1.0
+		rsm.radial_segments = 6
+		rsm.rings = 3
+		rm.mesh = rsm
+		rm.material_override = mats["rock" if i % 2 else "rock_dark"]
+		rm.scale = Vector3(rs * 1.3, rs * 0.8, rs)
+		rm.rotation.y = rng.randf() * TAU
+		_add(rock, rm, "Mesh")
+		var rcs := CollisionShape3D.new()
+		var rsh := SphereShape3D.new()
+		rsh.radius = rs * 0.45
+		rcs.shape = rsh
+		_add(rock, rcs, "Collision")
+
+	# Grass (one MultiMesh, thousands of blades).
+	var blade := CylinderMesh.new()
+	blade.top_radius = 0.0
+	blade.bottom_radius = 0.035
+	blade.height = 0.45
+	blade.radial_segments = 3
+	blade.rings = 1
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = blade
+	var spots: Array[Transform3D] = []
+	var colors: Array[Color] = []
+	while spots.size() < 9000:
+		var p := Vector2(rng.randf_range(-85, 85), rng.randf_range(-85, 85))
+		if _keep_clear(p, 7.5) or (absf(p.x + 0.8) < 6.0 and p.y > 9.0 and p.y < 84.0):
+			continue
+		var h := rng.randf_range(0.6, 1.6)
+		var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
+		spots.append(Transform3D(b.scaled(Vector3(1, h, 1)), Vector3(p.x, GROUND_Y + 0.22 * h, p.y)))
+		colors.append(Color(0.25, 0.42, 0.14).lerp(Color(0.45, 0.55, 0.2), rng.randf()))
+	mm.instance_count = spots.size()
+	for i in spots.size():
+		mm.set_instance_transform(i, spots[i])
+		mm.set_instance_color(i, colors[i])
+	var grass := MultiMeshInstance3D.new()
+	grass.multimesh = mm
+	grass.material_override = mats["grass_blade"]
+	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_add(site, grass, "Grass")
+
+	# Distant hills, mesas and mountains (seen through the fog).
+	var far := _add(site, Node3D.new(), "Distance")
+	for i in 9:
+		var a := rng.randf() * TAU
+		var d := rng.randf_range(110, 150)
+		_blob(far, "Hill%d" % i, Vector3(cos(a) * d, GROUND_Y - 3, sin(a) * d),
+			Vector3(rng.randf_range(40, 70), rng.randf_range(14, 26), rng.randf_range(40, 70)), "hill", rng.randf() * TAU)
+	for i in 9:
+		var a := -PI / 2 + rng.randf_range(-1.3, 1.3) if i < 6 else rng.randf() * TAU
+		var d := rng.randf_range(170, 250)
+		var base := Vector3(cos(a) * d, GROUND_Y - 2, sin(a) * d)
+		var r := rng.randf_range(30, 55)
+		var h := rng.randf_range(18, 34)
+		var y := 0.0
+		for tier in 3:
+			var mesa := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			var th: float = h * [0.45, 0.35, 0.2][tier]
+			cm.bottom_radius = r * (1.0 - tier * 0.18)
+			cm.top_radius = cm.bottom_radius * 0.88
+			cm.height = th
+			cm.radial_segments = 9
+			cm.rings = 1
+			mesa.mesh = cm
+			mesa.material_override = mats["mesa" if (i + tier) % 2 else "mesa_dark"]
+			mesa.position = base + Vector3(rng.randf_range(-4, 4), y + th / 2.0, rng.randf_range(-4, 4))
+			mesa.rotation.y = rng.randf() * TAU
+			mesa.scale = Vector3(1.0, 1.0, rng.randf_range(0.6, 0.9))
+			_add(far, mesa, "Mesa%d_%d" % [i, tier])
+			y += th
+
+	_save(R, "res://crash_site.tscn")
+
+
+# True if a ground point is on/next to the ship or inside the crash trail.
+func _keep_clear(p: Vector2, margin: float) -> bool:
+	if p.x > -8.0 - margin and p.x < 7.5 + margin and p.y > -13.0 - margin and p.y < 9.5 + margin:
+		return true
+	if absf(p.x + 0.8) < 5.5 + margin * 0.3 and p.y > 8.0 and p.y < 85.0:
+		return true
+	return false
