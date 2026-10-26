@@ -3,10 +3,10 @@
 [ext_resource type="Script" path="res://ui/hud.gd" id="1_276te"]
 [ext_resource type="Theme" path="res://ui/terminal_theme.tres" id="2_546lt"]
 
-[node name="HUD" type="CanvasLayer" unique_id=1831903460 groups=["hud"]]
+[node name="HUD" type="CanvasLayer" unique_id=71708241 groups=["hud"]]
 script = ExtResource("1_276te")
 
-[node name="Fade" type="ColorRect" parent="." unique_id=447327193]
+[node name="Fade" type="ColorRect" parent="." unique_id=1877550282]
 unique_name_in_owner = true
 anchors_preset = 15
 anchor_right = 1.0
@@ -14,7 +14,7 @@ anchor_bottom = 1.0
 mouse_filter = 2
 color = Color(0, 0, 0, 0)
 
-[node name="HeldLabel" type="Label" parent="." unique_id=300587556]
+[node name="HeldLabel" type="Label" parent="." unique_id=362652627]
 unique_name_in_owner = true
 offset_left = 24.0
 offset_top = 20.0
@@ -26,7 +26,7 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
 autowrap_mode = 3
 
-[node name="Bottom" type="VBoxContainer" parent="." unique_id=1787582367]
+[node name="Bottom" type="VBoxContainer" parent="." unique_id=1632364717]
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
@@ -38,7 +38,7 @@ offset_bottom = -48.0
 mouse_filter = 2
 alignment = 2
 
-[node name="MessageLabel" type="Label" parent="Bottom" unique_id=594557807]
+[node name="MessageLabel" type="Label" parent="Bottom" unique_id=1154771818]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
@@ -48,7 +48,7 @@ theme_override_constants/outline_size = 8
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="PromptLabel" type="Label" parent="Bottom" unique_id=321533159]
+[node name="PromptLabel" type="Label" parent="Bottom" unique_id=926411685]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 26
@@ -58,7 +58,7 @@ theme_override_constants/outline_size = 8
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Screen" type="Control" parent="." unique_id=1341563123]
+[node name="Screen" type="Control" parent="." unique_id=182234107]
 unique_name_in_owner = true
 layout_mode = 3
 anchors_preset = 15
@@ -66,55 +66,55 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 theme = ExtResource("2_546lt")
 
-[node name="Dim" type="ColorRect" parent="Screen" unique_id=1063924713]
+[node name="Dim" type="ColorRect" parent="Screen" unique_id=20323304]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 color = Color(0, 0, 0, 0.55)
 
-[node name="Center" type="CenterContainer" parent="Screen" unique_id=2090063136]
+[node name="Center" type="CenterContainer" parent="Screen" unique_id=1435408490]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="Panel" type="PanelContainer" parent="Screen/Center" unique_id=492960326]
+[node name="Panel" type="PanelContainer" parent="Screen/Center" unique_id=1455028224]
 custom_minimum_size = Vector2(980, 580)
 layout_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="Screen/Center/Panel" unique_id=1502645217]
+[node name="VBox" type="VBoxContainer" parent="Screen/Center/Panel" unique_id=1510606026]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Header" type="HBoxContainer" parent="Screen/Center/Panel/VBox" unique_id=1169708994]
+[node name="Header" type="HBoxContainer" parent="Screen/Center/Panel/VBox" unique_id=1027697004]
 layout_mode = 2
 
-[node name="ScreenTitle" type="Label" parent="Screen/Center/Panel/VBox/Header" unique_id=1599370828]
+[node name="ScreenTitle" type="Label" parent="Screen/Center/Panel/VBox/Header" unique_id=634290497]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 24
 
-[node name="CloseButton" type="Button" parent="Screen/Center/Panel/VBox/Header" unique_id=755335228]
+[node name="CloseButton" type="Button" parent="Screen/Center/Panel/VBox/Header" unique_id=1169340141]
 unique_name_in_owner = true
 layout_mode = 2
 text = "CLOSE [ESC]"
 
-[node name="HSeparator" type="HSeparator" parent="Screen/Center/Panel/VBox" unique_id=1726763955]
+[node name="HSeparator" type="HSeparator" parent="Screen/Center/Panel/VBox" unique_id=1246513618]
 layout_mode = 2
 
-[node name="Body" type="HBoxContainer" parent="Screen/Center/Panel/VBox" unique_id=1680791200]
+[node name="Body" type="HBoxContainer" parent="Screen/Center/Panel/VBox" unique_id=1464778264]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 18
 
-[node name="EntryList" type="ItemList" parent="Screen/Center/Panel/VBox/Body" unique_id=1181844787]
+[node name="EntryList" type="ItemList" parent="Screen/Center/Panel/VBox/Body" unique_id=2042492155]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 
-[node name="EntryBody" type="RichTextLabel" parent="Screen/Center/Panel/VBox/Body" unique_id=1693950638]
+[node name="EntryBody" type="RichTextLabel" parent="Screen/Center/Panel/VBox/Body" unique_id=1195815213]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
