@@ -13,7 +13,7 @@ var current_target: Interactable
 
 @onready var pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
-@onready var mesh: Node3D = $MeshInstance3D
+@onready var mesh: Node3D = $Model
 @onready var hud: Node = get_tree().get_first_node_in_group("hud")
 
 func _ready() -> void:
@@ -73,6 +73,7 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0, SPEED)
 
 	move_and_slide()
+	mesh.set_move(Vector2(velocity.x, velocity.z).length() / SPEED)
 	# Hide the body when a wall shoves the camera right up against it.
 	mesh.visible = spring_arm.get_hit_length() > 0.9
 	_update_target(busy)

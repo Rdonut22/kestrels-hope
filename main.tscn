@@ -1,22 +1,24 @@
 [gd_scene format=3 uid="uid://cnk1liup355tq"]
 
+[ext_resource type="Shader" path="res://ship/space_sky.gdshader" id="1_272bh"]
 [ext_resource type="Script" path="res://player.gd" id="1_ig7tw"]
-[ext_resource type="Shader" path="res://ship/space_sky.gdshader" id="1_lquwl"]
-[ext_resource type="PackedScene" path="res://ship/ship_interior.tscn" id="2_7mycd"]
-[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="4_272bh"]
-[ext_resource type="Script" path="res://ui/hud.gd" id="5_5vw27"]
+[ext_resource type="PackedScene" path="res://ship/ship_interior.tscn" id="2_5vw27"]
+[ext_resource type="PackedScene" path="res://character/character.tscn" id="4_kek77"]
+[ext_resource type="Script" path="res://character/character_model.gd" id="5_4c57u"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="6_efxa6"]
+[ext_resource type="Script" path="res://ui/hud.gd" id="7_dg77c"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_kek77"]
-shader = ExtResource("1_lquwl")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ycdy4"]
+shader = ExtResource("1_272bh")
 shader_parameter/space_color = null
 shader_parameter/density = null
 
-[sub_resource type="Sky" id="Sky_4c57u"]
-sky_material = SubResource("ShaderMaterial_kek77")
+[sub_resource type="Sky" id="Sky_w48qg"]
+sky_material = SubResource("ShaderMaterial_ycdy4")
 
-[sub_resource type="Environment" id="Environment_efxa6"]
+[sub_resource type="Environment" id="Environment_vivmo"]
 background_mode = 2
-sky = SubResource("Sky_4c57u")
+sky = SubResource("Sky_w48qg")
 ambient_light_source = 2
 ambient_light_color = Color(0.45, 0.5, 0.58, 1)
 ambient_light_energy = 0.6
@@ -33,17 +35,15 @@ fog_sky_affect = 0.0
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0xm2m"]
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_vuoqx"]
-
-[sub_resource type="SphereShape3D" id="SphereShape3D_dg77c"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_2cqfq"]
 radius = 0.15
 
 [node name="Main" type="Node3D" unique_id=897274453]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=114272333]
-environment = SubResource("Environment_efxa6")
+environment = SubResource("Environment_vivmo")
 
-[node name="ShipInterior" type="Node3D" parent="." unique_id=1703752203 instance=ExtResource("2_7mycd")]
+[node name="ShipInterior" type="Node3D" parent="." unique_id=1752856057 instance=ExtResource("2_5vw27")]
 
 [node name="Player" type="CharacterBody3D" parent="." unique_id=1728964109]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.1, -6.5)
@@ -52,19 +52,20 @@ script = ExtResource("1_ig7tw")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1791278488]
 shape = SubResource("CapsuleShape3D_0xm2m")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Player" unique_id=1019979300]
-mesh = SubResource("CapsuleMesh_vuoqx")
+[node name="Model" type="Node3D" parent="Player" unique_id=347119331 instance=ExtResource("4_kek77")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+script = ExtResource("5_4c57u")
 
 [node name="CameraPivot" type="Node3D" parent="Player" unique_id=865327466]
 transform = Transform3D(1, 0, 0, 0, 0.9800666, 0.19866933, 0, -0.19866933, 0.9800666, 0, 0.75, 0)
 
-[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraPivot" unique_id=283512759]
+[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraPivot" unique_id=908748743]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
-shape = SubResource("SphereShape3D_dg77c")
+shape = SubResource("SphereShape3D_2cqfq")
 spring_length = 2.4
 margin = 0.15
 
 [node name="Camera3D" type="Camera3D" parent="Player/CameraPivot/SpringArm3D" unique_id=499175855]
 
-[node name="HUD" type="CanvasLayer" parent="." unique_id=1290865769 groups=["hud"] instance=ExtResource("4_272bh")]
-script = ExtResource("5_5vw27")
+[node name="HUD" type="CanvasLayer" parent="." unique_id=571205673 groups=["hud"] instance=ExtResource("6_efxa6")]
+script = ExtResource("7_dg77c")
