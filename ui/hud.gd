@@ -29,6 +29,13 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# F11, or Alt/Option+Enter, toggles fullscreen.
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F11 or (event.keycode == KEY_ENTER and event.alt_pressed):
+			var full := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED if full else DisplayServer.WINDOW_MODE_FULLSCREEN)
+			get_viewport().set_input_as_handled()
+			return
 	if screen.visible and event.is_action_pressed("ui_cancel"):
 		close_screen()
 		get_viewport().set_input_as_handled()
