@@ -107,5 +107,7 @@ func _run() -> void:
 	await _cam_shot(ship.to_global(Vector3(22, 3, -16)), ship.to_global(Vector3(0, 1, -1)), "x13_front_quarter")
 	await _cam_shot(ship.to_global(Vector3(-9, 4, 26)), ship.to_global(Vector3(-1, 1.5, 6)), "x14_rear")
 	await _cam_shot(ship.to_global(Vector3(-24, 6, -6)), ship.to_global(Vector3(-3, 1, 0)), "x15_left")
+	await _cam_shot(Vector3(24, 1.7, -2), Vector3(24, 1.7, -2) + Vector3(-0.85, 0.42, 0.1) * 10.0, "x16_moons")
+	await _cam_shot(Vector3(3.2, 1.5, 2.4), Vector3(20, 9, 2.4), "x17_breach_up")
 	print("FAILS: ", fails)
 	quit()
