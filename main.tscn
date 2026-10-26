@@ -36,23 +36,22 @@ radius = 0.15
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=114272333]
 environment = SubResource("Environment_efxa6")
 
-[node name="ShipInterior" type="Node3D" parent="." unique_id=1659697049 instance=ExtResource("2_7mycd")]
+[node name="ShipInterior" type="Node3D" parent="." unique_id=1395917814 instance=ExtResource("2_7mycd")]
 
 [node name="Player" type="CharacterBody3D" parent="." unique_id=1728964109]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 1.1, 4.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.1, -6.5)
 script = ExtResource("1_ig7tw")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1791278488]
 shape = SubResource("CapsuleShape3D_0xm2m")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Player" unique_id=1019979300]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 mesh = SubResource("CapsuleMesh_vuoqx")
 
 [node name="CameraPivot" type="Node3D" parent="Player" unique_id=865327466]
-transform = Transform3D(-1, 1.7368224e-08, -8.568014e-08, 0, 0.9800666, 0.19866933, 8.742278e-08, 0.19866933, -0.9800666, 0, 0.75, 0)
+transform = Transform3D(1, 0, 0, 0, 0.9800666, 0.19866933, 0, -0.19866933, 0.9800666, 0, 0.75, 0)
 
-[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraPivot" unique_id=1922558245]
+[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraPivot" unique_id=1674486999]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
 shape = SubResource("SphereShape3D_dg77c")
 spring_length = 2.4
@@ -60,5 +59,5 @@ margin = 0.15
 
 [node name="Camera3D" type="Camera3D" parent="Player/CameraPivot/SpringArm3D" unique_id=499175855]
 
-[node name="HUD" type="CanvasLayer" parent="." unique_id=349471071 groups=["hud"] instance=ExtResource("4_272bh")]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1948024420 groups=["hud"] instance=ExtResource("4_272bh")]
 script = ExtResource("5_5vw27")
