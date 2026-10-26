@@ -1,5 +1,16 @@
-[gd_resource type="StandardMaterial3D" format=3]
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/worn.gdshader" id="1_gu0aa"]
 
 [resource]
-albedo_color = Color(0.22, 0.24, 0.27, 1)
-roughness = 0.9
+render_priority = 0
+shader = ExtResource("1_gu0aa")
+shader_parameter/base_color = Color(0.24, 0.25, 0.27, 1)
+shader_parameter/chip_color = null
+shader_parameter/grime = 0.4
+shader_parameter/chips = 0.0
+shader_parameter/scratches = 0.0
+shader_parameter/fade = 0.5
+shader_parameter/noise_scale = null
+shader_parameter/roughness_amount = 0.9
+shader_parameter/metallic_amount = 0.0
