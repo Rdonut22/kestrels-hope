@@ -78,86 +78,86 @@ height = 0.006
 radial_segments = 8
 rings = 1
 
-[node name="Character" type="Node3D" unique_id=1119173417]
+[node name="Character" type="Node3D" unique_id=753429850]
 script = ExtResource("1_tgjim")
 
 [node name="Adventurer" type="Node3D" parent="." unique_id=543465112 instance=ExtResource("2_wy5t8")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 
-[node name="RobotArm" type="Node3D" parent="." unique_id=484012992]
+[node name="RobotArm" type="Node3D" parent="." unique_id=2027441368]
 
-[node name="UpperArmR" type="Node3D" parent="RobotArm" unique_id=1820676649]
+[node name="UpperArmR" type="Node3D" parent="RobotArm" unique_id=1923226063]
 transform = Transform3D(0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01, 0, 0, 0)
 metadata/bone = "UpperArm.R"
 
-[node name="ShoulderPlate" type="MeshInstance3D" parent="RobotArm/UpperArmR" unique_id=1364570193]
+[node name="ShoulderPlate" type="MeshInstance3D" parent="RobotArm/UpperArmR" unique_id=223299100]
 transform = Transform3D(0.9950042, -0.09983342, 0, 0.09983342, 0.9950042, 0, 0, 0, 1, 0, 0.02, 0)
 material_override = ExtResource("3_dy06j")
 mesh = SubResource("BoxMesh_hd715")
 
-[node name="PlateTrim" type="MeshInstance3D" parent="RobotArm/UpperArmR" unique_id=47049438]
+[node name="PlateTrim" type="MeshInstance3D" parent="RobotArm/UpperArmR" unique_id=758497589]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 0)
 material_override = ExtResource("4_qkjfd")
 mesh = SubResource("BoxMesh_hq3og")
 
-[node name="UpperSleeve" type="MeshInstance3D" parent="RobotArm/UpperArmR" unique_id=1041051535]
+[node name="UpperSleeve" type="MeshInstance3D" parent="RobotArm/UpperArmR" unique_id=374214253]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0)
 material_override = ExtResource("4_qkjfd")
 mesh = SubResource("CylinderMesh_orckd")
 
-[node name="Piston" type="MeshInstance3D" parent="RobotArm/UpperArmR" unique_id=1502861617]
+[node name="Piston" type="MeshInstance3D" parent="RobotArm/UpperArmR" unique_id=877921429]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.045, 0.1, 0)
 material_override = ExtResource("5_gx66j")
 mesh = SubResource("CylinderMesh_1dqym")
 
-[node name="LowerArmR" type="Node3D" parent="RobotArm" unique_id=1644904379]
+[node name="LowerArmR" type="Node3D" parent="RobotArm" unique_id=379696605]
 transform = Transform3D(0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01, 0, 0, 0)
 metadata/bone = "LowerArm.R"
 
-[node name="Elbow" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=2030395509]
+[node name="Elbow" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=1850735359]
 material_override = ExtResource("5_gx66j")
 mesh = SubResource("SphereMesh_6kuvt")
 
-[node name="Forearm" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=167073279]
+[node name="Forearm" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=1163352579]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.11, 0)
 material_override = ExtResource("3_dy06j")
 mesh = SubResource("CylinderMesh_6610h")
 
-[node name="Plate" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=195907612]
+[node name="Plate" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=1331667972]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
 material_override = ExtResource("4_qkjfd")
 mesh = SubResource("CylinderMesh_0shic")
 
-[node name="CableA" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=1524072721]
+[node name="CableA" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=171434636]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.055, 0.11, 0)
 material_override = ExtResource("6_8brn5")
 mesh = SubResource("CylinderMesh_mbhnd")
 
-[node name="CableB" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=823843272]
+[node name="CableB" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=2086080144]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.02, 0.11, 0.052)
 material_override = ExtResource("6_8brn5")
 mesh = SubResource("CylinderMesh_wlm6a")
 
-[node name="WristGlow" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=535654311]
+[node name="WristGlow" type="MeshInstance3D" parent="RobotArm/LowerArmR" unique_id=1429881375]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.215, 0)
 material_override = ExtResource("7_b4qc5")
 mesh = SubResource("TorusMesh_c0nog")
 
-[node name="WristR" type="Node3D" parent="RobotArm" unique_id=935522682]
+[node name="WristR" type="Node3D" parent="RobotArm" unique_id=1101415334]
 transform = Transform3D(0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01, 0, 0, 0)
 metadata/bone = "Wrist.R"
 
-[node name="HandPlate" type="MeshInstance3D" parent="RobotArm/WristR" unique_id=45730143]
+[node name="HandPlate" type="MeshInstance3D" parent="RobotArm/WristR" unique_id=1177686471]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.045, 0)
 material_override = ExtResource("3_dy06j")
 mesh = SubResource("BoxMesh_5s0vb")
 
-[node name="Palm" type="MeshInstance3D" parent="RobotArm/WristR" unique_id=1397268666]
+[node name="Palm" type="MeshInstance3D" parent="RobotArm/WristR" unique_id=863589393]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0.05, 0.02)
 material_override = ExtResource("7_b4qc5")
 mesh = SubResource("CylinderMesh_4ekbm")
 
-[node name="PalmLight" type="OmniLight3D" parent="RobotArm/WristR" unique_id=532328417]
+[node name="PalmLight" type="OmniLight3D" parent="RobotArm/WristR" unique_id=1008761523]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0.06)
 light_color = Color(0.3, 0.85, 1, 1)
 light_energy = 0.3

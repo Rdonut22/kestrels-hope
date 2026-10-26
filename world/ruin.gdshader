@@ -8,8 +8,9 @@ render_mode fog_disabled, cull_disabled;
 
 uniform vec3 world_tint : source_color = vec3(1.0);
 uniform vec3 haze : source_color = vec3(0.52, 0.7, 0.66);
-uniform float haze_amount = 0.42;
+uniform float haze_amount = 0.3;
 uniform float texel = 0.35;
+uniform vec3 rust : source_color = vec3(0.62, 0.33, 0.18);
 
 varying vec3 wpos;
 varying vec3 wnrm;
@@ -29,9 +30,14 @@ void fragment() {
 	vec3 cell = floor(wpos / texel);
 	float h = hash(cell);
 	vec3 col = vcol.rgb * (0.82 + 0.3 * h);
-	// Grime streaks running down the surfaces.
+	// Rust and grime streaks running down from seams.
 	float streak = hash(vec3(cell.x, 0.0, cell.z));
-	col *= mix(1.0, 0.72, step(0.82, streak) * (0.5 + 0.5 * h));
+	float drip = step(0.8, streak) * step(0.35, hash(vec3(cell.x, floor(cell.y / 6.0), cell.z)));
+	float bright = dot(vcol.rgb, vec3(0.33));
+	col = mix(col, mix(col * 0.7, rust * (0.8 + 0.3 * h), step(0.5, bright)), drip * 0.75);
+	// Occasional rust patches on light plating.
+	float patch = hash(floor(wpos / (texel * 7.0)));
+	col = mix(col, rust * (0.75 + 0.35 * h), step(0.93, patch) * step(0.5, bright) * 0.8);
 	col *= world_tint;
 	float glow = 1.0 - step(0.5, vcol.a);
 	ALBEDO = mix(col, haze * world_tint, haze_amount * (1.0 - glow));

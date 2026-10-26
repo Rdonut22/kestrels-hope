@@ -2626,11 +2626,12 @@ func _in_vista(p: Vector2) -> bool:
 const RING_POS := Vector3(132, 0, -16)
 const ARC_POS := Vector3(-34, 0, -128)
 const SPIRE_POS := Vector3(-118, 0, 66)
-const RUIN_HULL := Color(0.3, 0.34, 0.42)
-const RUIN_DARK := Color(0.14, 0.15, 0.2)
-const RUIN_PLATE := Color(0.74, 0.72, 0.7)
+const RUIN_HULL := Color(0.7, 0.71, 0.73)
+const RUIN_DARK := Color(0.2, 0.22, 0.27)
+const RUIN_PLATE := Color(0.86, 0.86, 0.85)
 const RUIN_RUST := Color(0.66, 0.34, 0.18)
-const RUIN_STEEL := Color(0.46, 0.5, 0.56)
+const RUIN_STEEL := Color(0.55, 0.57, 0.6)
+const RUIN_FRAME := Color(0.38, 0.4, 0.44)
 const RUIN_GLOW_BLUE := Color(0.35, 0.75, 1.0, 0.0)
 const RUIN_GLOW_WARM := Color(1.0, 0.6, 0.3, 0.0)
 
@@ -2676,7 +2677,7 @@ func _rcyl(st: SurfaceTool, xf: Transform3D, r: float, height: float, col: Color
 
 func _ruin_col(rng: RandomNumberGenerator) -> Color:
 	var r := rng.randf()
-	return RUIN_HULL if r < 0.35 else (RUIN_PLATE if r < 0.6 else (RUIN_DARK if r < 0.78 else (RUIN_STEEL if r < 0.9 else RUIN_RUST)))
+	return RUIN_HULL if r < 0.35 else (RUIN_PLATE if r < 0.68 else (RUIN_DARK if r < 0.8 else (RUIN_STEEL if r < 0.92 else RUIN_RUST)))
 
 
 # Detailed ring (or arc) section in the XY plane, axis = Z.
@@ -2702,28 +2703,42 @@ func _ring_ruin(st: SurfaceTool, rng: RandomNumberGenerator, R: float, T: float,
 		# Core hull, darker in the inner trench.
 		_rbox(st, Transform3D(b, rd * R), Vector3(arc, T, W), RUIN_HULL)
 		_rbox(st, Transform3D(b, rd * (R - T * 0.5 - 0.4) + Vector3(0, 0, 0)), Vector3(arc, 0.8, W * 0.55), RUIN_DARK)
-		# Outer plating, sometimes missing or rusted.
-		if rng.randf() > 0.12:
-			var plate_col := RUIN_PLATE if rng.randf() < 0.55 else (RUIN_RUST if rng.randf() < 0.25 else RUIN_STEEL)
-			var pw := W * rng.randf_range(0.55, 0.95)
-			var pz := rng.randf_range(-(W - pw) * 0.5, (W - pw) * 0.5)
-			_rbox(st, Transform3D(b, rd * (R + T * 0.5 + 0.2) + Vector3(0, 0, pz)), Vector3(arc * 0.95, 0.4, pw), plate_col)
-		# Outer greebles.
-		for g in rng.randi_range(2, 5):
-			var gh := rng.randf_range(0.3, 2.4)
-			var gs := Vector3(arc * rng.randf_range(0.4, 2.2), gh, rng.randf_range(0.5, 3.0))
+		# Layered outer panels: stepped bands running around the ring, each
+		# layer narrower and a little proud of the one beneath.
+		var lift := 0.0
+		var layer_w := W * 1.04
+		for layer in 3:
+			if rng.randf() < 0.1 + layer * 0.08:
+				break
+			var th := rng.randf_range(0.35, 0.7)
+			var pz := rng.randf_range(-(W - layer_w) * 0.5, (W - layer_w) * 0.5) if layer > 0 else 0.0
+			var plate_col := RUIN_PLATE if rng.randf() < 0.7 else (RUIN_HULL if rng.randf() < 0.7 else RUIN_RUST)
+			_rbox(st, Transform3D(b, rd * (R + T * 0.5 + lift + th * 0.5) + Vector3(0, 0, pz)), Vector3(arc * 0.97, th, layer_w), plate_col)
+			lift += th
+			layer_w *= rng.randf_range(0.55, 0.8)
+		# Seam lines between panels.
+		if i % 3 == 0:
+			_rbox(st, Transform3D(b, rd * (R + T * 0.5 + 0.1)), Vector3(0.18, 0.5, W * 1.06), RUIN_DARK)
+		# Stepped side panels.
+		for side in [-1.0, 1.0]:
+			_rbox(st, Transform3D(b, rd * (R + T * 0.18) + Vector3(0, 0, side * (W * 0.5 + 0.2))), Vector3(arc * 0.98, T * 0.6, 0.4), RUIN_PLATE)
+			_rbox(st, Transform3D(b, rd * (R + T * 0.3) + Vector3(0, 0, side * (W * 0.5 + 0.5))), Vector3(arc * 0.98, T * 0.3, 0.3), RUIN_HULL)
+		# Sparse outer details (vents, small housings).
+		for g in (1 if rng.randf() < 0.3 else 0):
+			var gh := rng.randf_range(0.3, 1.0)
+			var gs := Vector3(arc * rng.randf_range(0.4, 1.2), gh, rng.randf_range(0.6, 2.0))
 			var gz := rng.randf_range(-W * 0.45, W * 0.45)
-			_rbox(st, Transform3D(b, rd * (R + T * 0.5 + 0.4 + gh * 0.5) + Vector3(0, 0, gz)), gs, _ruin_col(rng))
-		# Inner greebles hanging into the ring.
-		for g in rng.randi_range(1, 3):
+			_rbox(st, Transform3D(b, rd * (R + T * 0.5 + lift + gh * 0.5) + Vector3(0, 0, gz)), gs, RUIN_HULL)
+		# Inner trench machinery (where the reference is busiest).
+		for g in rng.randi_range(2, 4):
 			var gh := rng.randf_range(0.3, 1.6)
 			var gz := rng.randf_range(-W * 0.4, W * 0.4)
 			_rbox(st, Transform3D(b, rd * (R - T * 0.5 - 0.8 - gh * 0.5) + Vector3(0, 0, gz)),
 				Vector3(arc * rng.randf_range(0.3, 1.5), gh, rng.randf_range(0.4, 2.0)), _ruin_col(rng))
 		# Side faces: panels, vents and glowing windows.
 		for side in [-1.0, 1.0]:
-			for g in rng.randi_range(1, 3):
-				var ph := rng.randf_range(0.6, T * 0.8)
+			for g in (1 if rng.randf() < 0.35 else 0):
+				var ph := rng.randf_range(0.6, T * 0.5)
 				var pr := rng.randf_range(-T * 0.4, T * 0.4)
 				var pd := rng.randf_range(0.15, 1.1)
 				_rbox(st, Transform3D(b, rd * (R + pr) + Vector3(0, 0, side * (W * 0.5 + pd * 0.5))),
@@ -2754,6 +2769,41 @@ func _ring_ruin(st: SurfaceTool, rng: RandomNumberGenerator, R: float, T: float,
 			_rbox(st, Transform3D(b, mpos), Vector3(rng.randf_range(2, 4), mh, rng.randf_range(2, 4)), RUIN_HULL)
 			_rbox(st, Transform3D(b, mpos + rd * (mh * 0.5 + 0.2)), Vector3(1.5, 0.4, 1.5), RUIN_PLATE)
 			_rbox(st, Transform3D(b, mpos + rd * (mh * 0.5 + 2.2)), Vector3(0.15, 4.0, 0.15), RUIN_STEEL)
+	# Scaffolding wrapped around a few stretches of the ring.
+	for sc in 4:
+		var a0 := a_from + (a_to - a_from) * rng.randf()
+		var span := rng.randf_range(0.18, 0.4)
+		var bays := int(span * R / 2.4)
+		var side := -1.0 if sc % 2 else 1.0
+		for k in bays + 1:
+			var a := a0 + span * k / bays
+			if a > gap_from and a < gap_to:
+				continue
+			var rd := Vector3(cos(a), sin(a), 0)
+			var tg := Vector3(-sin(a), cos(a), 0)
+			var b := Basis(tg, rd, Vector3.BACK)
+			var outer := R + T * 0.5 + 4.5
+			var face := Vector3(0, 0, side * (W * 0.5 + 2.2))
+			# Posts out from the hull and across the side face.
+			_rbox(st, Transform3D(b, rd * (R + T * 0.5 + 2.25) + face), Vector3(0.22, 4.5, 0.22), RUIN_FRAME)
+			_rbox(st, Transform3D(b, rd * outer + Vector3(0, 0, side * W * 0.25)), Vector3(0.22, 0.22, W * 0.5 + 4.4), RUIN_FRAME)
+			for lv in 3:
+				var y := R - T * 0.5 + T * lv / 2.0
+				_rbox(st, Transform3D(b, rd * y + face), Vector3(0.18, 0.18, 0.18), RUIN_FRAME)
+			if k < bays:
+				var an := a0 + span * (k + 0.5) / bays
+				var rdn := Vector3(cos(an), sin(an), 0)
+				var bn := Basis(Vector3(-sin(an), cos(an), 0), rdn, Vector3.BACK)
+				var bay := R * span / bays
+				# Rails, walkway planks and a diagonal brace per bay.
+				for lv in 3:
+					var rr := R - T * 0.5 + T * lv / 2.0
+					_rbox(st, Transform3D(bn, rdn * rr + face), Vector3(bay, 0.16, 0.16), RUIN_FRAME)
+				_rbox(st, Transform3D(bn, rdn * (R + T * 0.5 + 0.6) + face), Vector3(bay, 0.12, 1.4), RUIN_STEEL)
+				_rbox(st, Transform3D(bn, rdn * outer + face * 0.0), Vector3(bay, 0.16, 0.16), RUIN_FRAME)
+				var diag := Basis(Vector3.BACK, 0.9 * (1.0 if k % 2 else -1.0))
+				_rbox(st, Transform3D(bn * diag, rdn * R + face), Vector3(0.14, T * 1.1, 0.14), RUIN_FRAME)
+
 	# Broken ends: exposed ribs, bent beams, dangling cables.
 	for e in ends:
 		var a: float = e[0]

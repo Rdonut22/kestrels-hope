@@ -7,5 +7,6 @@ render_priority = 0
 shader = ExtResource("1_ejy3l")
 shader_parameter/world_tint = Color(1, 1, 1, 1)
 shader_parameter/haze = Color(0.52, 0.7, 0.66, 1)
-shader_parameter/haze_amount = 0.42
+shader_parameter/haze_amount = 0.3
 shader_parameter/texel = 0.35
+shader_parameter/rust = Color(0.62, 0.33, 0.18, 1)
