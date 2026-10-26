@@ -46,6 +46,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if event.is_action_pressed("interact") and current_target and current_target.can_interact(self):
 		current_target.interact(self)
+		if mesh.has_method("play_action"):
+			mesh.play_action("Interact")
 	if event.is_action_pressed("drink") and has_coffee:
 		has_coffee = false
 		hud.show_message("Ahh. That's the stuff.")

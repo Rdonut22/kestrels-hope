@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://b7c2g0a0iuelb"
-path="res://.godot/imported/Adventurer by Quaternius - 5EGWBMpuXq.glb-0b6ac731cac0d4e50e852ebc2d49eaf6.scn"
+path="res://.godot/imported/adventurer.glb-eafb4ca189cb890919fbe851040f5198.scn"
 
 [deps]
 
-source_file="res://character/Adventurer by Quaternius - 5EGWBMpuXq.glb"
-dest_files=["res://.godot/imported/Adventurer by Quaternius - 5EGWBMpuXq.glb-0b6ac731cac0d4e50e852ebc2d49eaf6.scn"]
+source_file="res://character/adventurer.glb"
+dest_files=["res://.godot/imported/adventurer.glb-eafb4ca189cb890919fbe851040f5198.scn"]
 
 [params]
 

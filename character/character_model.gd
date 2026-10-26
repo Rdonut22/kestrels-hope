@@ -1,63 +1,71 @@
 extends Node3D
 
-## Procedural walk/idle animation for the player character.
-## The player calls set_move() every frame with 0 (still) to 1 (full speed).
+## Drives the Adventurer model's animations from the player's movement.
+## The player calls set_move() every frame with 0 (still) to 1 (full speed),
+## and play_action() for one-shot gestures like "Interact".
 
-@export var stride_speed := 10.0
-@export var leg_swing := 0.55
-@export var knee_bend := 0.9
-@export var arm_swing := 0.45
-@export var elbow_rest := 0.25
+const PREFIX := "CharacterArmature|"
+
+@export var walk_threshold := 0.05
+@export var run_threshold := 0.55
+@export var blend_time := 0.2
 
 var _move := 0.0
-var _blend := 0.0
-var _phase := 0.0
-var _time := 0.0
+var _current := ""
+var _action_left := 0.0
 
-@onready var rig: Node3D = $Rig
-@onready var chest: Node3D = $Rig/Chest
-@onready var head: Node3D = $Rig/Chest/Head
-@onready var hip_l: Node3D = $Rig/HipL
-@onready var hip_r: Node3D = $Rig/HipR
-@onready var knee_l: Node3D = $Rig/HipL/KneeL
-@onready var knee_r: Node3D = $Rig/HipR/KneeR
-@onready var shoulder_l: Node3D = $Rig/Chest/ShoulderL
-@onready var shoulder_r: Node3D = $Rig/Chest/ShoulderR
-@onready var elbow_l: Node3D = $Rig/Chest/ShoulderL/ElbowL
-@onready var elbow_r: Node3D = $Rig/Chest/ShoulderR/ElbowR
+@onready var anim: AnimationPlayer = $Adventurer/AnimationPlayer
+
+
+func _ready() -> void:
+	_attach_robot_arm()
+	for name in ["Idle", "Walk", "Run"]:
+		var a := anim.get_animation(PREFIX + name)
+		if a:
+			a.loop_mode = Animation.LOOP_LINEAR
+	_play("Idle")
 
 
 func set_move(amount: float) -> void:
 	_move = clampf(amount, 0.0, 1.0)
 
 
+func play_action(name: String) -> void:
+	if anim.has_animation(PREFIX + name):
+		_current = name
+		anim.play(PREFIX + name, 0.1)
+		_action_left = anim.get_animation(PREFIX + name).length * 0.8
+
+
 func _process(delta: float) -> void:
-	_time += delta
-	_blend = lerpf(_blend, _move, 1.0 - exp(-12.0 * delta))
-	if _blend > 0.01:
-		_phase += delta * stride_speed * (0.4 + 0.6 * _blend)
+	if _action_left > 0.0:
+		_action_left -= delta
+		if _move < walk_threshold:
+			return
+		_action_left = 0.0
+	if _move < walk_threshold:
+		_play("Idle")
+	elif _move < run_threshold:
+		_play("Walk")
 	else:
-		_phase = lerpf(_phase, round(_phase / PI) * PI, 1.0 - exp(-8.0 * delta))
+		_play("Run")
 
-	var s := sin(_phase) * _blend
-	var c := cos(_phase)
-	hip_l.rotation.x = s * leg_swing
-	hip_r.rotation.x = -s * leg_swing
-	# Each knee bends while its leg swings forward.
-	knee_l.rotation.x = -maxf(0.0, c) * knee_bend * _blend
-	knee_r.rotation.x = -maxf(0.0, -c) * knee_bend * _blend
 
-	shoulder_l.rotation.x = -s * arm_swing
-	shoulder_r.rotation.x = s * arm_swing
-	elbow_l.rotation.x = elbow_rest + maxf(0.0, -s) * 0.5
-	elbow_r.rotation.x = elbow_rest + maxf(0.0, s) * 0.5
+func _play(name: String) -> void:
+	if name != _current:
+		_current = name
+		anim.play(PREFIX + name, blend_time)
 
-	chest.rotation.x = -0.1 * _blend
-	chest.rotation.y = s * 0.12
-	head.rotation.x = 0.08 * _blend
-	head.rotation.y = -s * 0.08
 
-	var step_bob := absf(sin(_phase)) * 0.045 * _blend
-	var breathe := sin(_time * 2.0) * 0.006 * (1.0 - _blend)
-	rig.position.y = step_bob
-	chest.scale = Vector3(1.0, 1.0 + breathe, 1.0 + breathe)
+# Moves each RobotArm part group onto the bone named in its "bone" metadata,
+# so the cybernetic arm follows the animations.
+func _attach_robot_arm() -> void:
+	var arm := get_node_or_null("RobotArm")
+	if arm == null:
+		return
+	var skel: Skeleton3D = find_children("*", "Skeleton3D", true, false)[0]
+	for holder: Node3D in arm.get_children():
+		var att := BoneAttachment3D.new()
+		att.bone_name = holder.get_meta("bone")
+		skel.add_child(att)
+		holder.reparent(att, false)

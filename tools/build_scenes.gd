@@ -1480,159 +1480,61 @@ func _face_pixel(fx: float, fy: float, skin: Color, lid: Color, iris_dark: Color
 
 
 func _build_character() -> void:
-	_char_mat("skin", Color(0.86, 0.64, 0.5))
-	_char_mat("hair", Color(0.36, 0.22, 0.13))
-	_char_mat("shirt", Color(0.55, 0.32, 0.19))
-	_char_mat("scarf", Color(0.62, 0.16, 0.13))
-	_char_mat("pants", Color(0.4, 0.27, 0.17))
-	_char_mat("belt", Color(0.24, 0.16, 0.1), 0.6)
-	_char_mat("leather", Color(0.33, 0.2, 0.12), 0.6)
-	_char_mat("boots", Color(0.2, 0.18, 0.16), 0.7)
-	_char_mat("sole", Color(0.1, 0.09, 0.09))
-	_char_mat("laces", Color(0.7, 0.66, 0.58))
-	_char_mat("pack", Color(0.38, 0.44, 0.23))
-	_char_mat("strap", Color(0.27, 0.3, 0.17))
-	_char_mat("bedroll", Color(0.55, 0.47, 0.33))
 	_char_mat("metal", Color(0.76, 0.76, 0.73), 0.4, 0.6)
 	_char_mat("metal_dark", Color(0.26, 0.27, 0.29), 0.45, 0.7)
 	_char_mat("copper", Color(0.68, 0.38, 0.22), 0.4, 0.8)
 	_char_mat("cable", Color(0.55, 0.15, 0.1), 0.5)
 	_char_mat("glow", Color(0.3, 0.85, 1.0), 0.3, 0.0, 4.0)
-	_char_mat("band_dark", Color(0.16, 0.16, 0.18), 0.7)
-	_char_mat("band_light", Color(0.78, 0.78, 0.76), 0.7)
-	var face_tex := _paint_face()
-	ResourceSaver.save(face_tex, "res://character/face.res")
-	face_tex.take_over_path("res://character/face.res")
-	var face := StandardMaterial3D.new()
-	face.albedo_texture = face_tex
-	face.roughness = 0.8
-	face.rim_enabled = true
-	face.rim = 0.3
-	face.rim_tint = 0.6
-	ResourceSaver.save(face, "res://character/materials/face.tres")
-	face.take_over_path("res://character/materials/face.tres")
-	mats["char_face"] = face
 
-	# Feet at y=0, facing -Z.
+	# Adventurer by Quaternius (CC0), rotated to face -Z like the player.
 	scene_root = Node3D.new()
 	scene_root.name = "Character"
 	scene_root.set_script(load("res://character/character_model.gd"))
-	var rig := _pivot(scene_root, "Rig", Vector3.ZERO)
+	var model: Node3D = (load("res://character/adventurer.glb") as PackedScene).instantiate()
+	model.name = "Adventurer"
+	model.rotation.y = PI
+	scene_root.add_child(model)
+	model.owner = scene_root
+	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 
-	# ---- legs ----
-	for side in [-1.0, 1.0]:
-		var tag := "L" if side < 0 else "R"
-		var hip := _pivot(rig, "Hip" + tag, Vector3(0.11 * side, 0.86, 0))
-		_part(hip, "Thigh", _tube(0.1, 0.085, 0.44), "pants", Vector3(0, -0.21, 0))
-		_part(hip, "CargoPocket", _block(Vector3(0.05, 0.15, 0.13)), "pants", Vector3(0.09 * side, -0.26, 0))
-		_part(hip, "PocketFlap", _block(Vector3(0.055, 0.03, 0.14)), "leather", Vector3(0.09 * side, -0.18, 0))
-		var knee := _pivot(hip, "Knee" + tag, Vector3(0, -0.42, 0))
-		_part(knee, "Shin", _tube(0.082, 0.07, 0.34), "pants", Vector3(0, -0.15, 0))
-		_part(knee, "BootShaft", _tube(0.088, 0.092, 0.15), "boots", Vector3(0, -0.33, 0))
-		_part(knee, "BootCuff", _tube(0.097, 0.097, 0.035), "leather", Vector3(0, -0.26, 0))
-		_part(knee, "Foot", _block(Vector3(0.15, 0.1, 0.24)), "boots", Vector3(0, -0.39, -0.05))
-		_part(knee, "ToeCap", _ball(0.078, 8, 4), "boots", Vector3(0, -0.395, -0.16), Vector3.ZERO, Vector3(1, 0.65, 1))
-		_part(knee, "Sole", _block(Vector3(0.165, 0.035, 0.31)), "sole", Vector3(0, -0.425, -0.07))
-		_part(knee, "Laces", _block(Vector3(0.05, 0.12, 0.01)), "laces", Vector3(0, -0.33, -0.092))
-
-	# ---- hips and belt ----
-	_part(rig, "Pelvis", _tube(0.2, 0.19, 0.14), "pants", Vector3(0, 0.86, 0), Vector3.ZERO, Vector3(1, 1, 0.75))
-	_part(rig, "Belt", _tube(0.212, 0.212, 0.065, 10), "belt", Vector3(0, 0.935, 0), Vector3.ZERO, Vector3(1, 1, 0.78))
-	_part(rig, "Buckle", _block(Vector3(0.07, 0.055, 0.02)), "copper", Vector3(0, 0.935, -0.168))
-	_part(rig, "PouchA", _block(Vector3(0.09, 0.09, 0.06)), "leather", Vector3(0.13, 0.9, -0.13), Vector3(0, -0.5, 0))
-	_part(rig, "PouchB", _block(Vector3(0.09, 0.09, 0.06)), "leather", Vector3(-0.08, 0.9, 0.15), Vector3(0, 0.3, 0))
-	_part(rig, "Holster", _block(Vector3(0.05, 0.2, 0.09)), "leather", Vector3(-0.22, 0.8, 0.0), Vector3(0, 0, 0.1))
-	_part(rig, "Pistol", _block(Vector3(0.04, 0.07, 0.11)), "metal_dark", Vector3(-0.225, 0.92, -0.02), Vector3(0, 0, 0.1))
-
-	# ---- chest (leans and twists as he walks) ----
-	var chest := _pivot(rig, "Chest", Vector3(0, 0.95, 0))
-	_part(chest, "Torso", _tube(0.24, 0.19, 0.44, 10), "shirt", Vector3(0, 0.2, 0), Vector3.ZERO, Vector3(1, 1, 0.68))
-	_part(chest, "Collar", _tube(0.09, 0.12, 0.05), "shirt", Vector3(0, 0.43, 0))
-	_part(chest, "Scarf", _donut(0.095, 0.035), "scarf", Vector3(0, 0.44, 0), Vector3(0.15, 0, 0))
-	_part(chest, "ScarfTail", _tube(0.0, 0.08, 0.14, 3), "scarf", Vector3(0, 0.34, -0.15), Vector3(PI, 0, 0), Vector3(1, 1, 0.35))
-	_part(chest, "Neck", _tube(0.055, 0.06, 0.1), "skin", Vector3(0, 0.47, 0))
-
-	# Backpack with bedroll.
-	_part(chest, "Backpack", _block(Vector3(0.32, 0.38, 0.17)), "pack", Vector3(0, 0.22, 0.2))
-	_part(chest, "PackFlap", _block(Vector3(0.33, 0.1, 0.18)), "strap", Vector3(0, 0.37, 0.2))
-	_part(chest, "PackPocket", _block(Vector3(0.22, 0.14, 0.05)), "strap", Vector3(0, 0.12, 0.3))
-	_part(chest, "Bedroll", _tube(0.07, 0.07, 0.42, 8), "bedroll", Vector3(0, 0.48, 0.21), Vector3(0, 0, PI / 2))
-	for x in [-0.12, 0.12]:
-		_part(chest, "BedrollTie%d" % int(x * 100), _tube(0.075, 0.075, 0.02, 8), "strap", Vector3(x, 0.48, 0.21), Vector3(0, 0, PI / 2))
-		_part(chest, "StrapFront%d" % int(x * 100), _block(Vector3(0.05, 0.34, 0.02)), "strap", Vector3(x * 0.9, 0.24, -0.165))
-		_part(chest, "StrapTop%d" % int(x * 100), _block(Vector3(0.05, 0.025, 0.36)), "strap", Vector3(x * 0.9, 0.42, 0.02))
-
-	# ---- head ----
-	var head := _pivot(chest, "Head", Vector3(0, 0.5, 0))
-	_part(head, "Skull", _ball(0.16, 16, 10), "face", Vector3(0, 0.17, 0), Vector3.ZERO, Vector3(1, 1.05, 0.95))
-	for side in [-1.0, 1.0]:
-		_part(head, "Ear" + ("L" if side < 0 else "R"), _ball(0.04, 6, 4), "skin", Vector3(0.158 * side, 0.15, 0.01), Vector3.ZERO, Vector3(0.5, 1, 0.8))
-	_part(head, "Nose", _ball(0.016, 6, 4), "skin", Vector3(0, 0.138, -0.149), Vector3.ZERO, Vector3(0.8, 1, 0.9))
-	# Striped headband just above the eyes.
-	var stripes := ["band_dark", "band_light", "band_dark", "band_light", "band_dark"]
-	for i in stripes.size():
-		_part(head, "Headband%d" % i, _tube(0.17, 0.17, 0.0125, 16), stripes[i], Vector3(0, 0.232 + i * 0.0125, 0.004), Vector3(0.12, 0, 0), Vector3(1, 1, 0.96))
-	_part(head, "HeadbandKnot", _block(Vector3(0.06, 0.05, 0.04)), "band_dark", Vector3(0, 0.25, 0.175))
-	_part(head, "HeadbandTail", _block(Vector3(0.035, 0.012, 0.13)), "band_dark", Vector3(0.02, 0.2, 0.22), Vector3(0.9, 0.2, 0))
-
-	# Hair: a cap tilted back off the forehead, plus spikes.
-	_part(head, "HairCap", _ball(0.178, 12, 4, true), "hair", Vector3(0, 0.2, 0.02), Vector3(0.42, 0, 0), Vector3(1, 0.95, 1))
-	_part(head, "HairBack", _ball(0.165, 10, 6), "hair", Vector3(0, 0.16, 0.07), Vector3.ZERO, Vector3(0.98, 1, 0.85))
-	var crown := Vector3(0, 0.2, 0.02)
-	var spikes := [
-		[Vector3(0, 1, 0.15), 0.2], [Vector3(0.45, 0.9, 0.3), 0.19], [Vector3(-0.45, 0.9, 0.3), 0.19],
-		[Vector3(0, 0.75, 0.75), 0.21], [Vector3(0.55, 0.55, 0.6), 0.18], [Vector3(-0.55, 0.55, 0.6), 0.18],
-		[Vector3(0.85, 0.5, 0.05), 0.15], [Vector3(-0.85, 0.5, 0.05), 0.15], [Vector3(0, 0.3, 1), 0.17],
-		[Vector3(0.3, 0.95, -0.35), 0.17], [Vector3(-0.3, 0.95, -0.35), 0.16],
-		[Vector3(0.1, 0.55, -0.9), 0.14], [Vector3(-0.25, 0.5, -0.85), 0.12],
-	]
-	for i in spikes.size():
-		var dir: Vector3 = spikes[i][0].normalized()
-		var length: float = spikes[i][1]
-		_part(head, "Spike%d" % i, _tube(0.0, 0.055, length, 5), "hair", crown + dir * (0.13 + length * 0.4), _aim(dir))
-
-	# ---- left arm: flesh, short sleeve, fingerless glove ----
-	var arm_l := _pivot(chest, "ShoulderL", Vector3(-0.265, 0.38, 0), Vector3(0, 0, -0.1))
-	_part(arm_l, "Sleeve", _tube(0.07, 0.092, 0.2), "shirt", Vector3(0, -0.06, 0))
-	_part(arm_l, "SleeveHem", _tube(0.095, 0.095, 0.025), "shirt", Vector3(0, -0.155, 0))
-	_part(arm_l, "UpperArm", _tube(0.056, 0.05, 0.24), "skin", Vector3(0, -0.17, 0))
-	var elbow_l := _pivot(arm_l, "ElbowL", Vector3(0, -0.29, 0), Vector3(0.25, 0, 0))
-	_part(elbow_l, "Forearm", _tube(0.05, 0.044, 0.24), "skin", Vector3(0, -0.11, 0))
-	_part(elbow_l, "GloveCuff", _tube(0.055, 0.052, 0.07), "leather", Vector3(0, -0.21, 0))
-	_part(elbow_l, "Hand", _ball(0.058, 8, 6), "leather", Vector3(0, -0.29, -0.005), Vector3.ZERO, Vector3(0.75, 1.1, 1))
-	_part(elbow_l, "Thumb", _tube(0.018, 0.02, 0.06, 6), "leather", Vector3(0.03, -0.27, -0.04), Vector3(0.5, 0, 0.5))
-	_part(elbow_l, "Fingers", _block(Vector3(0.07, 0.05, 0.075)), "skin", Vector3(0, -0.345, -0.005))
-
-	# ---- right arm: cybernetic ----
-	var arm_r := _pivot(chest, "ShoulderR", Vector3(0.265, 0.38, 0), Vector3(0, 0, 0.1))
-	_part(arm_r, "ShoulderJoint", _tube(0.07, 0.075, 0.12, 8), "metal_dark", Vector3(0, -0.02, 0))
-	_part(arm_r, "ShoulderPlate", _block(Vector3(0.15, 0.035, 0.17)), "metal", Vector3(0.025, 0.045, 0), Vector3(0, 0, -0.35))
-	_part(arm_r, "ShoulderPlateLower", _block(Vector3(0.035, 0.08, 0.16)), "metal", Vector3(0.09, -0.02, 0), Vector3(0, 0, 0.1))
-	_part(arm_r, "PlateTrim", _block(Vector3(0.155, 0.012, 0.175)), "metal_dark", Vector3(0.02, 0.027, 0), Vector3(0, 0, -0.35))
-	_part(arm_r, "UpperArm", _tube(0.056, 0.05, 0.24), "metal_dark", Vector3(0, -0.16, 0))
-	_part(arm_r, "PistonA", _tube(0.014, 0.014, 0.2, 6), "copper", Vector3(0.062, -0.16, 0.0))
-	_part(arm_r, "PistonB", _tube(0.012, 0.012, 0.2, 6), "copper", Vector3(-0.02, -0.16, 0.062))
-	var elbow_r := _pivot(arm_r, "ElbowR", Vector3(0, -0.29, 0), Vector3(0.25, 0, 0))
-	_part(elbow_r, "ElbowJoint", _ball(0.062, 8, 6), "copper", Vector3.ZERO)
-	_part(elbow_r, "Forearm", _tube(0.074, 0.06, 0.22, 8), "metal", Vector3(0, -0.13, 0))
-	_part(elbow_r, "ForearmPlate", _tube(0.078, 0.076, 0.08, 8), "metal_dark", Vector3(0, -0.06, 0))
-	_part(elbow_r, "CableFront", _tube(0.013, 0.013, 0.2, 5), "cable", Vector3(0.0, -0.13, -0.072))
-	_part(elbow_r, "CableSide", _tube(0.013, 0.013, 0.2, 5), "cable", Vector3(0.07, -0.13, -0.01))
-	_part(elbow_r, "WristGlow", _donut(0.054, 0.012), "glow", Vector3(0, -0.245, 0))
-	_part(elbow_r, "Hand", _ball(0.064, 8, 6), "metal", Vector3(0, -0.3, -0.005), Vector3.ZERO, Vector3(0.85, 1.05, 1))
-	for i in 3:
-		_part(elbow_r, "Finger%d" % i, _tube(0.014, 0.012, 0.07, 5), "metal_dark", Vector3(-0.022 + i * 0.022, -0.36, -0.035))
-	_part(elbow_r, "Thumb", _tube(0.015, 0.013, 0.06, 5), "metal_dark", Vector3(-0.045, -0.29, -0.04), Vector3(0.4, 0, -0.5))
-	_part(elbow_r, "Palm", _tube(0.03, 0.03, 0.006, 8), "glow", Vector3(-0.054, -0.3, 0), Vector3(0, 0, PI / 2))
+	# Cybernetic right arm, attached to the bones so it follows the animations.
+	# The armature is scaled x100, so each attachment gets a x0.01 holder and
+	# its parts are laid out in metres along the bone (+Y points down the arm).
+	var upper := _bone_holder(skel, "UpperArm.R")
+	_part(upper, "ShoulderPlate", _block(Vector3(0.15, 0.06, 0.15)), "metal", Vector3(0, 0.02, 0), Vector3(0, 0, 0.1))
+	_part(upper, "PlateTrim", _block(Vector3(0.155, 0.015, 0.155)), "metal_dark", Vector3(0, -0.01, 0))
+	_part(upper, "UpperSleeve", _tube(0.052, 0.046, 0.12), "metal_dark", Vector3(0, 0.12, 0))
+	_part(upper, "Piston", _tube(0.011, 0.011, 0.14), "copper", Vector3(0.045, 0.1, 0.0))
+	var fore := _bone_holder(skel, "LowerArm.R")
+	_part(fore, "Elbow", _ball(0.055, 8, 6), "copper", Vector3(0, 0.0, 0))
+	_part(fore, "Forearm", _tube(0.058, 0.048, 0.2, 8), "metal", Vector3(0, 0.11, 0))
+	_part(fore, "Plate", _tube(0.062, 0.06, 0.06, 8), "metal_dark", Vector3(0, 0.05, 0))
+	_part(fore, "CableA", _tube(0.011, 0.011, 0.18, 5), "cable", Vector3(0.055, 0.11, 0.0))
+	_part(fore, "CableB", _tube(0.011, 0.011, 0.18, 5), "cable", Vector3(-0.02, 0.11, 0.052))
+	_part(fore, "WristGlow", _donut(0.05, 0.011), "glow", Vector3(0, 0.215, 0))
+	var hand := _bone_holder(skel, "Wrist.R")
+	_part(hand, "HandPlate", _block(Vector3(0.075, 0.07, 0.03)), "metal", Vector3(0, 0.045, 0))
+	_part(hand, "Palm", _tube(0.022, 0.022, 0.006, 8), "glow", Vector3(0, 0.05, 0.02), Vector3(PI / 2, 0, 0))
 	var palm_light := OmniLight3D.new()
-	palm_light.position = Vector3(-0.1, -0.3, 0)
+	palm_light.position = Vector3(0, 0.06, 0.06)
 	palm_light.light_color = Color(0.3, 0.85, 1.0)
 	palm_light.light_energy = 0.3
 	palm_light.omni_range = 0.6
-	_add(elbow_r, palm_light, "PalmLight")
+	_add(hand, palm_light, "PalmLight")
 
 	_save(scene_root, "res://character/character.tscn")
 
+
+func _bone_holder(_skel: Skeleton3D, bone: String) -> Node3D:
+	# Saved under RobotArm; character_model.gd moves it onto the bone at runtime
+	# (nodes added inside an imported model aren't kept when the scene is saved).
+	var arm := scene_root.get_node_or_null("RobotArm")
+	if arm == null:
+		arm = _add(scene_root, Node3D.new(), "RobotArm")
+	var holder := Node3D.new()
+	holder.scale = Vector3.ONE * 0.01
+	holder.set_meta("bone", bone)
+	return _add(arm, holder, bone.replace(".", ""))
 
 
 # ---------- exterior ----------
