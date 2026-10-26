@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/ruin.gdshader" id="1_ejy3l"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_ejy3l")
+shader_parameter/world_tint = Color(1, 1, 1, 1)
+shader_parameter/haze = Color(0.52, 0.7, 0.66, 1)
+shader_parameter/haze_amount = 0.42
+shader_parameter/texel = 0.35

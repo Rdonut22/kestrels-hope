@@ -87,8 +87,10 @@ func _apply() -> void:
 	_env.fog_light_color = night_fog.lerp(day_fog, day).lerp(Color(0.78, 0.5, 0.42), dusk * 0.7)
 
 	var tint := Color(0.2, 0.25, 0.42).lerp(Color(1, 1, 1), day).lerp(Color(1.0, 0.72, 0.58), dusk * 0.5)
+	var fog := _env.fog_light_color
 	for m in _tinted:
 		m.set_shader_parameter("world_tint", tint)
+		m.set_shader_parameter("haze", fog)
 
 	_sky.set_shader_parameter("day", day)
 	_sky.set_shader_parameter("dusk", dusk)

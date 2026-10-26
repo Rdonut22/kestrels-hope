@@ -2519,6 +2519,8 @@ func _build_crash_site() -> void:
 			w.rotation.x = -PI / 2
 			_add(pivot, w, "Wing")
 
+	_build_ruins(site)
+
 	# Fireflies over the pond and meadow at night.
 	var glow := _wmat("firefly", Color(0.85, 1.0, 0.45), 0.5, 0.0, 6.0)
 	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2601,4 +2603,247 @@ func _in_trail(p: Vector2) -> bool:
 
 # True if a point should stay free of trees: the clearing, the ship, the trail.
 func _keep_clear(p: Vector2, margin: float) -> bool:
-	return _clear_dist(p) < margin or _in_ship_zone(p, 3.0 + margin) or _in_trail(p)
+	return _clear_dist(p) < margin or _in_ship_zone(p, 3.0 + margin) or _in_trail(p) or _in_vista(p)
+
+
+# Thinned corridors through the forest so each ruin is framed from the meadow.
+func _in_vista(p: Vector2) -> bool:
+	var c := Vector2(14.0, 0.0)
+	for target: Vector3 in [RING_POS, ARC_POS, SPIRE_POS]:
+		var t := Vector2(target.x, target.z)
+		var dir := (t - c).normalized()
+		var along := (p - c).dot(dir)
+		if along < 0.0 or along > (t - c).length() - 30.0:
+			continue
+		var lateral := absf((p - c).dot(Vector2(-dir.y, dir.x)))
+		if lateral < 4.5 + along * 0.06:
+			return true
+	return false
+
+
+# ---------- ancient ruins ----------
+
+const RING_POS := Vector3(132, 0, -16)
+const ARC_POS := Vector3(-34, 0, -128)
+const SPIRE_POS := Vector3(-118, 0, 66)
+const RUIN_HULL := Color(0.3, 0.34, 0.42)
+const RUIN_DARK := Color(0.14, 0.15, 0.2)
+const RUIN_PLATE := Color(0.74, 0.72, 0.7)
+const RUIN_RUST := Color(0.66, 0.34, 0.18)
+const RUIN_STEEL := Color(0.46, 0.5, 0.56)
+const RUIN_GLOW_BLUE := Color(0.35, 0.75, 1.0, 0.0)
+const RUIN_GLOW_WARM := Color(1.0, 0.6, 0.3, 0.0)
+
+
+# Box centred at xf.origin, oriented by xf.basis, with vertex colour.
+func _rbox(st: SurfaceTool, xf: Transform3D, size: Vector3, col: Color) -> void:
+	var h := size * 0.5
+	for n in [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD]:
+		var u: Vector3 = Vector3.UP if absf(n.y) < 0.5 else Vector3.RIGHT
+		var v: Vector3 = n.cross(u)
+		u = v.cross(n)
+		var c: Vector3 = n * absf(n.dot(h))
+		var hu := absf(u.dot(h))
+		var hv := absf(v.dot(h))
+		var p := [c - u * hu - v * hv, c + u * hu - v * hv, c + u * hu + v * hv, c - u * hu + v * hv]
+		var wn: Vector3 = (xf.basis * n).normalized()
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.set_color(col)
+			st.set_normal(wn)
+			st.add_vertex(xf * p[k])
+
+
+# Prism (cylinder) along the basis' Y axis.
+func _rcyl(st: SurfaceTool, xf: Transform3D, r: float, height: float, col: Color, sides := 10) -> void:
+	for k in sides:
+		var a0 := TAU * k / sides
+		var a1 := TAU * (k + 1) / sides
+		var p0 := Vector3(cos(a0) * r, 0, sin(a0) * r)
+		var p1 := Vector3(cos(a1) * r, 0, sin(a1) * r)
+		var up := Vector3(0, height * 0.5, 0)
+		var wn: Vector3 = (xf.basis * Vector3(cos((a0 + a1) * 0.5), 0, sin((a0 + a1) * 0.5))).normalized()
+		for q in [p0 - up, p1 - up, p1 + up, p0 - up, p1 + up, p0 + up]:
+			st.set_color(col)
+			st.set_normal(wn)
+			st.add_vertex(xf * q)
+		for cap in [-1.0, 1.0]:
+			var cn: Vector3 = (xf.basis * Vector3(0, cap, 0)).normalized()
+			for q in [Vector3(0, cap * height * 0.5, 0), p0 + up * cap, p1 + up * cap]:
+				st.set_color(col)
+				st.set_normal(cn)
+				st.add_vertex(xf * q)
+
+
+func _ruin_col(rng: RandomNumberGenerator) -> Color:
+	var r := rng.randf()
+	return RUIN_HULL if r < 0.35 else (RUIN_PLATE if r < 0.6 else (RUIN_DARK if r < 0.78 else (RUIN_STEEL if r < 0.9 else RUIN_RUST)))
+
+
+# Detailed ring (or arc) section in the XY plane, axis = Z.
+# R = radius to tube centre, T = radial thickness, W = axial width.
+func _ring_ruin(st: SurfaceTool, rng: RandomNumberGenerator, R: float, T: float, W: float,
+		a_from: float, a_to: float, gap_from := 99.0, gap_to := 99.0) -> void:
+	var steps := int((a_to - a_from) * R / 0.9)
+	var da := (a_to - a_from) / steps
+	var pipes := [[0.35, 0.42], [0.2, -0.42], [-0.3, 0.46], [0.55, 0.1], [-0.55, -0.2]]
+	var ends := []
+	for i in steps:
+		var a := a_from + da * (i + 0.5)
+		if a > gap_from and a < gap_to:
+			continue
+		if (i == 0 or (a - da < gap_to and a - da > gap_from)):
+			ends.append([a - da * 0.5, -1.0])
+		if (i == steps - 1 or (a + da > gap_from and a + da < gap_to)):
+			ends.append([a + da * 0.5, 1.0])
+		var rd := Vector3(cos(a), sin(a), 0)
+		var tg := Vector3(-sin(a), cos(a), 0)
+		var b := Basis(tg, rd, Vector3.BACK)
+		var arc := R * da * 1.03
+		# Core hull, darker in the inner trench.
+		_rbox(st, Transform3D(b, rd * R), Vector3(arc, T, W), RUIN_HULL)
+		_rbox(st, Transform3D(b, rd * (R - T * 0.5 - 0.4) + Vector3(0, 0, 0)), Vector3(arc, 0.8, W * 0.55), RUIN_DARK)
+		# Outer plating, sometimes missing or rusted.
+		if rng.randf() > 0.12:
+			var plate_col := RUIN_PLATE if rng.randf() < 0.55 else (RUIN_RUST if rng.randf() < 0.25 else RUIN_STEEL)
+			var pw := W * rng.randf_range(0.55, 0.95)
+			var pz := rng.randf_range(-(W - pw) * 0.5, (W - pw) * 0.5)
+			_rbox(st, Transform3D(b, rd * (R + T * 0.5 + 0.2) + Vector3(0, 0, pz)), Vector3(arc * 0.95, 0.4, pw), plate_col)
+		# Outer greebles.
+		for g in rng.randi_range(2, 5):
+			var gh := rng.randf_range(0.3, 2.4)
+			var gs := Vector3(arc * rng.randf_range(0.4, 2.2), gh, rng.randf_range(0.5, 3.0))
+			var gz := rng.randf_range(-W * 0.45, W * 0.45)
+			_rbox(st, Transform3D(b, rd * (R + T * 0.5 + 0.4 + gh * 0.5) + Vector3(0, 0, gz)), gs, _ruin_col(rng))
+		# Inner greebles hanging into the ring.
+		for g in rng.randi_range(1, 3):
+			var gh := rng.randf_range(0.3, 1.6)
+			var gz := rng.randf_range(-W * 0.4, W * 0.4)
+			_rbox(st, Transform3D(b, rd * (R - T * 0.5 - 0.8 - gh * 0.5) + Vector3(0, 0, gz)),
+				Vector3(arc * rng.randf_range(0.3, 1.5), gh, rng.randf_range(0.4, 2.0)), _ruin_col(rng))
+		# Side faces: panels, vents and glowing windows.
+		for side in [-1.0, 1.0]:
+			for g in rng.randi_range(1, 3):
+				var ph := rng.randf_range(0.6, T * 0.8)
+				var pr := rng.randf_range(-T * 0.4, T * 0.4)
+				var pd := rng.randf_range(0.15, 1.1)
+				_rbox(st, Transform3D(b, rd * (R + pr) + Vector3(0, 0, side * (W * 0.5 + pd * 0.5))),
+					Vector3(arc * rng.randf_range(0.5, 1.8), ph, pd), _ruin_col(rng))
+			if rng.randf() < 0.14:
+				var wr := rng.randf_range(-T * 0.3, T * 0.3)
+				_rbox(st, Transform3D(b, rd * (R + wr) + Vector3(0, 0, side * (W * 0.5 + 0.08))),
+					Vector3(arc * 0.6, 0.35, 0.12), RUIN_GLOW_BLUE if rng.randf() < 0.7 else RUIN_GLOW_WARM)
+		# Pipes running around the ring, with clamps.
+		for pp in pipes:
+			var pos: Vector3 = rd * (R + T * 0.5 * pp[0] + (T * 0.5 + 0.7) * signf(pp[0]) * 0.0) + Vector3(0, 0, W * pp[1])
+			if absf(pp[1]) > 0.4:
+				pos = rd * (R + T * pp[0] * 0.5) + Vector3(0, 0, signf(pp[1]) * (W * 0.5 + 0.55))
+			else:
+				pos = rd * (R + T * 0.5 + 0.55) + Vector3(0, 0, W * pp[1])
+			_rbox(st, Transform3D(b, pos), Vector3(arc * 1.02, 0.55, 0.55), RUIN_STEEL if pp[0] > 0 else RUIN_RUST)
+			if i % 7 == 0:
+				_rbox(st, Transform3D(b, pos), Vector3(0.35, 0.9, 0.9), RUIN_DARK)
+		# Occasional big modules: tanks, towers, antennae.
+		if rng.randf() < 0.06:
+			var side := -1.0 if rng.randf() < 0.5 else 1.0
+			var base := rd * (R + rng.randf_range(-T * 0.3, T * 0.3)) + Vector3(0, 0, side * (W * 0.5 + 1.6))
+			_rcyl(st, Transform3D(Basis(Vector3.RIGHT, PI / 2) * Basis(), base), rng.randf_range(1.0, 1.8), 3.2, RUIN_PLATE, 12)
+			_rbox(st, Transform3D(b, base + Vector3(0, 0, side * 1.7)), Vector3(1.4, 1.4, 0.3), RUIN_DARK)
+		if rng.randf() < 0.05:
+			var mh := rng.randf_range(3.0, 7.0)
+			var mpos := rd * (R + T * 0.5 + mh * 0.5) + Vector3(0, 0, rng.randf_range(-W * 0.3, W * 0.3))
+			_rbox(st, Transform3D(b, mpos), Vector3(rng.randf_range(2, 4), mh, rng.randf_range(2, 4)), RUIN_HULL)
+			_rbox(st, Transform3D(b, mpos + rd * (mh * 0.5 + 0.2)), Vector3(1.5, 0.4, 1.5), RUIN_PLATE)
+			_rbox(st, Transform3D(b, mpos + rd * (mh * 0.5 + 2.2)), Vector3(0.15, 4.0, 0.15), RUIN_STEEL)
+	# Broken ends: exposed ribs, bent beams, dangling cables.
+	for e in ends:
+		var a: float = e[0]
+		var dir: float = e[1]
+		var rd := Vector3(cos(a), sin(a), 0)
+		var tg := Vector3(-sin(a), cos(a), 0) * dir
+		var b := Basis(tg, rd, Vector3.BACK)
+		for k in 7:
+			var rr := rng.randf_range(-T * 0.45, T * 0.45)
+			var zz := rng.randf_range(-W * 0.45, W * 0.45)
+			var ln := rng.randf_range(1.5, 7.0)
+			var bend := Basis(Vector3.BACK, rng.randf_range(-0.5, 0.5)) * Basis(rd, rng.randf_range(-0.4, 0.4))
+			var bb := b * bend
+			_rbox(st, Transform3D(bb, rd * (R + rr) + Vector3(0, 0, zz) + bb.x * ln * 0.5),
+				Vector3(ln, rng.randf_range(0.25, 0.6), rng.randf_range(0.25, 0.6)), RUIN_STEEL if k % 2 else RUIN_RUST)
+		for k in 3:
+			_rbox(st, Transform3D(b, rd * R + tg * (0.4 + k * 0.9)), Vector3(0.3, T * rng.randf_range(0.6, 1.0), W * rng.randf_range(0.5, 0.95)), RUIN_DARK)
+		for k in 4:
+			var cl := rng.randf_range(2.0, 6.0)
+			var cpos := rd * (R + rng.randf_range(-T * 0.4, T * 0.4)) + tg * rng.randf_range(0.5, 2.0) + Vector3(0, 0, rng.randf_range(-W * 0.4, W * 0.4))
+			_rbox(st, Transform3D(Basis(), cpos - Vector3(0, cl * 0.5, 0)), Vector3(0.12, cl, 0.12), RUIN_DARK)
+
+
+# Tall greebled spire along +Y.
+func _spire_ruin(st: SurfaceTool, rng: RandomNumberGenerator, height: float, base_w: float) -> void:
+	var seg := 2.4
+	var n := int(height / seg)
+	for k in n:
+		var f := float(k) / n
+		var w := base_w * (1.0 - f * 0.7)
+		var y := k * seg + seg * 0.5
+		_rbox(st, Transform3D(Basis(Vector3.UP, f * 0.6), Vector3(0, y, 0)), Vector3(w, seg * 1.02, w * 0.8), RUIN_HULL)
+		if k % 4 == 0:
+			_rbox(st, Transform3D(Basis(Vector3.UP, f * 0.6), Vector3(0, y, 0)), Vector3(w * 1.15, 0.6, w * 0.95), RUIN_PLATE)
+		for face in 4:
+			var ang := f * 0.6 + face * PI / 2
+			var out := Vector3(sin(ang), 0, cos(ang))
+			var half := (w if face % 2 else w * 0.8) * 0.5
+			for g in rng.randi_range(1, 3):
+				var gd := rng.randf_range(0.2, 1.4)
+				var side := out.cross(Vector3.UP) * rng.randf_range(-half * 0.7, half * 0.7)
+				_rbox(st, Transform3D(Basis(Vector3.UP, ang), Vector3(0, y + rng.randf_range(-0.8, 0.8), 0) + out * (half + gd * 0.5) + side),
+					Vector3(rng.randf_range(0.4, half), rng.randf_range(0.4, 2.0), gd), _ruin_col(rng))
+			if rng.randf() < 0.18:
+				_rbox(st, Transform3D(Basis(Vector3.UP, ang), Vector3(0, y, 0) + out * (half + 0.06)), Vector3(0.6, 0.3, 0.1),
+					RUIN_GLOW_BLUE)
+	# Broken top.
+	for k in 6:
+		var ln := rng.randf_range(2.0, 6.0)
+		var bb := Basis(Vector3.BACK, rng.randf_range(-0.6, 0.6)) * Basis(Vector3.RIGHT, rng.randf_range(-0.6, 0.6))
+		_rbox(st, Transform3D(bb, Vector3(rng.randf_range(-1, 1), n * seg + ln * 0.4, rng.randf_range(-1, 1))), Vector3(0.35, ln, 0.35),
+			RUIN_STEEL if k % 2 else RUIN_RUST)
+
+
+func _ruin_instance(parent: Node, name: String, st: SurfaceTool, xf: Transform3D) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mats["ruin"]
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.transform = xf
+	_add(parent, mi, name)
+
+
+func _build_ruins(site: Node) -> void:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://world/ruin.gdshader")
+	ResourceSaver.save(m, "res://world/materials/ruin.tres")
+	m.take_over_path("res://world/materials/ruin.tres")
+	mats["ruin"] = m
+	var ruins := _add(site, Node3D.new(), "Ruins")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2600
+
+	# The great ring: east of the crash site, beyond the trees, facing the
+	# clearing, half-buried and tilted, with a broken gap at the top left.
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_ring_ruin(st, rng, 40.0, 7.5, 12.0, 0.0, TAU, 1.95, 2.45)
+	var face_clearing := Basis(Vector3.UP, -PI / 2 + 0.25)
+	var tilt := Basis(Vector3.RIGHT, 0.12) * Basis(Vector3.BACK, 0.18)
+	_ruin_instance(ruins, "GreatRing", st, Transform3D(face_clearing * tilt, RING_POS + Vector3(0, 22.0, 0)))
+
+	# A broken arc of another ring jutting out of the ground to the north.
+	st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_ring_ruin(st, rng, 28.0, 6.0, 8.0, 0.35, 2.25)
+	_ruin_instance(ruins, "BrokenArc", st, Transform3D(Basis(Vector3.UP, 0.4) * Basis(Vector3.BACK, 0.3), ARC_POS + Vector3(0, -10.0, 0)))
+
+	# A leaning spire to the south-west.
+	st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_spire_ruin(st, rng, 78.0, 11.0)
+	_ruin_instance(ruins, "Spire", st, Transform3D(Basis(Vector3.BACK, -0.22) * Basis(Vector3.RIGHT, 0.08), SPIRE_POS + Vector3(0, -6.0, 0)))
