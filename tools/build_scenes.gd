@@ -2624,6 +2624,7 @@ func _in_vista(p: Vector2) -> bool:
 # ---------- ancient ruins ----------
 
 const RING_POS := Vector3(132, 0, -16)
+const LOOKOUT_DECK_Y := 46.6
 const ARC_POS := Vector3(-34, 0, -128)
 const SPIRE_POS := Vector3(-118, 0, 66)
 const RUIN_HULL := Color(0.7, 0.71, 0.73)
@@ -2867,6 +2868,35 @@ func _ruin_instance(parent: Node, name: String, st: SurfaceTool, xf: Transform3D
 	_add(parent, mi, name)
 
 
+# Rusty lookout platform on top of the Great Ring (menu perch, future quest).
+# Built in the ring's local space; the deck's front edge overhangs the ring.
+func _lookout(ring: Node3D) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var deck_y := LOOKOUT_DECK_Y
+	_rbox(st, Transform3D(Basis(), Vector3(0, deck_y - 0.1, 2.6)), Vector3(4.2, 0.2, 7.6), RUIN_STEEL)
+	for k in 12:
+		_rbox(st, Transform3D(Basis(), Vector3(0, deck_y + 0.01, -0.9 + k * 0.6)), Vector3(4.0, 0.03, 0.08), RUIN_DARK)
+	_rbox(st, Transform3D(Basis(), Vector3(0, deck_y - 0.25, 2.6)), Vector3(4.4, 0.15, 7.8), RUIN_FRAME)
+	for x in [-1.9, 1.9]:
+		for z in [-1.0, 2.0, 5.0]:
+			_rbox(st, Transform3D(Basis(), Vector3(x, deck_y - 1.6, z)), Vector3(0.18, 2.7, 0.18), RUIN_FRAME)
+		# Side railings; the front edge is left open.
+		for z in [-1.0, 1.0, 3.0, 5.0]:
+			_rbox(st, Transform3D(Basis(), Vector3(x, deck_y + 0.5, z)), Vector3(0.08, 1.0, 0.08), RUIN_FRAME)
+		_rbox(st, Transform3D(Basis(), Vector3(x, deck_y + 1.0, 2.0)), Vector3(0.1, 0.08, 6.2), RUIN_RUST)
+	_rbox(st, Transform3D(Basis(), Vector3(0, deck_y + 1.0, -1.0)), Vector3(3.9, 0.08, 0.1), RUIN_RUST)
+	# A beacon mast and a crate someone left up here long ago.
+	_rbox(st, Transform3D(Basis(), Vector3(-1.6, deck_y + 2.0, -0.7)), Vector3(0.12, 4.0, 0.12), RUIN_STEEL)
+	_rbox(st, Transform3D(Basis(), Vector3(-1.6, deck_y + 4.05, -0.7)), Vector3(0.3, 0.2, 0.3), RUIN_GLOW_WARM)
+	_rbox(st, Transform3D(Basis(Vector3.UP, 0.3), Vector3(1.2, deck_y + 0.35, -0.2)), Vector3(0.8, 0.7, 0.6), RUIN_RUST)
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mats["ruin"]
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_add(ring, mi, "Lookout")
+
+
 func _build_ruins(site: Node) -> void:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://world/ruin.gdshader")
@@ -2885,6 +2915,7 @@ func _build_ruins(site: Node) -> void:
 	var face_clearing := Basis(Vector3.UP, -PI / 2 + 0.25)
 	var tilt := Basis(Vector3.RIGHT, 0.12) * Basis(Vector3.BACK, 0.18)
 	_ruin_instance(ruins, "GreatRing", st, Transform3D(face_clearing * tilt, RING_POS + Vector3(0, 22.0, 0)))
+	_lookout(ruins.get_node("GreatRing"))
 
 	# A broken arc of another ring jutting out of the ground to the north.
 	st = SurfaceTool.new()

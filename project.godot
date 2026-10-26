@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Kestrel’s Hope"
-run/main_scene="uid://cnk1liup355tq"
+run/main_scene="res://menu.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
