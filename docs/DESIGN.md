@@ -208,6 +208,19 @@ the beacon, find water) and the game opens up.
 
 ---
 
+## Vehicle idea (decide next session)
+
+A way to get around the forest faster. Options:
+- **Speeder bike**: salvaged from the cargo hold or built from ship parts
+  (thruster, repulsor coils, seat). Fast, loud, carries salvage; good for
+  long trips. Could be a mid-game build that needs repairing first.
+- **Hoverboard**: smaller, nimble, fun for weaving between giant trunks and
+  doing jumps; less carrying capacity. Could be an early hacked build.
+- Fits the salvage theme either way: pulling the parts costs something on
+  the ship. Needs fuel/charge (solar?). Night riding with a headlight.
+
+---
+
 ## Sound plan
 
 - Generate in code: ship hum, computer beeps, sparks, alarms, coffee machine.
