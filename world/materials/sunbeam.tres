@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/sunbeam.gdshader" id="1_ocfly"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_ocfly")
+shader_parameter/color = Color(1, 0.95, 0.7, 1)
+shader_parameter/strength = 0.11

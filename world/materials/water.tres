@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/water.gdshader" id="1_7asab"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_7asab")
+shader_parameter/deep = Color(0.16, 0.36, 0.5, 1)
+shader_parameter/shallow = Color(0.35, 0.6, 0.72, 1)
+shader_parameter/shine = Color(0.85, 0.95, 1, 1)
+shader_parameter/texel = 0.12

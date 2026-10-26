@@ -6,11 +6,11 @@
 render_priority = 0
 shader = ExtResource("1_hguhr")
 shader_parameter/base_color = Color(0.7, 0.69, 0.65, 1)
-shader_parameter/chip_color = null
+shader_parameter/chip_color = Color(0.18, 0.18, 0.19, 1)
 shader_parameter/grime = 0.4
 shader_parameter/chips = 0.55
 shader_parameter/scratches = 0.5
-shader_parameter/fade = null
-shader_parameter/noise_scale = null
+shader_parameter/fade = 0.0
+shader_parameter/noise_scale = 6.0
 shader_parameter/roughness_amount = 0.5
 shader_parameter/metallic_amount = 0.2

@@ -6,7 +6,7 @@
 render_priority = 0
 shader = ExtResource("1_7o8ju")
 shader_parameter/base_color = Color(0.76, 0.63, 0.46, 1)
-shader_parameter/chip_color = null
+shader_parameter/chip_color = Color(0.18, 0.18, 0.19, 1)
 shader_parameter/grime = 0.35
 shader_parameter/chips = 0.0
 shader_parameter/scratches = 0.25

@@ -5,7 +5,12 @@
 [resource]
 render_priority = 0
 shader = ExtResource("1_sx78g")
-shader_parameter/grass_a = null
-shader_parameter/grass_b = null
-shader_parameter/dirt_color = null
+shader_parameter/g_dark = Color(0.13, 0.33, 0.1, 1)
+shader_parameter/g_mid = Color(0.24, 0.5, 0.13, 1)
+shader_parameter/g_light = Color(0.36, 0.6, 0.16, 1)
+shader_parameter/g_high = Color(0.5, 0.7, 0.2, 1)
+shader_parameter/d_dark = Color(0.22, 0.14, 0.09, 1)
+shader_parameter/d_light = Color(0.4, 0.27, 0.16, 1)
 shader_parameter/dirt_amount = 1.0
+shader_parameter/flowers = 0.0
+shader_parameter/texel = 0.12

@@ -1,5 +1,15 @@
-[gd_resource type="StandardMaterial3D" format=3]
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/pixel_foliage.gdshader" id="1_7a2f8"]
 
 [resource]
-albedo_color = Color(0.42, 0.41, 0.39, 1)
-roughness = 0.9
+render_priority = 0
+shader = ExtResource("1_7a2f8")
+shader_parameter/c_dark = Color(0.26, 0.28, 0.27, 1)
+shader_parameter/c_mid = Color(0.4, 0.42, 0.4, 1)
+shader_parameter/c_light = Color(0.55, 0.56, 0.52, 1)
+shader_parameter/c_high = Color(0.68, 0.7, 0.62, 1)
+shader_parameter/texel = 0.12
+shader_parameter/grain = 1.0
+shader_parameter/ragged = 0.0
+shader_parameter/bands = 1.0

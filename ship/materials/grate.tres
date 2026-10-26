@@ -5,6 +5,6 @@
 [resource]
 render_priority = 0
 shader = ExtResource("1_xupne")
-shader_parameter/color = null
-shader_parameter/slat_spacing = null
-shader_parameter/gap = null
+shader_parameter/color = Color(0.2, 0.2, 0.21, 1)
+shader_parameter/slat_spacing = 0.07
+shader_parameter/gap = 0.45

@@ -1645,10 +1645,26 @@ func _wmat(name: String, color: Color, rough := 0.9, metal := 0.0, emit := 0.0) 
 	return m
 
 
+func _fol_mat(name: String, palette: Array, texel: float, ragged := 0.0, grain := 1.0, bands := 1.0) -> void:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://world/pixel_foliage.gdshader")
+	for i in 4:
+		m.set_shader_parameter(["c_dark", "c_mid", "c_light", "c_high"][i], palette[i])
+	m.set_shader_parameter("texel", texel)
+	m.set_shader_parameter("ragged", ragged)
+	m.set_shader_parameter("grain", grain)
+	m.set_shader_parameter("bands", bands)
+	var path := "res://world/materials/%s.tres" % name
+	ResourceSaver.save(m, path)
+	m.take_over_path(path)
+	mats[name] = m
+
+
 func _terrain_mat(name: String, dirt: float) -> void:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://world/terrain.gdshader")
 	m.set_shader_parameter("dirt_amount", dirt)
+	m.set_shader_parameter("flowers", 0.0 if dirt > 0.5 else 1.0)
 	var path := "res://world/materials/%s.tres" % name
 	ResourceSaver.save(m, path)
 	m.take_over_path(path)
@@ -1661,17 +1677,14 @@ func _make_world_materials() -> void:
 	_wmat("scorched", Color(0.12, 0.1, 0.09), 0.85, 0.5)
 	_wmat("emergency", Color(1.0, 0.12, 0.08), 0.5, 0.0, 2.5)
 	_wmat("spark", Color(1.0, 0.7, 0.3), 0.5, 0.0, 6.0)
-	_wmat("bark", Color(0.3, 0.21, 0.14))
-	_wmat("bark_light", Color(0.45, 0.36, 0.27))
-	_wmat("leaf_a", Color(0.2, 0.38, 0.14))
-	_wmat("leaf_b", Color(0.3, 0.46, 0.17))
-	_wmat("leaf_c", Color(0.14, 0.3, 0.16))
-	_wmat("leaf_alien", Color(0.48, 0.32, 0.52))
-	_wmat("rock", Color(0.42, 0.41, 0.39))
-	_wmat("rock_dark", Color(0.28, 0.27, 0.26))
-	_wmat("mesa", Color(0.66, 0.4, 0.27))
-	_wmat("mesa_dark", Color(0.52, 0.31, 0.24))
-	_wmat("hill", Color(0.25, 0.37, 0.18))
+	_fol_mat("bark", [Color(0.13, 0.08, 0.06), Color(0.24, 0.15, 0.09), Color(0.36, 0.23, 0.13), Color(0.52, 0.36, 0.2)], 0.12, 0.0, 3.0, 2.0)
+	_fol_mat("bark_light", [Color(0.2, 0.14, 0.1), Color(0.34, 0.25, 0.17), Color(0.48, 0.37, 0.25), Color(0.62, 0.5, 0.34)], 0.12, 0.0, 3.0, 2.0)
+	_fol_mat("canopy", [Color(0.06, 0.2, 0.1), Color(0.14, 0.38, 0.13), Color(0.3, 0.58, 0.15), Color(0.5, 0.74, 0.24)], 0.2, 0.55)
+	_fol_mat("pine", [Color(0.04, 0.16, 0.12), Color(0.09, 0.28, 0.17), Color(0.17, 0.42, 0.2), Color(0.34, 0.58, 0.26)], 0.2, 0.32)
+	_fol_mat("bush", [Color(0.07, 0.24, 0.1), Color(0.17, 0.44, 0.14), Color(0.34, 0.64, 0.18), Color(0.62, 0.84, 0.3)], 0.14, 0.38)
+	_fol_mat("rock", [Color(0.26, 0.28, 0.27), Color(0.4, 0.42, 0.4), Color(0.55, 0.56, 0.52), Color(0.68, 0.7, 0.62)], 0.12)
+	_fol_mat("moss_rock", [Color(0.2, 0.26, 0.2), Color(0.33, 0.4, 0.3), Color(0.35, 0.55, 0.2), Color(0.55, 0.72, 0.3)], 0.12)
+	_fol_mat("reed", [Color(0.1, 0.3, 0.12), Color(0.2, 0.42, 0.14), Color(0.32, 0.55, 0.18), Color(0.5, 0.7, 0.25)], 0.08)
 	_wmat("flower", Color(0.95, 0.75, 0.3), 0.6)
 	var grass := _wmat("grass_blade", Color(1, 1, 1))
 	grass.vertex_color_use_as_albedo = true
@@ -1694,8 +1707,27 @@ func _make_world_materials() -> void:
 	smoke.albedo_texture = puff
 	smoke.albedo_color = Color(1, 1, 1, 1)
 	ResourceSaver.save(smoke, "res://world/materials/smoke.tres")
-	_terrain_mat("ground", 0.1)
+	_terrain_mat("ground", 0.0)
 	_terrain_mat("dirt", 1.0)
+	mats["leaf_a"] = mats["bush"]
+	mats["leaf_b"] = mats["canopy"]
+	var flower := _wmat("flower_vc", Color(1, 1, 1))
+	flower.vertex_color_use_as_albedo = true
+	var water := ShaderMaterial.new()
+	water.shader = load("res://world/water.gdshader")
+	ResourceSaver.save(water, "res://world/materials/water.tres")
+	water.take_over_path("res://world/materials/water.tres")
+	mats["water"] = water
+	var beam := ShaderMaterial.new()
+	beam.shader = load("res://world/sunbeam.gdshader")
+	ResourceSaver.save(beam, "res://world/materials/sunbeam.tres")
+	beam.take_over_path("res://world/materials/sunbeam.tres")
+	mats["sunbeam"] = beam
+	_wmat("wing", Color(1.0, 0.5, 0.15), 0.8, 0.0, 0.4).cull_mode = BaseMaterial3D.CULL_DISABLED
+	_wmat("wing_red", Color(0.9, 0.2, 0.25), 0.8, 0.0, 0.4).cull_mode = BaseMaterial3D.CULL_DISABLED
+	# Re-save materials changed after _wmat first wrote them.
+	for n in ["grass_blade", "flower_vc", "wing", "wing_red"]:
+		ResourceSaver.save(mats[n], "res://world/materials/%s.tres" % n)
 
 
 # Jagged breach through the lounge wall, as (z, y) points in ship space.
@@ -1981,7 +2013,7 @@ func _build_crash_site() -> void:
 	_make_world_materials()
 	scene_root = (load("res://main.tscn") as PackedScene).instantiate()
 	var R := scene_root
-	const GROUND_Y := -0.35
+	const GROUND_Y := -0.5
 
 	# Day sky and sun.
 	var env := Environment.new()
@@ -1992,24 +2024,28 @@ func _build_crash_site() -> void:
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.62, 0.62, 0.55)
-	env.ambient_light_energy = 0.5
+	env.ambient_light_color = Color(0.55, 0.65, 0.55)
+	env.ambient_light_energy = 0.55
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.tonemap_exposure = 1.1
 	env.glow_enabled = true
 	env.glow_intensity = 0.4
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.7, 0.78, 0.8)
-	env.fog_density = 0.0045
-	env.fog_sky_affect = 0.15
+	env.fog_light_color = Color(0.52, 0.7, 0.66)
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_density = 1.0
+	env.fog_depth_begin = 16.0
+	env.fog_depth_end = 75.0
+	env.fog_depth_curve = 1.6
+	env.fog_sky_affect = 0.0
 	R.get_node("WorldEnvironment").environment = env
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.light_color = Color(1.0, 0.95, 0.85)
-	sun.light_energy = 1.4
+	sun.light_energy = 1.8
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 70.0
+	sun.directional_shadow_max_distance = 55.0
 	sun.transform = Transform3D(Basis.looking_at(Vector3(-0.65, -0.62, -0.25).normalized(), Vector3.UP), Vector3.ZERO)
 	R.add_child(sun)
 	sun.owner = R
@@ -2020,7 +2056,7 @@ func _build_crash_site() -> void:
 	old.free()
 	var ship := Node3D.new()
 	ship.name = "Ship"
-	ship.rotation = Vector3(-0.03, 0.0, -0.05)
+	ship.rotation = Vector3(0.02, 0.0, -0.05)
 	R.add_child(ship)
 	R.move_child(ship, 1)
 	ship.owner = R
@@ -2182,123 +2218,269 @@ func _build_crash_site() -> void:
 	smoke.mesh = quad
 	_add(site, smoke, "Smoke")
 
-	# Forest.
-	var forest := _add(site, Node3D.new(), "Forest")
-	var placed := 0
-	var tries := 0
-	while placed < 230 and tries < 4000:
-		tries += 1
-		var p := Vector2(rng.randf_range(-92, 92), rng.randf_range(-92, 92))
-		if _keep_clear(p, 12.0):
+	# Forest: a dense ring of big pixel-art trees around an irregular clearing.
+	var trunks := []
+	var cones := []
+	var blobs := []
+	var bushes := []
+	var bodies := _add(site, Node3D.new(), "TreeCollision")
+	var gx := -92.0
+	var tree_count := 0
+	while gx <= 92.0:
+		var gz := -92.0
+		while gz <= 92.0:
+			var p := Vector2(gx + rng.randf_range(-2.6, 2.6), gz + rng.randf_range(-2.6, 2.6))
+			gz += 6.2
+			if _keep_clear(p, 0.0):
+				continue
+			var base := Vector3(p.x, GROUND_Y, p.y)
+			var big := 1.0 + clampf((_clear_dist(p) - 4.0) / 30.0, 0.0, 0.5)
+			var h := rng.randf_range(4.5, 8.5) * big
+			var r := rng.randf_range(0.38, 0.72) * big
+			var tint := Color(1, 1, 1) * rng.randf_range(0.85, 1.12)
+			trunks.append([Transform3D(Basis().scaled(Vector3(r, h, r)), base + Vector3(0, h / 2.0, 0)), Color(1, 1, 1)])
+			trunks.append([Transform3D(Basis().scaled(Vector3(r * 1.7, 0.8, r * 1.7)), base + Vector3(0, 0.4, 0)), Color(1, 1, 1)])
+			if rng.randf() < 0.22:
+				# Tall pine.
+				for k in 4:
+					var cr := (2.6 - k * 0.55) * big
+					cones.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(cr, 2.6 * big, cr)),
+						base + Vector3(0, h * 0.55 + k * 1.5 * big + 1.3 * big, 0)), tint])
+			else:
+				# Broad oak: branches into a big lumpy canopy.
+				var top := base + Vector3(0, h, 0)
+				for k in 3:
+					var a := k * TAU / 3.0 + rng.randf()
+					var dir := Vector3(cos(a), 0.9, sin(a)).normalized()
+					var bl := 2.4 * big
+					var bb := Basis(Quaternion(Vector3.UP, dir)) * Basis.from_scale(Vector3(r * 0.45, bl, r * 0.45))
+					trunks.append([Transform3D(bb, top - Vector3(0, 1.2, 0) + dir * bl / 2.0), Color(1, 1, 1)])
+				var spread := rng.randf_range(3.2, 4.6) * big
+				for k in rng.randi_range(13, 18):
+					var a := rng.randf() * TAU
+					var rad := sqrt(rng.randf()) * spread
+					var by := rng.randf_range(-0.6, 3.2) * big * (1.0 - rad / spread * 0.5)
+					var bs := rng.randf_range(1.6, 2.9) * big * (1.15 - rad / spread * 0.35)
+					blobs.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bs, bs * 0.8, bs)),
+						top + Vector3(cos(a) * rad, by + 0.8, sin(a) * rad)), tint])
+			if _clear_dist(p) < 45.0:
+				var body := StaticBody3D.new()
+				body.position = base + Vector3(0, h / 2.0, 0)
+				_add(bodies, body, "Tree%d" % tree_count)
+				var cs := CollisionShape3D.new()
+				var shape := CylinderShape3D.new()
+				shape.radius = r
+				shape.height = h
+				cs.shape = shape
+				_add(body, cs, "Shape")
+			for k in rng.randi_range(1, 3):
+				var bp := p + Vector2(rng.randf_range(-3.5, 3.5), rng.randf_range(-3.5, 3.5))
+				var bsz := rng.randf_range(0.8, 1.9)
+				bushes.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bsz * 1.4, bsz, bsz * 1.3)),
+					Vector3(bp.x, GROUND_Y + bsz * 0.3, bp.y)), tint])
+			tree_count += 1
+		gx += 6.2
+	# Extra undergrowth fringing the clearing.
+	for k in 260:
+		var a := rng.randf() * TAU
+		var p := _clear_edge(a) * rng.randf_range(0.95, 1.12)
+		if _in_ship_zone(p, 2.5):
 			continue
-		_tree(forest, rng, Vector3(p.x, GROUND_Y, p.y), placed)
-		placed += 1
-	var plants := _add(site, Node3D.new(), "Plants")
-	for i in 170:
-		var p := Vector2(rng.randf_range(-90, 90), rng.randf_range(-90, 90))
-		if _keep_clear(p, 9.0):
-			continue
-		var sz := rng.randf_range(0.6, 1.8)
-		_blob(plants, "Bush%d" % i, Vector3(p.x, GROUND_Y + sz * 0.25, p.y),
-			Vector3(sz * 1.4, sz, sz * 1.3), ["leaf_a", "leaf_b", "leaf_c"][i % 3], rng.randf() * TAU)
-		if i % 4 == 0:
-			for f in 3:
-				_blob(plants, "Flower%d_%d" % [i, f], Vector3(p.x + rng.randf_range(-1, 1), GROUND_Y + sz * 0.5 + 0.1, p.y + rng.randf_range(-1, 1)),
-					Vector3.ONE * 0.14, "flower")
-	for i in 45:
-		var p := Vector2(rng.randf_range(-90, 90), rng.randf_range(-90, 90))
-		if _keep_clear(p, 9.0):
-			continue
-		var rs := rng.randf_range(0.4, 2.0)
-		var rock := StaticBody3D.new()
-		rock.position = Vector3(p.x, GROUND_Y + rs * 0.2, p.y)
-		_add(plants, rock, "Rock%d" % i)
-		var rm := MeshInstance3D.new()
-		var rsm := SphereMesh.new()
-		rsm.radius = 0.5
-		rsm.height = 1.0
-		rsm.radial_segments = 6
-		rsm.rings = 3
-		rm.mesh = rsm
-		rm.material_override = mats["rock" if i % 2 else "rock_dark"]
-		rm.scale = Vector3(rs * 1.3, rs * 0.8, rs)
-		rm.rotation.y = rng.randf() * TAU
-		_add(rock, rm, "Mesh")
-		var rcs := CollisionShape3D.new()
-		var rsh := SphereShape3D.new()
-		rsh.radius = rs * 0.45
-		rcs.shape = rsh
-		_add(rock, rcs, "Collision")
+		var bsz := rng.randf_range(0.6, 1.6)
+		bushes.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bsz * 1.4, bsz, bsz * 1.3)),
+			Vector3(p.x, GROUND_Y + bsz * 0.3, p.y)), Color(1, 1, 1) * rng.randf_range(0.85, 1.15)])
 
-	# Grass (one MultiMesh, thousands of blades).
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.75
+	trunk_mesh.bottom_radius = 1.0
+	trunk_mesh.height = 1.0
+	trunk_mesh.radial_segments = 8
+	trunk_mesh.rings = 1
+	var cone_mesh := CylinderMesh.new()
+	cone_mesh.top_radius = 0.0
+	cone_mesh.bottom_radius = 1.0
+	cone_mesh.height = 1.0
+	cone_mesh.radial_segments = 9
+	cone_mesh.rings = 2
+	var blob_mesh := SphereMesh.new()
+	blob_mesh.radius = 0.5
+	blob_mesh.height = 1.0
+	blob_mesh.radial_segments = 10
+	blob_mesh.rings = 6
+	_multimesh(site, "Trunks", trunk_mesh, trunks, "bark")
+	_multimesh(site, "Pines", cone_mesh, cones, "pine")
+	_multimesh(site, "Canopies", blob_mesh, blobs, "canopy")
+	_multimesh(site, "Bushes", blob_mesh, bushes, "bush")
+
+	# Rocks, some mossy, and a ring of stones and reeds around the pond.
+	var rocks := []
+	var mossy := []
+	for k in 70:
+		var p := Vector2(rng.randf_range(-85, 85), rng.randf_range(-85, 85))
+		if _in_ship_zone(p, 3.0):
+			continue
+		var rs := rng.randf_range(0.4, 1.8)
+		var t := [Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(rs * 1.3, rs * 0.75, rs)),
+			Vector3(p.x, GROUND_Y + rs * 0.15, p.y)), Color(1, 1, 1)]
+		(mossy if k % 2 else rocks).append(t)
+	var pond_c := Vector2(20.5, 4.0)
+	var reeds := []
+	for k in 26:
+		var a := k * TAU / 26.0 + rng.randf_range(-0.1, 0.1)
+		var e := pond_c + _pond_radius(a) * Vector2(cos(a), sin(a)) * 1.05
+		var rs := rng.randf_range(0.3, 0.7)
+		rocks.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(rs * 1.4, rs * 0.6, rs)),
+			Vector3(e.x, GROUND_Y + 0.05, e.y)), Color(1, 1, 1)])
+		if k % 2 == 0:
+			for q in 5:
+				var rp := e + Vector2(rng.randf_range(-0.5, 0.5), rng.randf_range(-0.5, 0.5))
+				var rh := rng.randf_range(0.7, 1.4)
+				reeds.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(-0.2, 0.2)).scaled(Vector3(0.04, rh, 0.04)),
+					Vector3(rp.x, GROUND_Y + rh / 2.0, rp.y)), Color(1, 1, 1)])
+	var rock_mesh := SphereMesh.new()
+	rock_mesh.radius = 0.5
+	rock_mesh.height = 1.0
+	rock_mesh.radial_segments = 7
+	rock_mesh.rings = 4
+	_multimesh(site, "Rocks", rock_mesh, rocks, "rock")
+	_multimesh(site, "MossyRocks", rock_mesh, mossy, "moss_rock")
+	_multimesh(site, "Reeds", trunk_mesh, reeds, "reed")
+
+	# Pond.
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	var segs := 40
+	for k in segs:
+		var a0 := k * TAU / segs
+		var a1 := (k + 1) * TAU / segs
+		st.add_vertex(Vector3(pond_c.x, GROUND_Y + 0.03, pond_c.y))
+		var e1 := pond_c + _pond_radius(a1) * Vector2(cos(a1), sin(a1))
+		var e0 := pond_c + _pond_radius(a0) * Vector2(cos(a0), sin(a0))
+		st.add_vertex(Vector3(e1.x, GROUND_Y + 0.03, e1.y))
+		st.add_vertex(Vector3(e0.x, GROUND_Y + 0.03, e0.y))
+	var pond := MeshInstance3D.new()
+	pond.mesh = st.commit()
+	pond.material_override = mats["water"]
+	_add(site, pond, "Pond")
+
+	# Grass blades and flowers, densest in the clearing.
 	var blade := CylinderMesh.new()
 	blade.top_radius = 0.0
-	blade.bottom_radius = 0.035
-	blade.height = 0.45
+	blade.bottom_radius = 0.04
+	blade.height = 0.5
 	blade.radial_segments = 3
 	blade.rings = 1
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = blade
-	var spots: Array[Transform3D] = []
-	var colors: Array[Color] = []
-	while spots.size() < 9000:
-		var p := Vector2(rng.randf_range(-85, 85), rng.randf_range(-85, 85))
-		if _keep_clear(p, 7.5) or (absf(p.x + 0.8) < 6.0 and p.y > 9.0 and p.y < 84.0):
+	var grass := []
+	var flowers := []
+	var greens := [Color(0.2, 0.45, 0.12), Color(0.32, 0.58, 0.15), Color(0.48, 0.7, 0.2), Color(0.62, 0.8, 0.28)]
+	var petals := [Color(0.95, 0.3, 0.25), Color(0.98, 0.96, 0.9), Color(1.0, 0.82, 0.25), Color(0.6, 0.68, 1.0), Color(0.95, 0.55, 0.8)]
+	while grass.size() < 14000:
+		var in_clear := grass.size() < 9000
+		var p: Vector2
+		if in_clear:
+			var a := rng.randf() * TAU
+			p = Vector2(4.0, 0.0) + (_clear_edge(a) - Vector2(4.0, 0.0)) * sqrt(rng.randf())
+		else:
+			p = Vector2(rng.randf_range(-80, 80), rng.randf_range(-80, 80))
+		if _in_ship_zone(p, 0.5) or _in_trail(p) or p.distance_to(pond_c) < 4.6:
 			continue
-		var h := rng.randf_range(0.6, 1.6)
-		var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
-		spots.append(Transform3D(b.scaled(Vector3(1, h, 1)), Vector3(p.x, GROUND_Y + 0.22 * h, p.y)))
-		colors.append(Color(0.25, 0.42, 0.14).lerp(Color(0.45, 0.55, 0.2), rng.randf()))
-	mm.instance_count = spots.size()
-	for i in spots.size():
-		mm.set_instance_transform(i, spots[i])
-		mm.set_instance_color(i, colors[i])
-	var grass := MultiMeshInstance3D.new()
-	grass.multimesh = mm
-	grass.material_override = mats["grass_blade"]
-	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_add(site, grass, "Grass")
+		var gh := rng.randf_range(0.6, 1.5)
+		var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(-0.3, 0.3))
+		grass.append([Transform3D(b.scaled(Vector3(1, gh, 1)), Vector3(p.x, GROUND_Y + 0.25 * gh, p.y)), greens[rng.randi() % 4]])
+		if in_clear and rng.randf() < 0.45:
+			var fp := p + Vector2(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3))
+			var fs := rng.randf_range(0.06, 0.11)
+			flowers.append([Transform3D(Basis().scaled(Vector3(fs, fs * 0.6, fs)), Vector3(fp.x, GROUND_Y + rng.randf_range(0.15, 0.4), fp.y)),
+				petals[rng.randi() % petals.size()]])
+	var grass_mm := _multimesh(site, "Grass", blade, grass, "grass_blade")
+	grass_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var petal := BoxMesh.new()
+	var flower_mm := _multimesh(site, "Flowers", petal, flowers, "flower_vc")
+	flower_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-	# Distant hills, mesas and mountains (seen through the fog).
-	var far := _add(site, Node3D.new(), "Distance")
-	for i in 9:
+	# Sunbeams slanting through the canopy.
+	var axis := -Vector3(-0.65, -0.62, -0.25).normalized()
+	var beam_quad := QuadMesh.new()
+	beam_quad.size = Vector2(2.6, 26)
+	for k in 6:
 		var a := rng.randf() * TAU
-		var d := rng.randf_range(110, 150)
-		_blob(far, "Hill%d" % i, Vector3(cos(a) * d, GROUND_Y - 3, sin(a) * d),
-			Vector3(rng.randf_range(40, 70), rng.randf_range(14, 26), rng.randf_range(40, 70)), "hill", rng.randf() * TAU)
-	for i in 9:
-		var a := -PI / 2 + rng.randf_range(-1.3, 1.3) if i < 6 else rng.randf() * TAU
-		var d := rng.randf_range(170, 250)
-		var base := Vector3(cos(a) * d, GROUND_Y - 2, sin(a) * d)
-		var r := rng.randf_range(30, 55)
-		var h := rng.randf_range(18, 34)
-		var y := 0.0
-		for tier in 3:
-			var mesa := MeshInstance3D.new()
-			var cm := CylinderMesh.new()
-			var th: float = h * [0.45, 0.35, 0.2][tier]
-			cm.bottom_radius = r * (1.0 - tier * 0.18)
-			cm.top_radius = cm.bottom_radius * 0.88
-			cm.height = th
-			cm.radial_segments = 9
-			cm.rings = 1
-			mesa.mesh = cm
-			mesa.material_override = mats["mesa" if (i + tier) % 2 else "mesa_dark"]
-			mesa.position = base + Vector3(rng.randf_range(-4, 4), y + th / 2.0, rng.randf_range(-4, 4))
-			mesa.rotation.y = rng.randf() * TAU
-			mesa.scale = Vector3(1.0, 1.0, rng.randf_range(0.6, 0.9))
-			_add(far, mesa, "Mesa%d_%d" % [i, tier])
-			y += th
+		var bp := Vector2(4.0, 0.0) + (_clear_edge(a) - Vector2(4.0, 0.0)) * rng.randf_range(0.5, 0.95)
+		if _in_ship_zone(bp, 1.0):
+			continue
+		var c := Vector3(bp.x, GROUND_Y, bp.y) + axis * 11.0
+		for q in 2:
+			var bm := MeshInstance3D.new()
+			bm.mesh = beam_quad
+			bm.material_override = mats["sunbeam"]
+			bm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var x_axis := axis.cross(Vector3.FORWARD).normalized().rotated(axis, q * PI / 2)
+			bm.transform = Transform3D(Basis(x_axis, axis, x_axis.cross(axis)), c)
+			_add(site, bm, "Sunbeam%d_%d" % [k, q])
+
+	# Butterflies around the meadow and pond.
+	var wing_quad := QuadMesh.new()
+	wing_quad.size = Vector2(0.12, 0.1)
+	for k in 8:
+		var fly := Node3D.new()
+		fly.set_script(load("res://world/butterfly.gd"))
+		var home := pond_c + Vector2(rng.randf_range(-9, 6), rng.randf_range(-8, 8))
+		fly.position = Vector3(home.x, GROUND_Y + rng.randf_range(0.6, 1.6), home.y)
+		_add(site, fly, "Butterfly%d" % k)
+		for side in [-1.0, 1.0]:
+			var pivot := Node3D.new()
+			_add(fly, pivot, "WingL" if side < 0 else "WingR")
+			var w := MeshInstance3D.new()
+			w.mesh = wing_quad
+			w.material_override = mats["wing" if k % 3 else "wing_red"]
+			w.position = Vector3(0.06 * side, 0, 0)
+			w.rotation.x = -PI / 2
+			_add(pivot, w, "Wing")
 
 	_save(R, "res://crash_site.tscn")
 
 
-# True if a ground point is on/next to the ship or inside the crash trail.
+func _multimesh(parent: Node, name: String, mesh: Mesh, items: Array, mat: String) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = mesh
+	mm.instance_count = items.size()
+	for i in items.size():
+		mm.set_instance_transform(i, items[i][0])
+		mm.set_instance_color(i, items[i][1])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = mats[mat]
+	return _add(parent, mmi, name)
+
+
+func _pond_radius(a: float) -> float:
+	return 4.2 + 0.6 * sin(a * 3.0 + 1.0) + 0.35 * sin(a * 5.0)
+
+
+# Edge of the meadow clearing in direction `a` (centred just off the ship's right side).
+func _clear_edge(a: float) -> Vector2:
+	var rx := 25.0
+	var rz := 21.0
+	var wobble := 1.0 + 0.12 * sin(a * 3.0 + 0.7) + 0.08 * sin(a * 7.0 + 2.0)
+	return Vector2(4.0, 0.0) + Vector2(cos(a) * rx, sin(a) * rz) * wobble
+
+
+func _clear_dist(p: Vector2) -> float:
+	var d := p - Vector2(4.0, 0.0)
+	var edge := _clear_edge(atan2(d.y, d.x)) - Vector2(4.0, 0.0)
+	return d.length() - edge.length()
+
+
+func _in_ship_zone(p: Vector2, margin: float) -> bool:
+	return p.x > -8.0 - margin and p.x < 7.5 + margin and p.y > -13.0 - margin and p.y < 9.5 + margin
+
+
+func _in_trail(p: Vector2) -> bool:
+	return absf(p.x + 0.8) < 6.0 and p.y > 8.0 and p.y < 85.0
+
+
+# True if a point should stay free of trees: the clearing, the ship, the trail.
 func _keep_clear(p: Vector2, margin: float) -> bool:
-	if p.x > -8.0 - margin and p.x < 7.5 + margin and p.y > -13.0 - margin and p.y < 9.5 + margin:
-		return true
-	if absf(p.x + 0.8) < 5.5 + margin * 0.3 and p.y > 8.0 and p.y < 85.0:
-		return true
-	return false
+	return _clear_dist(p) < margin or _in_ship_zone(p, 3.0 + margin) or _in_trail(p)
