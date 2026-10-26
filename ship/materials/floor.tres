@@ -1,6 +1,18 @@
-[gd_resource type="StandardMaterial3D" format=3]
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/hull_panel.gdshader" id="1_fjom8"]
 
 [resource]
-albedo_color = Color(0.2, 0.21, 0.23, 1)
-metallic = 0.3
-roughness = 0.6
+render_priority = 0
+shader = ExtResource("1_fjom8")
+shader_parameter/base_color = Color(0.24, 0.24, 0.25, 1)
+shader_parameter/lower_band = null
+shader_parameter/lower_color = null
+shader_parameter/panel_size = Vector2(1.4, 1)
+shader_parameter/seam_width = null
+shader_parameter/seam_dark = 0.3
+shader_parameter/variation = null
+shader_parameter/grime = 0.45
+shader_parameter/rivets = null
+shader_parameter/metallic_amount = 0.45
+shader_parameter/roughness_amount = 0.55
