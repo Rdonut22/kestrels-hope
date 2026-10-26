@@ -2,6 +2,10 @@
 
 [resource]
 albedo_color = Color(0.3, 0.85, 1, 1)
+roughness = 0.3
 emission_enabled = true
 emission = Color(0.3, 0.85, 1, 1)
 emission_energy_multiplier = 4.0
+rim_enabled = true
+rim = 0.3
+rim_tint = 0.6

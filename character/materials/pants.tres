@@ -1,12 +1,8 @@
-[gd_resource type="ShaderMaterial" format=3]
-
-[ext_resource type="Shader" path="res://character/pixel_surface.gdshader" id="1_xde27"]
+[gd_resource type="StandardMaterial3D" format=3]
 
 [resource]
-render_priority = 0
-shader = ExtResource("1_xde27")
-shader_parameter/base_color = Color(0.38, 0.25, 0.16, 1)
-shader_parameter/texel_size = null
-shader_parameter/variation = null
-shader_parameter/roughness_amount = 0.85
-shader_parameter/metallic_amount = 0.0
+albedo_color = Color(0.4, 0.27, 0.17, 1)
+roughness = 0.8
+rim_enabled = true
+rim = 0.3
+rim_tint = 0.6
