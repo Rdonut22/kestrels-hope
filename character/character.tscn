@@ -564,516 +564,516 @@ height = 0.006
 radial_segments = 8
 rings = 1
 
-[node name="Character" type="Node3D" unique_id=637501340]
+[node name="Character" type="Node3D" unique_id=1910046439]
 script = ExtResource("1_wlm6a")
 
-[node name="Rig" type="Node3D" parent="." unique_id=678637850]
+[node name="Rig" type="Node3D" parent="." unique_id=514568249]
 
-[node name="HipL" type="Node3D" parent="Rig" unique_id=1817520918]
+[node name="HipL" type="Node3D" parent="Rig" unique_id=1245189177]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.11, 0.86, 0)
 
-[node name="Thigh" type="MeshInstance3D" parent="Rig/HipL" unique_id=719377652]
+[node name="Thigh" type="MeshInstance3D" parent="Rig/HipL" unique_id=815608710]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, 0)
 material_override = ExtResource("2_c0nog")
 mesh = SubResource("CylinderMesh_s2csv")
 
-[node name="CargoPocket" type="MeshInstance3D" parent="Rig/HipL" unique_id=927468256]
+[node name="CargoPocket" type="MeshInstance3D" parent="Rig/HipL" unique_id=123549319]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09, -0.26, 0)
 material_override = ExtResource("2_c0nog")
 mesh = SubResource("BoxMesh_nl6b6")
 
-[node name="PocketFlap" type="MeshInstance3D" parent="Rig/HipL" unique_id=1132523746]
+[node name="PocketFlap" type="MeshInstance3D" parent="Rig/HipL" unique_id=893101407]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09, -0.18, 0)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("BoxMesh_flvo5")
 
-[node name="KneeL" type="Node3D" parent="Rig/HipL" unique_id=1763557196]
+[node name="KneeL" type="Node3D" parent="Rig/HipL" unique_id=1780329933]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.42, 0)
 
-[node name="Shin" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=139674526]
+[node name="Shin" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=1335482538]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 0)
 material_override = ExtResource("2_c0nog")
 mesh = SubResource("CylinderMesh_2yldb")
 
-[node name="BootShaft" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=162027175]
+[node name="BootShaft" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=1618686436]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.33, 0)
 material_override = ExtResource("4_4ekbm")
 mesh = SubResource("CylinderMesh_6ynxc")
 
-[node name="BootCuff" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=167879310]
+[node name="BootCuff" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=25287622]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.26, 0)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("CylinderMesh_blitr")
 
-[node name="Foot" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=1289334399]
+[node name="Foot" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=1762416284]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.39, -0.05)
 material_override = ExtResource("4_4ekbm")
 mesh = SubResource("BoxMesh_1hmya")
 
-[node name="ToeCap" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=1303965778]
+[node name="ToeCap" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=171691599]
 transform = Transform3D(1, 0, 0, 0, 0.65, 0, 0, 0, 1, 0, -0.395, -0.16)
 material_override = ExtResource("4_4ekbm")
 mesh = SubResource("SphereMesh_54gay")
 
-[node name="Sole" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=617083284]
+[node name="Sole" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=1907093212]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.425, -0.07)
 material_override = ExtResource("5_kxp0i")
 mesh = SubResource("BoxMesh_upvyv")
 
-[node name="Laces" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=2048855515]
+[node name="Laces" type="MeshInstance3D" parent="Rig/HipL/KneeL" unique_id=84809136]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.33, -0.092)
 material_override = ExtResource("6_yn8gt")
 mesh = SubResource("BoxMesh_j0gbq")
 
-[node name="HipR" type="Node3D" parent="Rig" unique_id=1063338898]
+[node name="HipR" type="Node3D" parent="Rig" unique_id=1074226722]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.11, 0.86, 0)
 
-[node name="Thigh" type="MeshInstance3D" parent="Rig/HipR" unique_id=2064915444]
+[node name="Thigh" type="MeshInstance3D" parent="Rig/HipR" unique_id=819621085]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, 0)
 material_override = ExtResource("2_c0nog")
 mesh = SubResource("CylinderMesh_wpbs7")
 
-[node name="CargoPocket" type="MeshInstance3D" parent="Rig/HipR" unique_id=752129336]
+[node name="CargoPocket" type="MeshInstance3D" parent="Rig/HipR" unique_id=887812670]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.09, -0.26, 0)
 material_override = ExtResource("2_c0nog")
 mesh = SubResource("BoxMesh_dg8ty")
 
-[node name="PocketFlap" type="MeshInstance3D" parent="Rig/HipR" unique_id=1610235917]
+[node name="PocketFlap" type="MeshInstance3D" parent="Rig/HipR" unique_id=1228938627]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.09, -0.18, 0)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("BoxMesh_ewpg8")
 
-[node name="KneeR" type="Node3D" parent="Rig/HipR" unique_id=355869376]
+[node name="KneeR" type="Node3D" parent="Rig/HipR" unique_id=1050101949]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.42, 0)
 
-[node name="Shin" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=1430884755]
+[node name="Shin" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=1277806966]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 0)
 material_override = ExtResource("2_c0nog")
 mesh = SubResource("CylinderMesh_e7r6o")
 
-[node name="BootShaft" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=1263193132]
+[node name="BootShaft" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=1228362234]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.33, 0)
 material_override = ExtResource("4_4ekbm")
 mesh = SubResource("CylinderMesh_6tlts")
 
-[node name="BootCuff" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=1416081844]
+[node name="BootCuff" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=685954749]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.26, 0)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("CylinderMesh_vbq3c")
 
-[node name="Foot" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=882016481]
+[node name="Foot" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=930809159]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.39, -0.05)
 material_override = ExtResource("4_4ekbm")
 mesh = SubResource("BoxMesh_d27ms")
 
-[node name="ToeCap" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=399322757]
+[node name="ToeCap" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=86956099]
 transform = Transform3D(1, 0, 0, 0, 0.65, 0, 0, 0, 1, 0, -0.395, -0.16)
 material_override = ExtResource("4_4ekbm")
 mesh = SubResource("SphereMesh_2a2p4")
 
-[node name="Sole" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=1665201597]
+[node name="Sole" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=977589546]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.425, -0.07)
 material_override = ExtResource("5_kxp0i")
 mesh = SubResource("BoxMesh_r8gpb")
 
-[node name="Laces" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=1567435816]
+[node name="Laces" type="MeshInstance3D" parent="Rig/HipR/KneeR" unique_id=761074690]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.33, -0.092)
 material_override = ExtResource("6_yn8gt")
 mesh = SubResource("BoxMesh_qrjck")
 
-[node name="Pelvis" type="MeshInstance3D" parent="Rig" unique_id=1438000547]
+[node name="Pelvis" type="MeshInstance3D" parent="Rig" unique_id=872926319]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.75, 0, 0.86, 0)
 material_override = ExtResource("2_c0nog")
 mesh = SubResource("CylinderMesh_dd31t")
 
-[node name="Belt" type="MeshInstance3D" parent="Rig" unique_id=995006701]
+[node name="Belt" type="MeshInstance3D" parent="Rig" unique_id=1155492340]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.78, 0, 0.935, 0)
 material_override = ExtResource("7_q7srn")
 mesh = SubResource("CylinderMesh_fntj3")
 
-[node name="Buckle" type="MeshInstance3D" parent="Rig" unique_id=685444554]
+[node name="Buckle" type="MeshInstance3D" parent="Rig" unique_id=1332565832]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.935, -0.168)
 material_override = ExtResource("8_a87gu")
 mesh = SubResource("BoxMesh_4d2y3")
 
-[node name="PouchA" type="MeshInstance3D" parent="Rig" unique_id=1716899660]
+[node name="PouchA" type="MeshInstance3D" parent="Rig" unique_id=1476072189]
 transform = Transform3D(0.87758255, 0, -0.47942555, 0, 1, 0, 0.47942555, 0, 0.87758255, 0.13, 0.9, -0.13)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("BoxMesh_xtv1v")
 
-[node name="PouchB" type="MeshInstance3D" parent="Rig" unique_id=1010983929]
+[node name="PouchB" type="MeshInstance3D" parent="Rig" unique_id=419359826]
 transform = Transform3D(0.9553365, 0, 0.29552022, 0, 1, 0, -0.29552022, 0, 0.9553365, -0.08, 0.9, 0.15)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("BoxMesh_4y0r6")
 
-[node name="Holster" type="MeshInstance3D" parent="Rig" unique_id=1753913916]
+[node name="Holster" type="MeshInstance3D" parent="Rig" unique_id=1614687439]
 transform = Transform3D(0.9950042, -0.09983342, 0, 0.09983342, 0.9950042, 0, 0, 0, 1, -0.22, 0.8, 0)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("BoxMesh_yu5j1")
 
-[node name="Pistol" type="MeshInstance3D" parent="Rig" unique_id=1940532147]
+[node name="Pistol" type="MeshInstance3D" parent="Rig" unique_id=1067403501]
 transform = Transform3D(0.9950042, -0.09983342, 0, 0.09983342, 0.9950042, 0, 0, 0, 1, -0.225, 0.92, -0.02)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("BoxMesh_i4nyx")
 
-[node name="Chest" type="Node3D" parent="Rig" unique_id=1535880398]
+[node name="Chest" type="Node3D" parent="Rig" unique_id=1128693228]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
 
-[node name="Torso" type="MeshInstance3D" parent="Rig/Chest" unique_id=1040090224]
+[node name="Torso" type="MeshInstance3D" parent="Rig/Chest" unique_id=1250620376]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.68, 0, 0.2, 0)
 material_override = ExtResource("10_h0hwg")
 mesh = SubResource("CylinderMesh_rpsx1")
 
-[node name="Collar" type="MeshInstance3D" parent="Rig/Chest" unique_id=1722742435]
+[node name="Collar" type="MeshInstance3D" parent="Rig/Chest" unique_id=2039419075]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.43, 0)
 material_override = ExtResource("10_h0hwg")
 mesh = SubResource("CylinderMesh_xdtjf")
 
-[node name="Scarf" type="MeshInstance3D" parent="Rig/Chest" unique_id=154403314]
+[node name="Scarf" type="MeshInstance3D" parent="Rig/Chest" unique_id=1846256518]
 transform = Transform3D(1, 0, 0, 0, 0.9887711, -0.14943814, 0, 0.14943814, 0.9887711, 0, 0.44, 0)
 material_override = ExtResource("11_iaewr")
 mesh = SubResource("TorusMesh_5cdwl")
 
-[node name="ScarfTail" type="MeshInstance3D" parent="Rig/Chest" unique_id=556353863]
+[node name="ScarfTail" type="MeshInstance3D" parent="Rig/Chest" unique_id=273428830]
 transform = Transform3D(1, 0, 0, 0, -1, 3.059797e-08, 0, -8.742278e-08, -0.35, 0, 0.34, -0.15)
 material_override = ExtResource("11_iaewr")
 mesh = SubResource("CylinderMesh_cffxo")
 
-[node name="Neck" type="MeshInstance3D" parent="Rig/Chest" unique_id=1642113908]
+[node name="Neck" type="MeshInstance3D" parent="Rig/Chest" unique_id=288288212]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.47, 0)
 material_override = ExtResource("12_5tbnp")
 mesh = SubResource("CylinderMesh_4x7tt")
 
-[node name="Backpack" type="MeshInstance3D" parent="Rig/Chest" unique_id=1995652762]
+[node name="Backpack" type="MeshInstance3D" parent="Rig/Chest" unique_id=1865875047]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0.2)
 material_override = ExtResource("13_yp81j")
 mesh = SubResource("BoxMesh_em53d")
 
-[node name="PackFlap" type="MeshInstance3D" parent="Rig/Chest" unique_id=745375377]
+[node name="PackFlap" type="MeshInstance3D" parent="Rig/Chest" unique_id=652987008]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.37, 0.2)
 material_override = ExtResource("14_cx1fd")
 mesh = SubResource("BoxMesh_2wv4s")
 
-[node name="PackPocket" type="MeshInstance3D" parent="Rig/Chest" unique_id=1797507433]
+[node name="PackPocket" type="MeshInstance3D" parent="Rig/Chest" unique_id=413694287]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0.3)
 material_override = ExtResource("14_cx1fd")
 mesh = SubResource("BoxMesh_jetg1")
 
-[node name="Bedroll" type="MeshInstance3D" parent="Rig/Chest" unique_id=1265841157]
+[node name="Bedroll" type="MeshInstance3D" parent="Rig/Chest" unique_id=1557578661]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0.48, 0.21)
 material_override = ExtResource("15_xka47")
 mesh = SubResource("CylinderMesh_14nqs")
 
-[node name="BedrollTie-12" type="MeshInstance3D" parent="Rig/Chest" unique_id=1489282370]
+[node name="BedrollTie-12" type="MeshInstance3D" parent="Rig/Chest" unique_id=255210312]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -0.12, 0.48, 0.21)
 material_override = ExtResource("14_cx1fd")
 mesh = SubResource("CylinderMesh_e5d1y")
 
-[node name="StrapFront-12" type="MeshInstance3D" parent="Rig/Chest" unique_id=594728043]
+[node name="StrapFront-12" type="MeshInstance3D" parent="Rig/Chest" unique_id=34122513]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.108, 0.24, -0.165)
 material_override = ExtResource("14_cx1fd")
 mesh = SubResource("BoxMesh_gnp1r")
 
-[node name="StrapTop-12" type="MeshInstance3D" parent="Rig/Chest" unique_id=794425030]
+[node name="StrapTop-12" type="MeshInstance3D" parent="Rig/Chest" unique_id=1890553191]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.108, 0.42, 0.02)
 material_override = ExtResource("14_cx1fd")
 mesh = SubResource("BoxMesh_f6hjr")
 
-[node name="BedrollTie12" type="MeshInstance3D" parent="Rig/Chest" unique_id=68628973]
+[node name="BedrollTie12" type="MeshInstance3D" parent="Rig/Chest" unique_id=1529282548]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0.12, 0.48, 0.21)
 material_override = ExtResource("14_cx1fd")
 mesh = SubResource("CylinderMesh_1s3k8")
 
-[node name="StrapFront12" type="MeshInstance3D" parent="Rig/Chest" unique_id=1504901166]
+[node name="StrapFront12" type="MeshInstance3D" parent="Rig/Chest" unique_id=335320543]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.108, 0.24, -0.165)
 material_override = ExtResource("14_cx1fd")
 mesh = SubResource("BoxMesh_0xiu0")
 
-[node name="StrapTop12" type="MeshInstance3D" parent="Rig/Chest" unique_id=1270783910]
+[node name="StrapTop12" type="MeshInstance3D" parent="Rig/Chest" unique_id=660191857]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.108, 0.42, 0.02)
 material_override = ExtResource("14_cx1fd")
 mesh = SubResource("BoxMesh_tr4id")
 
-[node name="Head" type="Node3D" parent="Rig/Chest" unique_id=226258462]
+[node name="Head" type="Node3D" parent="Rig/Chest" unique_id=1532282123]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 
-[node name="Skull" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=519219511]
+[node name="Skull" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=715694138]
 transform = Transform3D(1, 0, 0, 0, 1.05, 0, 0, 0, 0.95, 0, 0.17, 0)
 material_override = ExtResource("16_oxui7")
 mesh = SubResource("SphereMesh_pkdcj")
 
-[node name="EarL" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=116603057]
+[node name="EarL" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=2033079459]
 transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.8, -0.158, 0.15, 0.01)
 material_override = ExtResource("12_5tbnp")
 mesh = SubResource("SphereMesh_fk1tb")
 
-[node name="EarR" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=771657381]
+[node name="EarR" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1243236299]
 transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.8, 0.158, 0.15, 0.01)
 material_override = ExtResource("12_5tbnp")
 mesh = SubResource("SphereMesh_qqcwq")
 
-[node name="Nose" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=573511074]
+[node name="Nose" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1409512501]
 transform = Transform3D(0.8, 0, 0, 0, 1, 0, 0, 0, 0.9, 0, 0.138, -0.149)
 material_override = ExtResource("12_5tbnp")
 mesh = SubResource("SphereMesh_53p4g")
 
-[node name="Headband0" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1739763406]
+[node name="Headband0" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=956159113]
 transform = Transform3D(1, 0, 0, 0, 0.99280864, -0.114923716, 0, 0.119712204, 0.9530963, 0, 0.232, 0.004)
 material_override = ExtResource("17_7f6i4")
 mesh = SubResource("CylinderMesh_y8opw")
 
-[node name="Headband1" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=663102140]
+[node name="Headband1" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=405824310]
 transform = Transform3D(1, 0, 0, 0, 0.99280864, -0.114923716, 0, 0.119712204, 0.9530963, 0, 0.2445, 0.004)
 material_override = ExtResource("18_komqb")
 mesh = SubResource("CylinderMesh_iv1q1")
 
-[node name="Headband2" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=2095100781]
+[node name="Headband2" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1048173575]
 transform = Transform3D(1, 0, 0, 0, 0.99280864, -0.114923716, 0, 0.119712204, 0.9530963, 0, 0.257, 0.004)
 material_override = ExtResource("17_7f6i4")
 mesh = SubResource("CylinderMesh_lm0a3")
 
-[node name="Headband3" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=707844066]
+[node name="Headband3" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=78325214]
 transform = Transform3D(1, 0, 0, 0, 0.99280864, -0.114923716, 0, 0.119712204, 0.9530963, 0, 0.2695, 0.004)
 material_override = ExtResource("18_komqb")
 mesh = SubResource("CylinderMesh_dha4k")
 
-[node name="Headband4" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=381655570]
+[node name="Headband4" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1391722496]
 transform = Transform3D(1, 0, 0, 0, 0.99280864, -0.114923716, 0, 0.119712204, 0.9530963, 0, 0.282, 0.004)
 material_override = ExtResource("17_7f6i4")
 mesh = SubResource("CylinderMesh_4xtx7")
 
-[node name="HeadbandKnot" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1607850661]
+[node name="HeadbandKnot" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1378299161]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0.175)
 material_override = ExtResource("17_7f6i4")
 mesh = SubResource("BoxMesh_cbx46")
 
-[node name="HeadbandTail" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1635442969]
+[node name="HeadbandTail" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1432100595]
 transform = Transform3D(0.9800666, 0.15562303, 0.12349484, 0, 0.62161, -0.7833269, -0.19866933, 0.76771253, 0.6092192, 0.02, 0.2, 0.22)
 material_override = ExtResource("17_7f6i4")
 mesh = SubResource("BoxMesh_t2017")
 
-[node name="HairCap" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=142817323]
+[node name="HairCap" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=900450945]
 transform = Transform3D(1, 0, 0, 0, 0.86743444, -0.40776044, 0, 0.3873724, 0.9130889, 0, 0.2, 0.02)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("SphereMesh_hg68v")
 
-[node name="HairBack" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=589746199]
+[node name="HairBack" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=287361747]
 transform = Transform3D(0.98, 0, 0, 0, 1, 0, 0, 0, 0.85, 0, 0.16, 0.07)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("SphereMesh_e1h58")
 
-[node name="Spike0" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1362639233]
+[node name="Spike0" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1863279282]
 transform = Transform3D(1, 0, 0, 0, 0.98893636, -0.14834045, 0, 0.14834045, 0.98893636, 0, 0.40767664, 0.051151495)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_evt3s")
 
-[node name="Spike1" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1538973331]
+[node name="Spike1" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1724914464]
 transform = Transform3D(0.90109885, 0.4285714, -0.06593408, -0.42857143, 0.85714287, -0.2857143, -0.06593406, 0.2857143, 0.9560439, 0.088285714, 0.37657142, 0.078857146)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_4km1y")
 
-[node name="Spike2" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1245838846]
+[node name="Spike2" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=2065445364]
 transform = Transform3D(0.90109885, -0.4285714, 0.06593408, 0.42857143, 0.85714287, -0.2857143, 0.06593406, 0.2857143, 0.9560439, -0.088285714, 0.37657142, 0.078857146)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_gt0oi")
 
-[node name="Spike3" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1579501954]
+[node name="Spike3" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1385390942]
 transform = Transform3D(1, 0, 0, 0, 0.7071068, -0.7071067, 0, 0.7071067, 0.7071068, 0, 0.35132086, 0.17132086)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_qd1dk")
 
-[node name="Spike4" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1123756084]
+[node name="Spike4" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1056485384]
 transform = Transform3D(0.79904187, 0.5598854, -0.219227, -0.5598854, 0.55988514, -0.610784, -0.21922709, 0.61078393, 0.7608433, 0.113096826, 0.31309682, 0.14337836)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_64cjn")
 
-[node name="Spike5" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1803417644]
+[node name="Spike5" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1223741094]
 transform = Transform3D(0.79904187, -0.5598854, 0.219227, 0.5598854, 0.55988514, -0.610784, 0.21922709, 0.61078393, 0.7608433, -0.113096826, 0.31309682, 0.14337836)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_vlxdu")
 
-[node name="Spike6" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1785946304]
+[node name="Spike6" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=568658687]
 transform = Transform3D(0.5080717, 0.8608286, -0.028936952, -0.8608286, 0.50636953, -0.05063697, -0.028936956, 0.05063697, 0.9982978, 0.16355741, 0.29621023, 0.029621024)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_7e7c5")
 
-[node name="Spike7" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1258627931]
+[node name="Spike7" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=692130609]
 transform = Transform3D(0.5080717, -0.8608286, 0.028936952, 0.8608286, 0.50636953, -0.05063697, 0.028936956, 0.05063697, 0.9982978, -0.16355741, 0.29621023, 0.029621024)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_vnsuc")
 
-[node name="Spike8" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=823323956]
+[node name="Spike8" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=878914824]
 transform = Transform3D(1, 0, 0, 0, 0.28734776, -0.9578263, 0, 0.9578263, 0.28734776, 0, 0.2568949, 0.2096496)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_tsal0")
 
-[node name="Spike9" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1429748219]
+[node name="Spike9" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=2088030636]
 transform = Transform3D(0.9575099, 0.28410828, 0.04957184, -0.28410828, 0.899676, 0.33145964, 0.049571846, -0.33145967, 0.9421662, 0.05625344, 0.37813586, -0.045629006)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_0gyqv")
 
-[node name="Spike10" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1129046420]
+[node name="Spike10" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=319535694]
 transform = Transform3D(0.9575099, -0.28410828, -0.04957184, 0.28410828, 0.899676, 0.33145964, -0.049571846, -0.33145967, 0.9421662, -0.055117007, 0.37453717, -0.044303175)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_qyrba")
 
-[node name="Spike11" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=819162035]
+[node name="Spike11" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=1899461221]
 transform = Transform3D(0.9941356, 0.09438585, 0.05277927, -0.094385825, 0.519122, 0.8494726, 0.05277931, -0.8494726, 0.5249864, 0.017555766, 0.2965567, -0.13800189)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_0kufe")
 
-[node name="Spike12" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=772950578]
+[node name="Spike12" type="MeshInstance3D" parent="Rig/Chest/Head" unique_id=595209228]
 transform = Transform3D(0.9595122, -0.24573658, -0.13765855, 0.24573663, 0.4914733, 0.83550435, -0.1376585, -0.8355044, 0.5319611, -0.043741114, 0.28748223, -0.1287198)
 material_override = ExtResource("19_b862g")
 mesh = SubResource("CylinderMesh_eswk0")
 
-[node name="ShoulderL" type="Node3D" parent="Rig/Chest" unique_id=983452272]
+[node name="ShoulderL" type="Node3D" parent="Rig/Chest" unique_id=1820543930]
 transform = Transform3D(0.9950042, 0.09983342, 0, -0.09983342, 0.9950042, 0, 0, 0, 1, -0.265, 0.38, 0)
 
-[node name="Sleeve" type="MeshInstance3D" parent="Rig/Chest/ShoulderL" unique_id=923637127]
+[node name="Sleeve" type="MeshInstance3D" parent="Rig/Chest/ShoulderL" unique_id=570625322]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0)
 material_override = ExtResource("10_h0hwg")
 mesh = SubResource("CylinderMesh_3td5y")
 
-[node name="SleeveHem" type="MeshInstance3D" parent="Rig/Chest/ShoulderL" unique_id=1638486033]
+[node name="SleeveHem" type="MeshInstance3D" parent="Rig/Chest/ShoulderL" unique_id=966627197]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.155, 0)
 material_override = ExtResource("10_h0hwg")
 mesh = SubResource("CylinderMesh_xyo4n")
 
-[node name="UpperArm" type="MeshInstance3D" parent="Rig/Chest/ShoulderL" unique_id=1641972479]
+[node name="UpperArm" type="MeshInstance3D" parent="Rig/Chest/ShoulderL" unique_id=1502849069]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.17, 0)
 material_override = ExtResource("12_5tbnp")
 mesh = SubResource("CylinderMesh_n85qd")
 
-[node name="ElbowL" type="Node3D" parent="Rig/Chest/ShoulderL" unique_id=482308885]
+[node name="ElbowL" type="Node3D" parent="Rig/Chest/ShoulderL" unique_id=2012438349]
 transform = Transform3D(1, 0, 0, 0, 0.9689124, -0.24740396, 0, 0.24740396, 0.9689124, 0, -0.29, 0)
 
-[node name="Forearm" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=1071366321]
+[node name="Forearm" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=2086286710]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.11, 0)
 material_override = ExtResource("12_5tbnp")
 mesh = SubResource("CylinderMesh_hv5da")
 
-[node name="GloveCuff" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=1371529734]
+[node name="GloveCuff" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=415311502]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, 0)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("CylinderMesh_cdix7")
 
-[node name="Hand" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=668871084]
+[node name="Hand" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=985949879]
 transform = Transform3D(0.75, 0, 0, 0, 1.1, 0, 0, 0, 1, 0, -0.29, -0.005)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("SphereMesh_r403y")
 
-[node name="Thumb" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=230809805]
+[node name="Thumb" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=112875925]
 transform = Transform3D(0.87758255, -0.47942555, 0, 0.4207355, 0.77015114, -0.47942555, 0.22984886, 0.4207355, 0.87758255, 0.03, -0.27, -0.04)
 material_override = ExtResource("3_5s0vb")
 mesh = SubResource("CylinderMesh_0ovhl")
 
-[node name="Fingers" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=2025502192]
+[node name="Fingers" type="MeshInstance3D" parent="Rig/Chest/ShoulderL/ElbowL" unique_id=1316764944]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.345, -0.005)
 material_override = ExtResource("12_5tbnp")
 mesh = SubResource("BoxMesh_hr4dx")
 
-[node name="ShoulderR" type="Node3D" parent="Rig/Chest" unique_id=679453140]
+[node name="ShoulderR" type="Node3D" parent="Rig/Chest" unique_id=279774301]
 transform = Transform3D(0.9950042, -0.09983342, 0, 0.09983342, 0.9950042, 0, 0, 0, 1, 0.265, 0.38, 0)
 
-[node name="ShoulderJoint" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=977415534]
+[node name="ShoulderJoint" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=449923331]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, 0)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("CylinderMesh_n6sta")
 
-[node name="ShoulderPlate" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=1437175520]
+[node name="ShoulderPlate" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=87751268]
 transform = Transform3D(0.9393727, 0.3428978, 0, -0.3428978, 0.9393727, 0, 0, 0, 1, 0.025, 0.045, 0)
 material_override = ExtResource("20_0l5d1")
 mesh = SubResource("BoxMesh_vq60p")
 
-[node name="ShoulderPlateLower" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=723764232]
+[node name="ShoulderPlateLower" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=582848920]
 transform = Transform3D(0.9950042, -0.09983342, 0, 0.09983342, 0.9950042, 0, 0, 0, 1, 0.09, -0.02, 0)
 material_override = ExtResource("20_0l5d1")
 mesh = SubResource("BoxMesh_6sfhy")
 
-[node name="PlateTrim" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=224791963]
+[node name="PlateTrim" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=1535361718]
 transform = Transform3D(0.9393727, 0.3428978, 0, -0.3428978, 0.9393727, 0, 0, 0, 1, 0.02, 0.027, 0)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("BoxMesh_ohpfp")
 
-[node name="UpperArm" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=23459430]
+[node name="UpperArm" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=1056533589]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.16, 0)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("CylinderMesh_esrbu")
 
-[node name="PistonA" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=2050204822]
+[node name="PistonA" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=836146468]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.062, -0.16, 0)
 material_override = ExtResource("8_a87gu")
 mesh = SubResource("CylinderMesh_q3cms")
 
-[node name="PistonB" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=486490303]
+[node name="PistonB" type="MeshInstance3D" parent="Rig/Chest/ShoulderR" unique_id=894352280]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.02, -0.16, 0.062)
 material_override = ExtResource("8_a87gu")
 mesh = SubResource("CylinderMesh_aoi1a")
 
-[node name="ElbowR" type="Node3D" parent="Rig/Chest/ShoulderR" unique_id=1080693805]
+[node name="ElbowR" type="Node3D" parent="Rig/Chest/ShoulderR" unique_id=1662115824]
 transform = Transform3D(1, 0, 0, 0, 0.9689124, -0.24740396, 0, 0.24740396, 0.9689124, 0, -0.29, 0)
 
-[node name="ElbowJoint" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1012819253]
+[node name="ElbowJoint" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1335057576]
 material_override = ExtResource("8_a87gu")
 mesh = SubResource("SphereMesh_o53dv")
 
-[node name="Forearm" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=70746987]
+[node name="Forearm" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1242383548]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.13, 0)
 material_override = ExtResource("20_0l5d1")
 mesh = SubResource("CylinderMesh_mb68s")
 
-[node name="ForearmPlate" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=810855439]
+[node name="ForearmPlate" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1537236863]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("CylinderMesh_k8lcv")
 
-[node name="CableFront" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1313183007]
+[node name="CableFront" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=392194996]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.13, -0.072)
 material_override = ExtResource("21_6y17u")
 mesh = SubResource("CylinderMesh_c2hdl")
 
-[node name="CableSide" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=365489195]
+[node name="CableSide" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1405884342]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.07, -0.13, -0.01)
 material_override = ExtResource("21_6y17u")
 mesh = SubResource("CylinderMesh_3x0qm")
 
-[node name="WristGlow" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1081870082]
+[node name="WristGlow" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1185586808]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.245, 0)
 material_override = ExtResource("22_4mbdx")
 mesh = SubResource("TorusMesh_2c1xj")
 
-[node name="Hand" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=411971698]
+[node name="Hand" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1311139454]
 transform = Transform3D(0.85, 0, 0, 0, 1.05, 0, 0, 0, 1, 0, -0.3, -0.005)
 material_override = ExtResource("20_0l5d1")
 mesh = SubResource("SphereMesh_h82v8")
 
-[node name="Finger0" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1010310777]
+[node name="Finger0" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=356916391]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.022, -0.36, -0.035)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("CylinderMesh_12ovv")
 
-[node name="Finger1" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=180016103]
+[node name="Finger1" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1033740637]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.36, -0.035)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("CylinderMesh_8k3bw")
 
-[node name="Finger2" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=646327350]
+[node name="Finger2" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1524211624]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.022, -0.36, -0.035)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("CylinderMesh_t5ir6")
 
-[node name="Thumb" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1830189566]
+[node name="Thumb" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=503275604]
 transform = Transform3D(0.87758255, 0.47942555, 0, -0.44158018, 0.80830705, -0.38941833, -0.1866971, 0.34174675, 0.921061, -0.045, -0.29, -0.04)
 material_override = ExtResource("9_psflj")
 mesh = SubResource("CylinderMesh_rhqpp")
 
-[node name="Palm" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=685172108]
+[node name="Palm" type="MeshInstance3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=1354723383]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -0.054, -0.3, 0)
 material_override = ExtResource("22_4mbdx")
 mesh = SubResource("CylinderMesh_tvc3p")
 
-[node name="PalmLight" type="OmniLight3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=678822562]
+[node name="PalmLight" type="OmniLight3D" parent="Rig/Chest/ShoulderR/ElbowR" unique_id=942632416]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, -0.3, 0)
 light_color = Color(0.3, 0.85, 1, 1)
 light_energy = 0.3
