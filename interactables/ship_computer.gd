@@ -4,7 +4,7 @@ extends Interactable
 @export_range(0, 100) var hull := 87
 @export_range(0, 100) var fuel := 34
 @export_range(0, 100) var oxygen := 96
-@export_range(0, 100) var power := 72
+@export_range(0, 100) var power := 31
 ## Crash-landed version: swaps in damage reports.
 @export var crashed := false
 
@@ -20,9 +20,9 @@ func interact(_player: Node) -> void:
 		return
 	hud().open_screen(ship_name + " // SHIP COMPUTER", [
 		{"title": "Status", "body": _status()},
-		{"title": "Navigation", "body": "Position: [color=#ffb347]UNKNOWN[/color]\nVelocity: drifting\n\nNav array offline. Last good fix 41 days ago.\nRecommend manual star sighting."},
+		{"title": "Navigation", "body": "Position: [color=#ffb347]UNKNOWN[/color]\nVelocity: drifting\n\nNav array offline. Last good fix 43 days ago.\nRecommend manual star sighting."},
 		{"title": "Comms", "body": "Inbox empty.\n\nLong-range transmitter: standby\nDistress beacon: [color=#888888]not armed[/color]"},
-		{"title": "Diagnostics", "body": "Life support ....... [color=#7CFC00]OK[/color]\nReactor ............ [color=#7CFC00]OK[/color]\nArtificial gravity . [color=#7CFC00]OK[/color]\nNav array .......... [color=#ff5555]FAULT[/color]\nCoffee machine ..... [color=#7CFC00]EXCELLENT[/color]"},
+		{"title": "Diagnostics", "body": "Life support ....... [color=#7CFC00]OK[/color]\nReactor ............ [color=#ffb347]DAMAGED[/color]\nArtificial gravity . [color=#7CFC00]OK[/color]\nNav array .......... [color=#ff5555]FAULT[/color]\nCoffee machine ..... [color=#7CFC00]EXCELLENT[/color]"},
 	])
 
 

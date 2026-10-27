@@ -15,3 +15,4 @@ Drop sound files here.
   in space (ship/ship_hum.gd).
 - `thruster_flyby.ogg`: jet ship pass-by for the intro flyby (peak at 4.2 s,
   synced to the pass via THRUST_PEAK in intro.gd).
+- `type_blip.ogg`: soft blip per typed character in the intro narration (generated).

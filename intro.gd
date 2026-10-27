@@ -4,11 +4,26 @@ extends Node3D
 ## down until the forest moon fills the bottom of the frame; thrusters swell
 ## and the Kestrel bursts past overhead as the intro music and title come in;
 ## the ship shrinks toward the horizon; fade to black and cut to the cockpit.
-## Hold Space / Enter to skip.
+## Then a second shot: the Kestrel adrift over the planet while the opening
+## narration types out in green in the top-left corner. Hold Space / Enter
+## to skip.
 
 const NEXT_SCENE := "res://main.tscn"
 const BURST := 10.5          # seconds: ship passes the camera, music starts
-const END := 31.0            # seconds: fade to black
+const END := 31.0            # seconds: flyby shot fades to black
+
+## Opening narration, typed out over the drifting-ship shot.
+const NARRATION := [
+	"November, 4023.",
+	"The Kestrel B26 - a mining vessel owned by Ushida Industries.",
+	"After a failed mission near Aphelion, pirates struck on the outer rim.",
+	"Her crew was lost. Her reactor, badly damaged.",
+	"Only one survived: Gana, a pilot from Asura.",
+	"For 43 days, the Kestrel has drifted, her navigation dead, her fuel running low.",
+	"Until now.",
+]
+const TYPE_SPEED := 32.0     # characters per second
+const LINE_PAUSE := 1.1      # seconds between lines
 const PLANET_RADIUS := 6000.0
 # Planet directly below the camera so its edge is a wide, gentle arc across
 # the whole frame, about 16 degrees below eye level (cos 16 = R / (R + h)).
@@ -28,6 +43,11 @@ var _music: AudioStreamPlayer
 var _thrust_started := false
 var _music_started := false
 var _leaving := false
+var _drift_shot := false
+var _drift_pending := false
+var _text: RichTextLabel
+var _blip: AudioStreamPlayer
+var _flares: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -40,6 +60,7 @@ func _ready() -> void:
 	_hum.play()
 	_thrust = _audio("res://audio/thruster_flyby.ogg", 0.0, false)
 	_music = _audio("res://audio/intro_music.ogg", -2.0, false)
+	_blip = _audio("res://audio/type_blip.ogg", -14.0, false)
 
 
 func _audio(path: String, db: float, loop: bool) -> AudioStreamPlayer:
@@ -139,6 +160,8 @@ func _build_ship() -> void:
 		flare.material_override = flare_mat
 		flare.position = Vector3(x, 1.6, 11.4)
 		_ship.add_child(flare)
+		_flares.append(flare)
+	_flares.append(glow)
 	_ship.visible = false
 
 
@@ -168,6 +191,23 @@ func _build_ui() -> void:
 	_skip_hint.offset_top = -48
 	_skip_hint.modulate.a = 0.0
 	layer.add_child(_skip_hint)
+	_text = RichTextLabel.new()
+	_text.bbcode_enabled = true
+	_text.fit_content = true
+	_text.scroll_active = false
+	_text.position = Vector2(56, 48)
+	_text.size = Vector2(1100, 400)
+	var mono := SystemFont.new()
+	mono.font_names = PackedStringArray(["Courier New", "Courier", "Menlo", "DejaVu Sans Mono", "monospace"])
+	_text.add_theme_font_override("normal_font", mono)
+	_text.add_theme_font_size_override("normal_font_size", 22)
+	_text.add_theme_color_override("default_color", Color(0.45, 1.0, 0.5))
+	_text.add_theme_color_override("font_shadow_color", Color(0.2, 1.0, 0.35, 0.45))
+	_text.add_theme_constant_override("shadow_offset_x", 0)
+	_text.add_theme_constant_override("shadow_offset_y", 0)
+	_text.add_theme_constant_override("shadow_outline_size", 6)
+	_text.add_theme_constant_override("line_separation", 10)
+	layer.add_child(_text)
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -182,11 +222,17 @@ func _process(delta: float) -> void:
 	_update_ship()
 	_update_audio_and_title()
 	_update_skip(delta)
-	if _t >= END and not _leaving:
-		_leave(2.0)
+	if _t >= END and not _drift_pending and not _leaving:
+		_start_drift_shot()
 
 
 func _update_camera() -> void:
+	if _drift_shot:
+		# Slow push-in behind the drifting ship.
+		var d := _t - END
+		_cam.position = Vector3(5.5, 4.5, 34.0) + Vector3(0, -0.02, -0.12) * d
+		_cam.look_at(Vector3(-2.0, -3.0, -40.0))
+		return
 	# Slow tilt from the stars down to just above the horizon.
 	var k := smoothstep(0.5, 9.5, _t)
 	_cam.rotation.x = deg_to_rad(lerpf(55.0, 0.0, k))
@@ -198,6 +244,11 @@ func _update_camera() -> void:
 
 
 func _update_ship() -> void:
+	if _drift_shot:
+		var d := _t - END
+		_ship.position = Vector3(0, 0, 0)
+		_ship.rotation = Vector3(0.05 + 0.004 * d, 0.25 + 0.006 * d, 0.12 + 0.003 * d)
+		return
 	var start := BURST - 1.6
 	if _t < start:
 		return
@@ -263,3 +314,47 @@ func _leave(duration: float) -> void:
 	# The cockpit scene reads this to start the player at the pilot seat.
 	get_tree().root.set_meta("spawn_cockpit", true)
 	get_tree().change_scene_to_file(NEXT_SCENE)
+
+
+# Cut to the Kestrel adrift over the planet, engines dark, and type out the
+# narration in the top-left corner.
+func _start_drift_shot() -> void:
+	_drift_pending = true
+	var out := create_tween()
+	out.tween_property(_fade, "color:a", 1.0, 1.5)
+	await out.finished
+	for f in _flares:
+		f.visible = false
+	# Engines cold: the Kestrel is adrift.
+	var cold := StandardMaterial3D.new()
+	cold.albedo_color = Color(0.08, 0.09, 0.1)
+	for core in _ship.find_children("ThrusterCore*", "", false, false):
+		(core as MeshInstance3D).material_override = cold
+	_title.modulate.a = 0.0
+	_hum.volume_db = -10.0
+	_t = END
+	_drift_shot = true
+	var back := create_tween()
+	back.tween_property(_fade, "color:a", 0.0, 2.0)
+	await get_tree().create_timer(2.5).timeout
+	for line: String in NARRATION:
+		if _leaving:
+			return
+		await _type_line(line)
+		await get_tree().create_timer(LINE_PAUSE).timeout
+	await get_tree().create_timer(2.0).timeout
+	if not _leaving:
+		_leave(2.0)
+
+
+func _type_line(line: String) -> void:
+	var done := _text.text
+	for i in line.length():
+		if _leaving:
+			return
+		_text.text = done + line.substr(0, i + 1) + "[color=#7fff8a]_[/color]"
+		if line[i] != " ":
+			_blip.pitch_scale = randf_range(0.95, 1.05)
+			_blip.play()
+		await get_tree().create_timer(1.0 / TYPE_SPEED).timeout
+	_text.text = done + line + "\n"

@@ -208,6 +208,23 @@ the beacon, find water) and the game opens up.
 
 ---
 
+## Story so far
+
+November, 4023. The **Kestrel B26** is a mining vessel owned by **Ushida
+Industries**. After a failed mission near **Aphelion**, pirates struck on the
+outer rim. The crew was lost (including **Hale**, whose bunk he can't bring
+himself to clear) and the reactor badly damaged. Only **Gana**, a pilot from
+**Asura**, survived. The Kestrel has drifted for 43 days with navigation dead
+and fuel running low, until it reaches an uncharted green world. In orbit,
+the ship picks up an **unidentified signal** from the surface; scanning it
+overloads the nav array and the Kestrel is pulled down. The signal comes from
+the ruins (likely the Great Ring), which becomes the long-term mystery.
+
+Opening as built: intro flyby → drifting-ship shot with green typed
+narration → cockpit. Next: cockpit dialogue and the signal → crash.
+
+---
+
 ## Vehicle idea (decide next session)
 
 A way to get around the forest faster. Options:

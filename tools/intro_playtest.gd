@@ -20,7 +20,12 @@ func _run() -> void:
 	_check(intro._music.playing, "intro music started at the flyby")
 	_check(intro._thrust_started, "thruster sound triggered")
 	intro._t = 30.8
-	await create_timer(4.0).timeout
+	await create_timer(6.0).timeout
+	_check(intro._drift_shot, "cuts to the drifting-ship shot")
+	await create_timer(3.0).timeout
+	_check(intro._text.get_parsed_text().begins_with("November, 4023."), "narration types out")
+	intro._leave(0.5)
+	await create_timer(2.0).timeout
 	_check(current_scene.scene_file_path == "res://main.tscn", "intro ends in the ship")
 	var player: Node3D = current_scene.get_node("Player")
 	_check(player.global_position.distance_to(Vector3(4.0, 1.1, -9.3)) < 0.6, "player starts in the cockpit (%s)" % player.global_position)

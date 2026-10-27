@@ -533,7 +533,7 @@ func _build_ship() -> void:
 	_interactable(use, "Bed", "bunk", Vector3(-2.75, 0.85, -7.6), {"prompt": "Sleep", "interact_range": 1.8})
 
 	_inspect(use, "SpareBed", Vector3(-2.75, 2.0, -7.6), "Upper pod",
-		"Mostly holds laundry these days.")
+		"Hale's bunk. Still made.")
 	_inspect(use, "Locker", Vector3(1.45, 1.0, -6.2), "Open locker",
 		"Flight suit, two spare shirts, and a photo you don't look at much anymore.", 1.4)
 	_inspect(use, "PilotSeat", Vector3(3.3, 0.5, -11.0), "Pilot seat",
