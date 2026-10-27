@@ -21,6 +21,7 @@ uniform vec3 sun_dir = vec3(0.6, 0.6, 0.3);
 // 0 = plain grey moons, 1 = iridescent purple-pink prism moons.
 uniform float prism = 0.0;
 uniform float moon_scale = 1.0;
+uniform float moon_b_scale = 1.0;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -142,7 +143,7 @@ void sky() {
 	vec3 cloud = mix(vec3(1.0), vec3(1.0, 0.68, 0.58), dusk) * mix(0.12, 1.0, day);
 	col = mix(col, cloud, smoothstep(0.55, 0.8, fbm(cl * 2.5 + vec2(TIME * 0.003, 0.0))) * 0.8 * step(0.05, sel));
 	col = moon(sd, moon_a_dir, 0.09 * moon_scale, col, 1.0);
-	col = moon(sd, moon_b_dir, 0.055 * moon_scale, col, 0.6);
+	col = moon(sd, moon_b_dir, 0.055 * moon_b_scale, col, 0.6);
 	float sun = distance(d, normalize(sun_dir));
 	vec3 sun_col = mix(vec3(1.0, 0.55, 0.3), vec3(1.0, 0.95, 0.85), smoothstep(0.0, 0.4, sun_dir.y));
 	col += sun_col * (smoothstep(0.045, 0.035, sun) * 4.0 + smoothstep(0.6, 0.0, sun) * (0.2 + dusk * 0.3)) * step(-0.05, sun_dir.y);

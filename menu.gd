@@ -16,6 +16,7 @@ var _fade: ColorRect
 var _music: AudioStreamPlayer
 var _t := 0.0
 var _starting := false
+var _sky: ShaderMaterial
 
 
 func _ready() -> void:
@@ -42,13 +43,42 @@ func _set_dusk() -> void:
 	clock.set_process(false)
 	clock.set_process_unhandled_input(false)
 	var env: Environment = world.get_node("WorldEnvironment").environment
-	env.fog_depth_begin = 70.0
-	env.fog_depth_end = 260.0
-	var sky: ShaderMaterial = env.sky.sky_material
-	sky.set_shader_parameter("moon_a_dir", Vector3(-0.92, 0.3, 0.32))
-	sky.set_shader_parameter("moon_b_dir", Vector3(-0.95, 0.24, -0.1))
-	sky.set_shader_parameter("moon_scale", 1.35)
-	sky.set_shader_parameter("prism", 1.0)
+	env.fog_depth_begin = 100.0
+	env.fog_depth_end = 360.0
+	_sky = env.sky.sky_material
+	_sky.set_shader_parameter("moon_scale", 2.5)
+	_sky.set_shader_parameter("moon_b_scale", 1.1)
+	_sky.set_shader_parameter("prism", 1.0)
+	_boost_smoke()
+
+
+# Thicker, wind-blown smoke column so the wreck reads from the ring.
+func _boost_smoke() -> void:
+	var smoke: CPUParticles3D = world.get_node("CrashSite/Smoke")
+	smoke.amount = 90
+	smoke.lifetime = 16.0
+	smoke.preprocess = 16.0
+	smoke.emission_sphere_radius = 1.6
+	smoke.initial_velocity_min = 2.4
+	smoke.initial_velocity_max = 3.4
+	smoke.spread = 8.0
+	smoke.gravity = Vector3(0.18, 0.5, 0.1)
+	smoke.scale_amount_min = 6.0
+	smoke.scale_amount_max = 10.0
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(0.2, 0.18, 0.18, 1.0))
+	ramp.add_point(0.35, Color(0.38, 0.34, 0.34, 0.85))
+	ramp.set_color(ramp.get_point_count() - 1, Color(0.62, 0.56, 0.58, 0.0))
+	smoke.color_ramp = ramp
+	# Keep the dusk haze from turning the column red.
+	var mat: StandardMaterial3D = smoke.mesh.material.duplicate()
+	mat.disable_fog = true
+	mat.billboard_keep_scale = true
+	mat.albedo_color = Color(1, 1, 1, 1)
+	var quad: QuadMesh = smoke.mesh.duplicate()
+	quad.material = mat
+	smoke.mesh = quad
+	smoke.restart()
 
 
 # The crash-site forest only covers the play area; tile its tree layers
@@ -117,18 +147,30 @@ func _pose_sitting(pilot: Node3D) -> void:
 
 func _setup_camera(seat: Transform3D) -> void:
 	_cam = Camera3D.new()
-	_cam.fov = 58
-	_cam.far = 800
+	_cam.fov = 68
+	_cam.far = 900
 	add_child(_cam)
-	var b := seat.basis
-	# Behind and off to the side of the deck, looking out slightly below the
-	# horizon so the moons, the forest and the ship far below all fit.
-	var eye := seat.origin + b.z * 6.5 - b.x * 3.2 + Vector3(0, 2.2, 0)
-	var target := eye + (-b.z) * 100.0 + b.x * 14.0 + Vector3(0, -12.0, 0)
+	# From the side of the deck: the pilot in profile on the left third, the
+	# wreck and its smoke far below in the valley he is looking at.
+	var ring: Node3D = world.get_node("CrashSite/Ruins/GreatRing")
+	var side := ring.global_basis.x.normalized()
+	side.y = 0.0
+	side = side.normalized()
+	var facing := -seat.basis.z
+	if facing.dot(side) > 0.0:
+		side = -side
+	var eye := seat.origin + side * 4.4 + facing * -0.6 + Vector3(0, 0.9, 0)
+	# Turn from looking at the pilot toward where he's looking, tilt down a bit.
+	var yaw_dir := (-side * cos(deg_to_rad(52.0)) + facing * sin(deg_to_rad(52.0))).normalized()
+	var fwd := (yaw_dir * cos(deg_to_rad(10.0)) + Vector3.DOWN * sin(deg_to_rad(10.0))).normalized()
 	_cam.global_position = eye
-	_cam.look_at(target)
+	_cam.look_at(eye + fwd)
 	_cam_base = _cam.global_transform
 	_cam.make_current()
+	# One gigantic and one small moon in the sky of this shot.
+	var b := _cam_base.basis
+	_sky.set_shader_parameter("moon_a_dir", (-b.z + b.y * 0.47 - b.x * 0.12).normalized())
+	_sky.set_shader_parameter("moon_b_dir", (-b.z + b.y * 0.56 + b.x * 1.0).normalized())
 
 
 func _process(delta: float) -> void:
@@ -141,42 +183,32 @@ func _process(delta: float) -> void:
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var container := SubViewportContainer.new()
-	container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	container.stretch = true
-	container.stretch_shrink = 3
-	container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	layer.add_child(container)
-	var vp := SubViewport.new()
-	vp.transparent_bg = true
-	vp.handle_input_locally = true
-	container.add_child(vp)
-
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Menlo", "Monaco", "DejaVu Sans Mono", "monospace"])
-	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	font.hinting = TextServer.HINTING_NONE
+	var font: FontFile = load("res://ui/fonts/Dena.otf")
+	var shadow := Color(0.12, 0.04, 0.1, 0.85)
 
 	var box := VBoxContainer.new()
-	box.position = Vector2(22, 22)
-	box.add_theme_constant_override("separation", 0)
-	vp.add_child(box)
+	box.position = Vector2(72, 64)
+	box.add_theme_constant_override("separation", 6)
+	layer.add_child(box)
 	var title := Label.new()
 	title.text = "KESTREL'S HOPE"
 	title.add_theme_font_override("font", font)
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.78))
-	title.add_theme_color_override("font_outline_color", Color(0.18, 0.08, 0.14))
-	title.add_theme_constant_override("outline_size", 4)
+	title.add_theme_font_size_override("font_size", 64)
+	title.add_theme_color_override("font_color", Color(1.0, 0.92, 0.82))
+	title.add_theme_color_override("font_shadow_color", shadow)
+	title.add_theme_constant_override("shadow_offset_x", 3)
+	title.add_theme_constant_override("shadow_offset_y", 4)
 	box.add_child(title)
 	var sub := Label.new()
 	sub.text = "stranded on an uncharted world"
 	sub.add_theme_font_override("font", font)
-	sub.add_theme_font_size_override("font_size", 8)
-	sub.add_theme_color_override("font_color", Color(0.95, 0.75, 0.85, 0.85))
+	sub.add_theme_font_size_override("font_size", 24)
+	sub.add_theme_color_override("font_color", Color(0.98, 0.78, 0.88, 0.9))
+	sub.add_theme_color_override("font_shadow_color", shadow)
+	sub.add_theme_constant_override("shadow_offset_y", 2)
 	box.add_child(sub)
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 70)
+	gap.custom_minimum_size = Vector2(0, 34)
 	box.add_child(gap)
 	for item in [["New Game", _on_new_game, true], ["Continue", Callable(), false],
 			["Crash Site (preview)", _on_crash_site, true], ["Quit", _on_quit, true]]:
@@ -187,13 +219,13 @@ func _build_ui() -> void:
 		b.disabled = not item[2]
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_override("font", font)
-		b.add_theme_font_size_override("font_size", 10)
-		b.add_theme_color_override("font_color", Color(1.0, 0.92, 0.85))
-		b.add_theme_color_override("font_hover_color", Color(1.0, 0.62, 0.8))
-		b.add_theme_color_override("font_pressed_color", Color(0.75, 0.55, 1.0))
-		b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.3))
-		b.add_theme_color_override("font_outline_color", Color(0.12, 0.05, 0.1))
-		b.add_theme_constant_override("outline_size", 3)
+		b.add_theme_font_size_override("font_size", 30)
+		b.add_theme_color_override("font_color", Color(1.0, 0.93, 0.86))
+		b.add_theme_color_override("font_hover_color", Color(1.0, 0.62, 0.82))
+		b.add_theme_color_override("font_pressed_color", Color(0.78, 0.58, 1.0))
+		b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.32))
+		b.add_theme_color_override("font_outline_color", shadow)
+		b.add_theme_constant_override("outline_size", 6)
 		if item[2]:
 			b.pressed.connect(item[1])
 		box.add_child(b)

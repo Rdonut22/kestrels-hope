@@ -25,8 +25,21 @@ float hash(vec3 p) {
 	return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
 }
 
+// Wind: leafy materials (ragged > 0) sway, more the higher they are.
+uniform float wind_strength = 0.6;
+uniform float wind_speed = 0.9;
+
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	if (ragged > 0.0) {
+		float height = clamp(wpos.y / 28.0, 0.05, 1.0);
+		float gust = 0.6 + 0.4 * sin(TIME * 0.23 + wpos.x * 0.011);
+		float w = sin(TIME * wind_speed + wpos.x * 0.07 + wpos.z * 0.05) * gust;
+		float w2 = sin(TIME * wind_speed * 1.7 + wpos.z * 0.09) * 0.35;
+		vec3 offset = vec3(w, 0.0, w2 * 0.6 + w * 0.3) * wind_strength * height * (1.0 + height);
+		VERTEX += (inverse(MODEL_MATRIX) * vec4(offset, 0.0)).xyz;
+		wpos += offset;
+	}
 	wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	tint = COLOR.rgb;
 }

@@ -1745,6 +1745,7 @@ func _make_world_materials() -> void:
 	smoke.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	smoke.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	smoke.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smoke.billboard_keep_scale = true
 	smoke.vertex_color_use_as_albedo = true
 	var puff := GradientTexture2D.new()
 	puff.fill = GradientTexture2D.FILL_RADIAL
