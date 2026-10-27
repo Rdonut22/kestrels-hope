@@ -12,6 +12,9 @@ var has_coffee := false:
 var current_target: Interactable
 var _steps: AudioStreamPlayer
 var _floor: Object
+var _seat: Node3D  # couch seat we're sitting on, if any
+var _sit_cam: Camera3D
+var _sit_look := Vector2.ZERO  # yaw, pitch offsets while seated
 
 @onready var pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -46,6 +49,9 @@ func _add_key(action: String, key: Key) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if hud.is_busy():
 		return
+	if _seat:
+		_seated_input(event)
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		pivot.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
 		pivot.rotation.x = clamp(pivot.rotation.x - event.relative.y * MOUSE_SENSITIVITY, deg_to_rad(-60), deg_to_rad(30))
@@ -61,6 +67,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	var busy: bool = hud.is_busy()
+	if _seat:
+		_update_seated_prompt()
+		return
 
 	if not is_on_floor():
 		velocity += get_gravity() * delta
@@ -139,3 +148,75 @@ func _on_footstep() -> void:
 		var running := Vector2(velocity.x, velocity.z).length() > SPEED * 0.55
 		_steps.volume_db = -6.0 if running else -11.0
 		_steps.play()
+
+# ---------- sitting ----------
+
+## Sit on a couch seat: first-person view toward the holo-table, and the
+## hologram turns to face us. E then works the media player; Space stands.
+func sit(seat: Node3D) -> void:
+	_seat = seat
+	velocity = Vector3.ZERO
+	mesh.set_move(0.0)
+	mesh.visible = false
+	global_position = seat.global_position + Vector3(0, 0.5, 0)
+	if not _sit_cam:
+		_sit_cam = Camera3D.new()
+		_sit_cam.fov = 70
+		_sit_cam.near = 0.05
+		get_parent().add_child(_sit_cam)
+	_sit_look = Vector2.ZERO
+	_aim_sit_cam()
+	_sit_cam.make_current()
+	var media: Node = seat.media()
+	if media:
+		media.face(seat.eye_position())
+
+
+func stand() -> void:
+	var seat := _seat
+	_seat = null
+	var media: Node = seat.media()
+	if media:
+		media.unface()
+	# Step off the couch toward the room.
+	var ahead: Vector3 = seat.look_target() - seat.global_position
+	ahead.y = 0
+	ahead = ahead.normalized()
+	global_position = seat.global_position + ahead * 0.85 + Vector3(0, 1.0, 0)
+	var yaw := atan2(-ahead.x, -ahead.z)
+	pivot.rotation = Vector3(-0.15, yaw, 0)
+	mesh.rotation.y = yaw
+	mesh.visible = true
+	($CameraPivot/SpringArm3D/Camera3D as Camera3D).make_current()
+
+
+func _aim_sit_cam() -> void:
+	var eye: Vector3 = _seat.eye_position()
+	_sit_cam.global_position = eye
+	_sit_cam.look_at(_seat.look_target())
+	_sit_cam.rotate_y(_sit_look.x)
+	_sit_cam.rotate_object_local(Vector3.RIGHT, _sit_look.y)
+
+
+func _seated_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_sit_look.x = clampf(_sit_look.x - event.relative.x * MOUSE_SENSITIVITY, -1.1, 1.1)
+		_sit_look.y = clampf(_sit_look.y - event.relative.y * MOUSE_SENSITIVITY, -0.5, 0.45)
+		_aim_sit_cam()
+	if event is InputEventMouseButton and event.pressed:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if event.is_action_pressed("jump") or event.is_action_pressed("move_back"):
+		stand()
+	elif event.is_action_pressed("interact"):
+		var media: Node = _seat.media()
+		if media:
+			media.interact(self)
+
+
+func _update_seated_prompt() -> void:
+	current_target = null
+	var media: Node = _seat.media()
+	var text := "[Space] Stand up"
+	if media:
+		text = "[E] " + media.get_prompt() + "      " + text
+	hud.set_prompt(text)

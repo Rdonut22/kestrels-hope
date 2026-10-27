@@ -14,8 +14,14 @@ const PAD_WIDTH := 1.1
 const BARS := 18
 const CYAN := Color(0.45, 0.85, 1.0)
 
+const IDLE_YAW := -PI / 2  # faces the lounge entrance
+const IDLE_TILT := -0.32  # leaning back for people standing
+
 var _track := -1  # -1 = music off
+var _rig: Node3D  # turns to face the viewer
 var _pad: Node3D
+var _yaw := IDLE_YAW
+var _tilt := IDLE_TILT
 var _rows: Array[Label] = []
 var _now: Label
 var _bars: Array[ColorRect] = []
@@ -142,11 +148,13 @@ func _label(parent: Node, text: String, font: Font, size: int, pos: Vector2, col
 # The floating pad: the screen on a tilted quad, a faint projector beam
 # up from the table and a cool glow.
 func _build_pad(vp: SubViewport) -> void:
+	_rig = Node3D.new()
+	_rig.rotation.y = IDLE_YAW
+	add_child(_rig)
 	_pad = Node3D.new()
 	_pad.position = Vector3(0, 1.45, 0)
-	# Face the lounge entrance, leaning back a little.
-	_pad.rotation = Vector3(-0.32, -PI / 2, 0)
-	add_child(_pad)
+	_pad.rotation.x = IDLE_TILT
+	_rig.add_child(_pad)
 	var quad := MeshInstance3D.new()
 	var qm := QuadMesh.new()
 	qm.size = Vector2(PAD_WIDTH, PAD_WIDTH * SCREEN.y / SCREEN.x)
@@ -174,7 +182,7 @@ func _build_pad(vp: SubViewport) -> void:
 	bm.shader = load("res://ship/holo_beam.gdshader")
 	beam.material_override = bm
 	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(beam)
+	_rig.add_child(beam)
 
 	_glow = OmniLight3D.new()
 	_glow.light_color = Color(0.5, 0.8, 1.0)
@@ -182,6 +190,20 @@ func _build_pad(vp: SubViewport) -> void:
 	_glow.omni_range = 2.8
 	_glow.position = Vector3(0, 1.3, 0)
 	add_child(_glow)
+
+
+## Turn the hologram to face a viewer at `eye` (e.g. someone sitting on the
+## couch), tipped slightly toward them since they're below it.
+func face(eye: Vector3) -> void:
+	var d := to_local(eye)
+	_yaw = atan2(d.x, d.z)
+	_tilt = 0.12
+
+
+## Back to facing the entrance for people walking in.
+func unface() -> void:
+	_yaw = IDLE_YAW
+	_tilt = IDLE_TILT
 
 
 func _refresh() -> void:
@@ -195,6 +217,8 @@ func _refresh() -> void:
 func _process(delta: float) -> void:
 	var t := Time.get_ticks_msec() * 0.001
 	_pad.position.y = 1.45 + sin(t * 1.1) * 0.012
+	_rig.rotation.y = lerp_angle(_rig.rotation.y, _yaw, minf(1.0, delta * 3.0))
+	_pad.rotation.x = lerpf(_pad.rotation.x, _tilt, minf(1.0, delta * 3.0))
 	var energy := 0.0
 	for i in BARS:
 		var level := 0.0

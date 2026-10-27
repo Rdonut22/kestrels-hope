@@ -1778,6 +1778,13 @@ func _lounge() -> void:
 		cs.shape = shape
 		_add(body, cs, "Shape%d" % k)
 		cs.transform = _lounge_xf(ang, 4.1, 0.25)
+	# Places to sit; the hologram turns to face whoever's sitting.
+	for i in 5:
+		var sa := -44.0 + i * 22.0
+		var seat := _interactable(couch, "Seat%d" % i, "couch_seat", Vector3.ZERO,
+			{"interact_range": 1.3, "media_path": NodePath("../../HoloTable/MediaPlayer")})
+		seat.transform = _lounge_xf(deg_to_rad(sa), 3.98, 0.0, false)
+		seat.set_meta("angle", sa)
 	# Throw pillows leaning against the back.
 	var pillows := [[-48.0, "pillow_rust", 0.25], [-30.0, "pillow_cream", -0.2], [22.0, "pillow_teal", 0.15],
 		[38.0, "pillow_rust", -0.3], [52.0, "pillow_cream", 0.2]]
