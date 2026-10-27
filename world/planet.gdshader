@@ -4,14 +4,14 @@ shader_type spatial;
 // lakes, drifting cloud bands, toon-stepped day/night shading. Works in
 // object space so it sticks to the sphere.
 
-uniform vec3 forest_dark : source_color = vec3(0.06, 0.2, 0.1);
-uniform vec3 forest : source_color = vec3(0.13, 0.34, 0.14);
-uniform vec3 forest_light : source_color = vec3(0.3, 0.5, 0.18);
+uniform vec3 forest_dark : source_color = vec3(0.12, 0.36, 0.16);
+uniform vec3 forest : source_color = vec3(0.24, 0.52, 0.22);
+uniform vec3 forest_light : source_color = vec3(0.5, 0.64, 0.3);
 uniform vec3 rock : source_color = vec3(0.52, 0.48, 0.46);
-uniform vec3 water : source_color = vec3(0.12, 0.28, 0.42);
+uniform vec3 water : source_color = vec3(0.18, 0.5, 0.86);
 uniform vec3 cloud : source_color = vec3(0.95, 0.96, 1.0);
 uniform vec3 night_tint : source_color = vec3(0.03, 0.05, 0.12);
-uniform float texel = 0.0025;
+uniform float texel = 0.003;
 
 varying vec3 opos;
 
@@ -58,8 +58,10 @@ void fragment() {
 		col = t < 0.42 ? forest_dark : (t < 0.55 ? forest : forest_light);
 	}
 	vec3 cp = p * 3.0 + vec3(TIME * 0.004, 0.0, TIME * 0.002);
-	float c = smoothstep(0.6, 0.66, fbm(cp + fbm(cp * 2.0)));
-	col = mix(col, cloud, c * 0.9);
+	float c = smoothstep(0.5, 0.6, fbm(cp + fbm(cp * 2.0)));
+	col = mix(col, cloud, c * 0.95);
+	// Hazy blue toward the limb, like Earth from orbit.
+	col = mix(col, vec3(0.62, 0.85, 1.0), pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5) * 0.75);
 	ALBEDO = col;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
@@ -67,6 +69,6 @@ void fragment() {
 
 void light() {
 	float d = dot(NORMAL, LIGHT);
-	float lit = d > 0.25 ? 1.0 : (d > 0.0 ? 0.65 : (d > -0.12 ? 0.3 : 0.0));
+	float lit = d > 0.2 ? 1.0 : (d > 0.0 ? 0.75 : (d > -0.12 ? 0.35 : 0.0));
 	DIFFUSE_LIGHT += mix(night_tint / max(ALBEDO, vec3(0.01)), vec3(1.0), lit) * lit * LIGHT_COLOR * ATTENUATION / PI + night_tint * (1.0 - lit);
 }

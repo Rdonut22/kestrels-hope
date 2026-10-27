@@ -13,6 +13,5 @@ Drop sound files here.
 - `intro_music.ogg`: intro cinematic music; starts as the ship flies past.
 - `space_hum.ogg`: space hum, used in the intro and looped aboard the ship
   in space (ship/ship_hum.gd).
-- `thruster_flyby.ogg`: PLACEHOLDER thruster swell/burst for the intro
-  flyby, generated with ffmpeg. Replace with a real recording (keep the
-  peak around 4.5 s in, or adjust BURST timing in intro.gd).
+- `thruster_flyby.ogg`: jet ship pass-by for the intro flyby (peak at 4.2 s,
+  synced to the pass via THRUST_PEAK in intro.gd).

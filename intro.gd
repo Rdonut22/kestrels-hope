@@ -10,7 +10,10 @@ const NEXT_SCENE := "res://main.tscn"
 const BURST := 10.5          # seconds: ship passes the camera, music starts
 const END := 31.0            # seconds: fade to black
 const PLANET_RADIUS := 6000.0
-const CAMERA_ALTITUDE := 420.0
+# Planet seen as a bright dome low in the frame: ~35 degrees across its
+# radius, top edge about 18 degrees below the horizon line.
+const PLANET_CENTER := Vector3(0.0, -8350.0, -6290.0)
+const THRUST_PEAK := 4.2     # seconds into thruster_flyby.ogg at its loudest
 
 var _t := 0.0
 var _cam: Camera3D
@@ -59,7 +62,7 @@ func _build_space() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.25, 0.3, 0.45)
-	env.ambient_light_energy = 0.6
+	env.ambient_light_energy = 0.5
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.glow_enabled = true
 	env.glow_intensity = 0.8
@@ -67,9 +70,9 @@ func _build_space() -> void:
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()
-	sun.light_energy = 2.2
+	sun.light_energy = 2.8
 	sun.light_color = Color(1.0, 0.95, 0.88)
-	sun.basis = Basis.looking_at(-Vector3(0.35, 0.7, -0.62).normalized(), Vector3.UP)
+	sun.basis = Basis.looking_at(-Vector3(0.3, 0.5, 0.81).normalized(), Vector3.UP)
 	add_child(sun)
 	_cam = Camera3D.new()
 	_cam.fov = 60
@@ -80,7 +83,7 @@ func _build_space() -> void:
 
 
 func _build_planet() -> void:
-	var center := Vector3(0, -PLANET_RADIUS - CAMERA_ALTITUDE, 0)
+	var center := PLANET_CENTER
 	var planet := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = PLANET_RADIUS
@@ -154,7 +157,7 @@ func _build_ui() -> void:
 	_title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
 	_title.add_theme_constant_override("shadow_offset_y", 4)
 	_title.modulate.a = 0.0
-	_title.offset_top = -330
+	_title.offset_top = -200
 	layer.add_child(_title)
 	_skip_hint = Label.new()
 	_skip_hint.text = "hold SPACE to skip"
@@ -186,7 +189,7 @@ func _process(delta: float) -> void:
 func _update_camera() -> void:
 	# Slow tilt from the stars down to just above the horizon.
 	var k := smoothstep(0.5, 9.5, _t)
-	_cam.rotation.x = deg_to_rad(lerpf(55.0, -13.0, k))
+	_cam.rotation.x = deg_to_rad(lerpf(55.0, 0.0, k))
 	_cam.position = Vector3.ZERO
 	# A short rumble as the ship roars over.
 	var shake := clampf(1.0 - absf(_t - BURST) / 1.2, 0.0, 1.0)
@@ -210,14 +213,18 @@ func _update_ship() -> void:
 		var a := clampf((_t - BURST) / (END + 2.0 - BURST), 0.0, 1.0)
 		# Accelerates away so it lingers large, then dwindles to a speck.
 		var e := pow(a, 1.5)
-		_ship.position = pass_pos.lerp(Vector3(-25.0, -560.0, -1550.0), e)
+		_ship.position = pass_pos.lerp(Vector3(-20.0, -560.0, -1750.0), e)
 		_ship.rotation = Vector3(-0.1 - 0.25 * e, 0.012 * e, 0.05 * sin(_t * 0.6) * (1.0 - e))
 
 
 func _update_audio_and_title() -> void:
-	if not _thrust_started and _t >= BURST - 4.5:
+	if not _thrust_started and _t >= BURST - THRUST_PEAK:
 		_thrust_started = true
 		_thrust.play()
+		# Let the roar ring briefly after the pass, then fall away fast.
+		var tw := create_tween()
+		tw.tween_interval(THRUST_PEAK + 0.8)
+		tw.tween_property(_thrust, "volume_db", -40.0, 3.0)
 	if not _music_started and _t >= BURST:
 		_music_started = true
 		_music.play()

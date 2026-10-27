@@ -4,8 +4,8 @@ render_mode unshaded, blend_add, cull_front, depth_draw_never, shadows_disabled;
 // Thin atmospheric halo around the planet: a slightly larger sphere drawn
 // from the inside, brightest at the limb on the sunlit side.
 
-uniform vec3 color : source_color = vec3(0.45, 0.78, 1.0);
-uniform vec3 sun_dir = vec3(0.6, 0.4, -0.5);
+uniform vec3 color : source_color = vec3(0.55, 0.85, 1.0);
+uniform vec3 sun_dir = vec3(0.3, 0.5, 0.81);
 uniform float strength = 2.4;
 
 varying vec3 wnrm;
