@@ -69,6 +69,19 @@ func _make_materials() -> void:
 	_shader_mat("grate", "grate", {})
 	_mat("trim", Color(0.29, 0.31, 0.34), 0.5, 0.6)
 	_mat("rib", Color(0.22, 0.24, 0.26), 0.45, 0.7)
+	_shader_mat("gunmetal", "hull_panel", {"base_color": Color(0.3, 0.31, 0.33), "lower_band": 0.0,
+		"panel_size": Vector2(0.9, 0.6), "seam_dark": 0.4, "grime": 0.45, "variation": 0.1,
+		"metallic_amount": 0.6, "roughness_amount": 0.45})
+	_shader_mat("couch_leather", "worn", {"base_color": Color(0.74, 0.7, 0.62), "grime": 0.35, "chips": 0.0,
+		"scratches": 0.15, "fade": 0.5, "noise_scale": 3.0, "roughness_amount": 0.5, "metallic_amount": 0.0})
+	_shader_mat("couch_seam", "worn", {"base_color": Color(0.5, 0.45, 0.38), "grime": 0.5, "chips": 0.0,
+		"scratches": 0.1, "fade": 0.3, "noise_scale": 3.0, "roughness_amount": 0.6, "metallic_amount": 0.0})
+	_mat("pillow_rust", Color(0.62, 0.3, 0.18), 0.95)
+	_mat("pillow_teal", Color(0.22, 0.4, 0.42), 0.95)
+	_mat("pillow_cream", Color(0.82, 0.76, 0.64), 0.95)
+	_mat("warm_tube", Color(1.0, 0.82, 0.6), 0.4, 0.0, 2.2)
+	_mat("panel_led", Color(0.35, 0.8, 1.0), 0.3, 0.0, 2.5)
+	_mat("panel_led_red", Color(1.0, 0.25, 0.2), 0.3, 0.0, 2.5)
 	_shader_mat("leather_pad", "worn", {"base_color": Color(0.76, 0.63, 0.46), "grime": 0.35, "chips": 0.0,
 		"scratches": 0.25, "fade": 0.5, "noise_scale": 4.0, "roughness_amount": 0.55, "metallic_amount": 0.0})
 	_shader_mat("exhaust", "worn", {"base_color": Color(0.58, 0.52, 0.47), "chip_color": Color(0.42, 0.22, 0.12),
@@ -342,7 +355,7 @@ func _build_ship() -> void:
 	cockpit_room.operation = CSGShape3D.OPERATION_SUBTRACTION
 	_add(hull, cockpit_room, "Cockpit")
 	_room(hull, "Kitchen", 2.4, 5.6, -6.8, -3.4)
-	var lounge := _half_cyl(hull, "Lounge", 4.7, 3.0, 1.5, Vector3(2.4, 0, -3.2), Vector3(8, 3, 6.4), "wall")
+	var lounge := _half_cyl(hull, "Lounge", 4.7, 3.0, 1.5, Vector3(2.4, 0, -3.2), Vector3(8, 3, 6.4), "gunmetal")
 	lounge.operation = CSGShape3D.OPERATION_SUBTRACTION
 	_room(hull, "Deck", -2.3, 2.0, -5.6, 9.2)
 	_room(hull, "Quarters", -2.6, 1.8, -9.6, -5.9)
@@ -421,7 +434,7 @@ func _build_ship() -> void:
 	canopy_fill.omni_range = 3.5
 	_add(lights, canopy_fill, "CanopyFill")
 	_light(lights, "Kitchen", Vector3(4.0, 2.75, -5.1), Color(1.0, 0.85, 0.65), 1.1, 4.0)
-	_light(lights, "Lounge", Vector3(4.4, 2.75, 1.6), Color(1.0, 0.72, 0.45), 1.3, 6.5)
+	_light(lights, "Lounge", Vector3(3.6, 2.75, 1.6), Color(1.0, 0.68, 0.42), 0.9, 6.0)
 	_light(lights, "DeckFore", Vector3(-0.15, 2.75, -3.4), Color(1.0, 0.78, 0.58), 1.6, 6.5)
 	_light(lights, "DeckMid", Vector3(-0.15, 2.75, 1.8), Color(1.0, 0.78, 0.58), 1.6, 6.5)
 	_light(lights, "DeckAft", Vector3(-0.15, 2.75, 6.9), Color(1.0, 0.78, 0.58), 1.6, 6.5)
@@ -455,14 +468,7 @@ func _build_ship() -> void:
 	_box(kitchen, "Cabinets", Vector3(5.2, 1.8, -6.6), Vector3(5.6, 2.5, -3.6), "trim")
 	_box(kitchen, "FoodDispenser", Vector3(5.15, 0.97, -5.3), Vector3(5.6, 1.6, -4.7), "metal_dark")
 
-	var lounge_f := _furniture("LoungeFurniture")
-	_ccyl(lounge_f, "TableTop", 0.7, 0.06, Vector3(4.9, 0.75, 1.6), "counter")
-	_ccyl(lounge_f, "TableLeg", 0.12, 0.72, Vector3(4.9, 0.36, 1.6), "metal_dark")
-	var couch := _add(lounge_f, CSGCombiner3D.new(), "CurvedCouch")
-	_ring(couch, "Seat", 3.95, 4.45, 0.45, 0.225, "leather")
-	_ring(couch, "Back", 4.45, 4.69, 0.95, 0.475, "leather")
-	var span := _box(couch, "Span", Vector3(4.7, -0.1, -5), Vector3(8, 1.2, 9), "leather")
-	span.operation = CSGShape3D.OPERATION_INTERSECTION
+	_lounge()
 
 	var deck := _furniture("DeckFurniture")
 	_box(deck, "SuitLocker", Vector3(1.45, 0, 6.6), Vector3(2.0, 2.1, 7.6), "metal_dark")
@@ -1543,6 +1549,305 @@ func _bone_holder(_skel: Skeleton3D, bone: String) -> Node3D:
 	return _add(arm, holder, bone.replace(".", ""))
 
 
+
+# ---------- lounge ----------
+
+const LOUNGE_C := Vector2(2.4, 1.6)   # (x, z) centre of the round lounge
+
+
+func _lounge_xf(ang: float, r: float, y: float, face_in := true) -> Transform3D:
+	var d := Vector2(cos(ang), sin(ang))
+	var pos := Vector3(LOUNGE_C.x + d.x * r, y, LOUNGE_C.y + d.y * r)
+	# +Z of the basis points into the room, +X along the curve.
+	var inward := Vector3(-d.x, 0, -d.y)
+	var tangent := Vector3(-d.y, 0, d.x)
+	return Transform3D(Basis(tangent, Vector3.UP, inward if face_in else -inward), pos)
+
+
+func _puff(parent: Node, name: String, xf: Transform3D, size: Vector3, mat: String) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.5
+	sm.height = 1.0
+	sm.radial_segments = 14
+	sm.rings = 7
+	mi.mesh = sm
+	mi.material_override = mats[mat]
+	_add(parent, mi, name)
+	mi.transform = xf * Transform3D(Basis().scaled(size), Vector3.ZERO)
+	return mi
+
+
+# Cushion of size 1x1x1: puffed in the middle, thin at the seams, corners
+# pinched. Higher `flat` gives a flatter face with rounded edges (pads).
+func _cushion_mesh(flat: float, pinch: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 14
+	for side in [1.0, -1.0]:
+		var pts := []
+		for j in n + 1:
+			var row := []
+			for i in n + 1:
+				var u := float(i) / n * 2.0 - 1.0
+				var v := float(j) / n * 2.0 - 1.0
+				var t := pow(maxf(0.0, (1.0 - pow(absf(u), flat)) * (1.0 - pow(absf(v), flat))), 0.5)
+				var x := u * (1.0 - pinch * v * v) * 0.5
+				var y := v * (1.0 - pinch * u * u) * 0.5
+				row.append(Vector3(x, y, side * t * 0.5))
+			pts.append(row)
+		for j in n:
+			for i in n:
+				var a: Vector3 = pts[j][i]
+				var b: Vector3 = pts[j][i + 1]
+				var c: Vector3 = pts[j + 1][i + 1]
+				var d: Vector3 = pts[j + 1][i]
+				if side > 0:
+					for q in [a, b, c, a, c, d]:
+						st.add_vertex(q)
+				else:
+					for q in [a, c, b, a, d, c]:
+						st.add_vertex(q)
+	st.generate_normals()
+	return st.commit()
+
+
+func _cushion(parent: Node, name: String, mesh: Mesh, xf: Transform3D, size: Vector3, mat: String) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mats[mat]
+	_add(parent, mi, name)
+	mi.transform = xf * Transform3D(Basis().scaled(size), Vector3.ZERO)
+	return mi
+
+
+# Big curved Falcon-style couch in beige leather, a holo-table, throw
+# pillows, gunmetal walls with ducts and wiring, and warm tube lights.
+func _lounge() -> void:
+	var L := _add(scene_root, Node3D.new(), "Lounge")
+	var couch := _add(L, Node3D.new(), "Couch")
+	var a0 := deg_to_rad(-64.0)
+	var a1 := deg_to_rad(64.0)
+	var segs := 12
+	var da := (a1 - a0) / segs
+	var body := StaticBody3D.new()
+	_add(couch, body, "Collision")
+	var pad_mesh := _cushion_mesh(10.0, 0.0)
+	var pillow_mesh := _cushion_mesh(2.2, 0.12)
+	for k in segs:
+		var ang := a0 + da * (k + 0.5)
+		var seg := _add(couch, Node3D.new(), "Seg%d" % k)
+		seg.set_meta("angle", rad_to_deg(ang))
+		var w := 4.2 * da
+		# Base plinth, seat cushion with a rounded front roll, tufted back.
+		var base := _mesh_box(seg, "Base", Vector3.ZERO, Vector3(w * 1.02, 0.3, 0.85), "metal_dark")
+		base.transform = _lounge_xf(ang, 4.1, 0.15)
+		var seat := _mesh_box(seg, "Seat", Vector3.ZERO, Vector3(w * 0.97, 0.16, 0.78), "couch_leather")
+		seat.transform = _lounge_xf(ang, 4.1, 0.38)
+		var seat_xf := _lounge_xf(ang, 4.08, 0.46)
+		seat_xf.basis = seat_xf.basis * Basis(Vector3.RIGHT, -PI / 2)
+		_cushion(seg, "SeatPad", pad_mesh, seat_xf, Vector3(w * 0.96, 0.76, 0.12), "couch_leather")
+		var roll := MeshInstance3D.new()
+		var cap := CapsuleMesh.new()
+		cap.radius = 0.1
+		cap.height = w * 0.97
+		cap.radial_segments = 12
+		roll.mesh = cap
+		roll.material_override = mats["couch_leather"]
+		_add(seg, roll, "FrontRoll")
+		roll.transform = _lounge_xf(ang, 3.74, 0.4) * Transform3D(Basis(Vector3.BACK, PI / 2), Vector3.ZERO)
+		# Back: a darker leather frame holding two rows of sculpted
+		# rectangular pads, with a rounded top roll.
+		var back := _mesh_box(seg, "BackFrame", Vector3.ZERO, Vector3(w * 1.01, 0.78, 0.22), "couch_seam")
+		back.transform = _lounge_xf(ang, 4.62, 0.86)
+		for row in 2:
+			for col in 2:
+				var off := (col - 0.5) * w * 0.49
+				var xf := _lounge_xf(ang, 4.5, 0.68 + row * 0.33)
+				xf.origin += xf.basis.x * off
+				_cushion(seg, "Pad%d%d" % [row, col], pad_mesh, xf, Vector3(w * 0.46, 0.3, 0.1), "couch_leather")
+		var top := MeshInstance3D.new()
+		var top_cap := CapsuleMesh.new()
+		top_cap.radius = 0.09
+		top_cap.height = w * 1.01
+		top_cap.radial_segments = 12
+		top.mesh = top_cap
+		top.material_override = mats["couch_leather"]
+		_add(seg, top, "TopRoll")
+		top.transform = _lounge_xf(ang, 4.6, 1.26) * Transform3D(Basis(Vector3.BACK, PI / 2), Vector3.ZERO)
+		var stud := _mesh_box(seg, "Switch", Vector3.ZERO, Vector3(0.05, 0.07, 0.02), "panel_led" if k % 3 else "panel_led_red")
+		stud.transform = _lounge_xf(ang, 4.5, 1.2)
+		stud.transform.origin += stud.transform.basis.x * (w * 0.45)
+		var cs := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(w, 0.5, 0.9)
+		cs.shape = shape
+		_add(body, cs, "Shape%d" % k)
+		cs.transform = _lounge_xf(ang, 4.1, 0.25)
+	# Throw pillows leaning against the back.
+	var pillows := [[-48.0, "pillow_rust", 0.25], [-30.0, "pillow_cream", -0.2], [22.0, "pillow_teal", 0.15],
+		[38.0, "pillow_rust", -0.3], [52.0, "pillow_cream", 0.2]]
+	for i in pillows.size():
+		var pa := deg_to_rad(pillows[i][0])
+		var xf := _lounge_xf(pa, 4.3, 0.72)
+		xf.basis = xf.basis * Basis(Vector3.RIGHT, -0.45) * Basis(Vector3.BACK, pillows[i][2])
+		var pillow := _cushion(couch, "Pillow%d" % i, pillow_mesh, xf, Vector3(0.52, 0.48, 0.22), pillows[i][1])
+		pillow.set_meta("angle", pillows[i][0])
+
+	# Holo-table: rounded rim, game-board top, pedestal and base disc.
+	var table := _add(L, Node3D.new(), "HoloTable")
+	table.position = Vector3(4.75, 0, 1.6)
+	var tbody := StaticBody3D.new()
+	_add(table, tbody, "Collision")
+	var tcs := CollisionShape3D.new()
+	var tshape := CylinderShape3D.new()
+	tshape.radius = 0.75
+	tshape.height = 0.78
+	tcs.shape = tshape
+	tcs.position.y = 0.39
+	_add(tbody, tcs, "Shape")
+	var base_disc := MeshInstance3D.new()
+	base_disc.mesh = _scyl(0.55, 0.06, 32)
+	base_disc.material_override = mats["metal_dark"]
+	base_disc.position.y = 0.03
+	_add(table, base_disc, "BaseDisc")
+	var ped := MeshInstance3D.new()
+	ped.mesh = _scyl(0.18, 0.66, 20)
+	ped.material_override = mats["metal_dark"]
+	ped.position.y = 0.39
+	_add(table, ped, "Pedestal")
+	var top := MeshInstance3D.new()
+	top.mesh = _scyl(0.72, 0.08, 40)
+	top.material_override = mats["counter"]
+	top.position.y = 0.74
+	_add(table, top, "Top")
+	var rim := MeshInstance3D.new()
+	var rt := TorusMesh.new()
+	rt.inner_radius = 0.66
+	rt.outer_radius = 0.8
+	rt.rings = 40
+	rt.ring_segments = 10
+	rim.mesh = rt
+	rim.material_override = mats["metal_dark"]
+	rim.position.y = 0.74
+	rim.scale = Vector3(1, 0.7, 1)
+	_add(table, rim, "Rim")
+	var board := MeshInstance3D.new()
+	board.mesh = _scyl(0.6, 0.012, 40)
+	var bm := ShaderMaterial.new()
+	bm.shader = load("res://ship/holo_board.gdshader")
+	ResourceSaver.save(bm, "res://ship/materials/holo_board.tres")
+	bm.take_over_path("res://ship/materials/holo_board.tres")
+	board.material_override = bm
+	board.position.y = 0.785
+	_add(table, board, "Board")
+	for i in 8:
+		var led := MeshInstance3D.new()
+		led.mesh = _scyl(0.018, 0.012, 8)
+		led.material_override = mats["panel_led" if i % 4 else "panel_led_red"]
+		var la := TAU * i / 8.0
+		led.position = Vector3(cos(la) * 0.73, 0.8, sin(la) * 0.73)
+		_add(table, led, "Led%d" % i)
+	# The hologram: a slowly turning wireframe planet with a light cone.
+	var holo := Node3D.new()
+	holo.set_script(load("res://ship/hologram.gd"))
+	holo.position.y = 0.8
+	_add(table, holo, "Hologram")
+	var hm := ShaderMaterial.new()
+	hm.shader = load("res://ship/hologram.gdshader")
+	ResourceSaver.save(hm, "res://ship/materials/hologram.tres")
+	hm.take_over_path("res://ship/materials/hologram.tres")
+	var globe := MeshInstance3D.new()
+	var gs := SphereMesh.new()
+	gs.radius = 0.24
+	gs.height = 0.48
+	gs.radial_segments = 24
+	gs.rings = 12
+	globe.mesh = gs
+	globe.material_override = hm
+	globe.position.y = 0.42
+	globe.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_add(holo, globe, "Globe")
+	var ring := MeshInstance3D.new()
+	var rr := TorusMesh.new()
+	rr.inner_radius = 0.33
+	rr.outer_radius = 0.345
+	rr.rings = 40
+	rr.ring_segments = 4
+	ring.mesh = rr
+	ring.material_override = hm
+	ring.position.y = 0.42
+	ring.rotation = Vector3(0.4, 0, 0.2)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_add(holo, ring, "Orbit")
+	var cone := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.3
+	cm.bottom_radius = 0.05
+	cm.height = 0.42
+	cm.radial_segments = 24
+	cm.cap_top = false
+	cm.cap_bottom = false
+	cone.mesh = cm
+	cone.material_override = hm
+	cone.position.y = 0.2
+	cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_add(holo, cone, "Beam")
+	var hl := OmniLight3D.new()
+	hl.light_color = Color(0.55, 0.8, 1.0)
+	hl.light_energy = 0.8
+	hl.omni_range = 2.6
+	hl.position.y = 0.45
+	_add(holo, hl, "Glow")
+
+	# Ducts, flex hose and wiring running along the top of the curved wall.
+	var ducts := _add(L, Node3D.new(), "Ducts")
+	var steps := 18
+	for k in steps:
+		var ang := a0 - 0.15 + (a1 - a0 + 0.3) * k / steps
+		var ang2 := a0 - 0.15 + (a1 - a0 + 0.3) * (k + 1) / steps
+		var p1 := Vector3(LOUNGE_C.x + cos(ang) * 4.45, 2.72, LOUNGE_C.y + sin(ang) * 4.45)
+		var p2 := Vector3(LOUNGE_C.x + cos(ang2) * 4.45, 2.72, LOUNGE_C.y + sin(ang2) * 4.45)
+		_pipe(ducts, "Duct%d" % k, p1, p2, 0.13, "metal_dark")
+		if k % 2 == 0:
+			_pipe(ducts, "DuctRib%d" % k, p1 - (p2 - p1).normalized() * 0.03, p1 + (p2 - p1).normalized() * 0.03, 0.16, "rib")
+		var q1 := Vector3(LOUNGE_C.x + cos(ang) * 4.6, 2.5, LOUNGE_C.y + sin(ang) * 4.6)
+		var q2 := Vector3(LOUNGE_C.x + cos(ang2) * 4.6, 2.5, LOUNGE_C.y + sin(ang2) * 4.6)
+		_pipe(ducts, "WireA%d" % k, q1, q2, 0.022, "cable")
+		_pipe(ducts, "WireB%d" % k, q1 + Vector3(0, -0.06, 0), q2 + Vector3(0, -0.06, 0), 0.016, "copper")
+	# Vent grilles and switch panels at each end of the window.
+	for side in [-1.0, 1.0]:
+		var ang := deg_to_rad(70.0 * side)
+		var vent := _mesh_box(ducts, "Vent%d" % int(side), Vector3.ZERO, Vector3(0.7, 0.32, 0.1), "metal_dark")
+		vent.transform = _lounge_xf(ang, 4.62, 2.2)
+		for i in 5:
+			var slat := _mesh_box(ducts, "Slat%d_%d" % [int(side), i], Vector3.ZERO, Vector3(0.62, 0.025, 0.02), "trim")
+			slat.transform = _lounge_xf(ang, 4.56, 2.08 + i * 0.06)
+		var panel := _mesh_box(ducts, "Panel%d" % int(side), Vector3.ZERO, Vector3(0.5, 0.36, 0.06), "trim")
+		panel.transform = _lounge_xf(ang, 4.62, 1.45)
+		for i in 4:
+			var led := _mesh_box(ducts, "PanelLed%d_%d" % [int(side), i], Vector3.ZERO, Vector3(0.06, 0.04, 0.02), "panel_led" if i % 2 else "panel_led_red")
+			led.transform = _lounge_xf(ang, 4.58, 1.38 + (i / 2) * 0.12)
+			led.transform.origin += led.transform.basis.x * ((i % 2) * 0.18 - 0.09)
+	# Warm tube lights glowing under the duct.
+	for i in 4:
+		var ang := deg_to_rad(-48.0 + i * 32.0)
+		var tube := MeshInstance3D.new()
+		var tc := CapsuleMesh.new()
+		tc.radius = 0.05
+		tc.height = 0.7
+		tube.mesh = tc
+		tube.material_override = mats["warm_tube"]
+		_add(ducts, tube, "Tube%d" % i)
+		tube.transform = _lounge_xf(ang, 4.4, 2.5) * Transform3D(Basis(Vector3.BACK, PI / 2), Vector3.ZERO)
+		var tl := OmniLight3D.new()
+		tl.light_color = Color(1.0, 0.72, 0.45)
+		tl.light_energy = 0.55
+		tl.omni_range = 3.2
+		_add(ducts, tl, "TubeLight%d" % i)
+		tl.transform = _lounge_xf(ang, 4.1, 2.3)
+
+
 # ---------- exterior ----------
 
 # Side profile given as (z, y) points, extruded across x from x_from down to x_to.
@@ -1582,15 +1887,19 @@ func _exterior() -> void:
 	_profile_x(ext, "DorsalRidge", [Vector2(-9.8, 3.15), Vector2(-8.6, 3.75), Vector2(7.6, 3.75),
 		Vector2(9.4, 3.15)], 1.6, -4.6, "hull_outer")
 	_profile_x(ext, "DorsalCap", [Vector2(-8.0, 3.7), Vector2(-7.4, 3.9), Vector2(6.6, 3.9), Vector2(7.2, 3.7)], 0.4, -3.4, "trim")
-	# Wings sloping down to both sides, with stepped (swept) outer sections and tip fins.
+	# Wings sloping down to both sides, with stepped (swept) outer sections and low tip rails
+	# (kept below the lounge window line so they don't show over the couch).
 	var wing_l := _add(ext, CSGCombiner3D.new(), "WingLeft")
 	_profile_z(wing_l, "Inner", [Vector2(-7.65, 0.7), Vector2(-7.65, 1.15), Vector2(-11.0, 0.45), Vector2(-11.0, 0.2)], 7.5, -9.3, "hull_outer")
 	_profile_z(wing_l, "Outer", [Vector2(-10.9, 0.22), Vector2(-10.9, 0.47), Vector2(-14.0, -0.1), Vector2(-14.0, -0.25)], 6.5, -4.5, "hull_outer")
-	_profile_x(wing_l, "TipFin", [Vector2(-4.0, -0.15), Vector2(-3.2, 1.3), Vector2(4.5, 1.3), Vector2(6.3, -0.15)], -13.75, -14.05, "hull_outer")
+	_profile_x(wing_l, "TipFin", [Vector2(-4.0, -0.3), Vector2(-3.4, 0.25), Vector2(4.7, 0.25), Vector2(6.3, -0.3)], -13.75, -14.05, "hull_outer")
 	var wing_r := _add(ext, CSGCombiner3D.new(), "WingRight")
 	_profile_z(wing_r, "Inner", [Vector2(5.85, 0.55), Vector2(5.85, 0.95), Vector2(10.0, 0.35), Vector2(10.0, 0.1)], 8.5, -6.8, "hull_outer")
 	_profile_z(wing_r, "Outer", [Vector2(9.9, 0.12), Vector2(9.9, 0.37), Vector2(12.8, -0.15), Vector2(12.8, -0.3)], 7.5, -3.0, "hull_outer")
-	_profile_x(wing_r, "TipFin", [Vector2(-2.5, -0.2), Vector2(-1.8, 1.2), Vector2(5.8, 1.2), Vector2(7.3, -0.2)], 12.85, 12.55, "hull_outer")
+	# Carve the wing root out of the lounge's round bulge.
+	var lounge_hole := _ccyl(wing_r, "LoungeClearance", 4.75, 3.2, Vector3(2.4, 1.5, 1.6), "hull_outer")
+	lounge_hole.operation = CSGShape3D.OPERATION_SUBTRACTION
+	_profile_x(wing_r, "TipFin", [Vector2(-2.5, -0.35), Vector2(-1.9, 0.2), Vector2(6.0, 0.2), Vector2(7.3, -0.35)], 12.85, 12.55, "hull_outer")
 	# Engine block and six thrusters around the ramp door.
 	_box(ext, "EngineBlockL", Vector3(-7.4, 0.1, 9.45), Vector3(-1.9, 3.1, 10.1), "metal_dark")
 	_box(ext, "EngineBlockR", Vector3(1.9, 0.1, 9.45), Vector3(5.7, 3.1, 10.1), "metal_dark")
@@ -1674,7 +1983,9 @@ func _exterior() -> void:
 		var inner := _ccyl(band, "Inner", 4.9, 0.3, Vector3(2.4, y, 1.6), "metal_dark")
 		inner.operation = CSGShape3D.OPERATION_SUBTRACTION
 	_box(ext, "StripeLeft", Vector3(-7.75, 1.9, -9.6), Vector3(-7.65, 2.15, 9.4), "stripe")
-	_box(ext, "StripeRight", Vector3(5.85, 2.65, -9.6), Vector3(5.95, 2.9, 9.4), "stripe")
+	# Right stripe stops either side of the lounge's bulge so it doesn't cut through the room.
+	_box(ext, "StripeRight", Vector3(5.85, 2.65, -9.6), Vector3(5.95, 2.9, -2.0), "stripe")
+	_box(ext, "StripeRightAft", Vector3(5.85, 2.65, 5.2), Vector3(5.95, 2.9, 9.4), "stripe")
 	_box(ext, "StripeNose", Vector3(2.05, 0.75, -12.95), Vector3(5.95, 0.92, -12.8), "stripe")
 	if crashed:
 		# Right wing torn off where the hull is breached; trim follows the breach.
@@ -1823,9 +2134,18 @@ func _apply_crash_damage() -> void:
 	_ccyl(hull, "LoungeKeel", 4.95, 1.4, Vector3(2.4, -0.9, 1.6), "hull_outer")
 	_add(hull, _breach_cutter(), "Breach")
 	_add(R.get_node("Windows/LoungeGlass"), _breach_cutter(1.15), "Breach")
-	var couch: CSGCombiner3D = R.get_node("LoungeFurniture/CurvedCouch")
-	var gone := _box(couch, "Torn", Vector3(5.2, -0.2, 0.1), Vector3(8.0, 1.5, 4.7), "leather", true)
-	gone.operation = CSGShape3D.OPERATION_SUBTRACTION
+	# Couch sections where the hull tore open are gone.
+	for n in R.get_node("Lounge/Couch").get_children():
+		if n.has_meta("angle") and n.get_meta("angle") > -26.0 and n.get_meta("angle") < 36.0:
+			n.queue_free()
+			n.get_parent().remove_child(n)
+	var couch_body: StaticBody3D = R.get_node("Lounge/Couch/Collision")
+	for k in 12:
+		var a := -64.0 + (k + 0.5) * 128.0 / 12.0
+		if a > -26.0 and a < 36.0:
+			var cs := couch_body.get_node("Shape%d" % k)
+			couch_body.remove_child(cs)
+			cs.free()
 	R.get_node("Windows/LoungeGlass").cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# Lights: mostly dead or dim, red emergency lights, one flickering.
@@ -1869,13 +2189,10 @@ func _apply_crash_damage() -> void:
 	var barrel: CSGCylinder3D = clutter.get_node("BarrelA")
 	barrel.rotation = Vector3(0.0, 0.7, PI / 2)
 	barrel.position = Vector3(0.6, 0.28, 5.6)
-	var lounge: CSGCombiner3D = R.get_node("LoungeFurniture")
-	var top: CSGCylinder3D = lounge.get_node("TableTop")
-	top.rotation = Vector3(PI / 2 - 0.15, 0.0, 0.4)
-	top.position = Vector3(4.3, 0.68, 2.6)
-	var leg: CSGCylinder3D = lounge.get_node("TableLeg")
-	leg.rotation = Vector3(0.0, 0.0, PI / 2)
-	leg.position = Vector3(4.5, 0.12, 2.3)
+	var table: Node3D = R.get_node("Lounge/HoloTable")
+	table.rotation = Vector3(0.0, 0.6, 1.35)
+	table.position = Vector3(4.0, 0.72, 2.9)
+	table.get_node("Hologram").visible = false
 	R.get_node("PilotChair").rotation.y = 0.35
 	R.get_node("CopilotChair").rotation.y = -0.5
 	R.get_node("CopilotChair").position.x += 0.1

@@ -12,6 +12,9 @@ uniform vec3 water : source_color = vec3(0.18, 0.5, 0.86);
 uniform vec3 cloud : source_color = vec3(0.95, 0.96, 1.0);
 uniform vec3 night_tint : source_color = vec3(0.03, 0.05, 0.12);
 uniform float texel = 0.0012;
+// Scales the continents and clouds up for close views where only a small
+// cap of the sphere is on screen.
+uniform float zoom = 1.0;
 
 varying vec3 opos;
 
@@ -45,7 +48,7 @@ void vertex() {
 }
 
 void fragment() {
-	vec3 p = floor(opos / texel) * texel;
+	vec3 p = floor(opos * zoom / texel) * texel;
 	float land = fbm(p * 4.0);
 	float detail = fbm(p * 22.0);
 	vec3 col;

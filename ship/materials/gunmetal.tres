@@ -1,0 +1,18 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/hull_panel.gdshader" id="1_wwycr"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_wwycr")
+shader_parameter/base_color = Color(0.3, 0.31, 0.33, 1)
+shader_parameter/lower_band = 0.0
+shader_parameter/lower_color = Color(0.3, 0.32, 0.34, 1)
+shader_parameter/panel_size = Vector2(0.9, 0.6)
+shader_parameter/seam_width = 0.02
+shader_parameter/seam_dark = 0.4
+shader_parameter/variation = 0.1
+shader_parameter/grime = 0.45
+shader_parameter/rivets = 1.0
+shader_parameter/metallic_amount = 0.6
+shader_parameter/roughness_amount = 0.45

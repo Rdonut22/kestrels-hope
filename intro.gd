@@ -114,6 +114,10 @@ func _build_planet() -> void:
 	planet.mesh = sphere
 	var pm := ShaderMaterial.new()
 	pm.shader = load("res://world/planet.gdshader")
+	# Only a small cap of the planet is in frame, so scale the features up
+	# or it reads as one flat colour.
+	pm.set_shader_parameter("zoom", 7.0)
+	pm.set_shader_parameter("texel", 0.006)
 	planet.material_override = pm
 	planet.position = center
 	planet.rotation = Vector3(0.4, 1.2, 0.0)

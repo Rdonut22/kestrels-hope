@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://menu.gd" id="1_ouk20"]
 [ext_resource type="PackedScene" path="res://crash_site.tscn" id="2_mae5d"]
 
-[node name="Menu" type="Node3D" unique_id=393355060]
+[node name="Menu" type="Node3D" unique_id=1593207946]
 script = ExtResource("1_ouk20")
 
 [node name="World" type="Node3D" parent="." unique_id=897274453 instance=ExtResource("2_mae5d")]
