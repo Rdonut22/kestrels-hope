@@ -19,3 +19,8 @@ Drop sound files here.
 
 - `door_slide.ogg` — pneumatic hiss and soft thunk for the sliding doors
   (synthesised with ffmpeg).
+
+## Lounge holo-player music (user-supplied)
+
+- `music/misty.mp3` — "Misty" (Beegie Adair), the Sad Jazz selection.
+- `music/sun.mp3` — "Sun", the Vaporwave selection.

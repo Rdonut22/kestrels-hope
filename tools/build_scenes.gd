@@ -1842,57 +1842,8 @@ func _lounge() -> void:
 		var la := TAU * i / 8.0
 		led.position = Vector3(cos(la) * 0.73, 0.8, sin(la) * 0.73)
 		_add(table, led, "Led%d" % i)
-	# The hologram: a slowly turning wireframe planet with a light cone.
-	var holo := Node3D.new()
-	holo.set_script(load("res://ship/hologram.gd"))
-	holo.position.y = 0.8
-	_add(table, holo, "Hologram")
-	var hm := ShaderMaterial.new()
-	hm.shader = load("res://ship/hologram.gdshader")
-	ResourceSaver.save(hm, "res://ship/materials/hologram.tres")
-	hm.take_over_path("res://ship/materials/hologram.tres")
-	var globe := MeshInstance3D.new()
-	var gs := SphereMesh.new()
-	gs.radius = 0.24
-	gs.height = 0.48
-	gs.radial_segments = 24
-	gs.rings = 12
-	globe.mesh = gs
-	globe.material_override = hm
-	globe.position.y = 0.42
-	globe.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_add(holo, globe, "Globe")
-	var ring := MeshInstance3D.new()
-	var rr := TorusMesh.new()
-	rr.inner_radius = 0.33
-	rr.outer_radius = 0.345
-	rr.rings = 40
-	rr.ring_segments = 4
-	ring.mesh = rr
-	ring.material_override = hm
-	ring.position.y = 0.42
-	ring.rotation = Vector3(0.4, 0, 0.2)
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_add(holo, ring, "Orbit")
-	var cone := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.3
-	cm.bottom_radius = 0.05
-	cm.height = 0.42
-	cm.radial_segments = 24
-	cm.cap_top = false
-	cm.cap_bottom = false
-	cone.mesh = cm
-	cone.material_override = hm
-	cone.position.y = 0.2
-	cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_add(holo, cone, "Beam")
-	var hl := OmniLight3D.new()
-	hl.light_color = Color(0.55, 0.8, 1.0)
-	hl.light_energy = 0.8
-	hl.omni_range = 2.6
-	hl.position.y = 0.45
-	_add(holo, hl, "Glow")
+	# Holo-pad media player floating over the table (builds its own hologram).
+	_interactable(table, "MediaPlayer", "holo_media_player", Vector3.ZERO, {"interact_range": 2.3})
 
 	# Ducts, flex hose and wiring running along the top of the curved wall.
 	var ducts := _add(L, Node3D.new(), "Ducts")
@@ -2733,7 +2684,10 @@ func _apply_crash_damage() -> void:
 	var table: Node3D = R.get_node("Lounge/HoloTable")
 	table.rotation = Vector3(0.0, 0.6, 1.35)
 	table.position = Vector3(4.0, 0.72, 2.9)
-	table.get_node("Hologram").visible = false
+	# No power for the media player after the crash.
+	var player_node := table.get_node("MediaPlayer")
+	table.remove_child(player_node)
+	player_node.free()
 	R.get_node("PilotChair").rotation.y = 0.35
 	R.get_node("CopilotChair").rotation.y = -0.5
 	R.get_node("CopilotChair").position.x += 0.1
