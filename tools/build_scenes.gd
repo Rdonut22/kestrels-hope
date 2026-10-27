@@ -1326,6 +1326,12 @@ func _update_main() -> void:
 	player.move_child(model, 1)
 	model.owner = scene_root
 
+	var hum := AudioStreamPlayer.new()
+	hum.name = "ShipHum"
+	hum.set_script(load("res://ship/ship_hum.gd"))
+	scene_root.add_child(hum)
+	hum.owner = scene_root
+
 	var hud: Node = (load("res://ui/hud.tscn") as PackedScene).instantiate()
 	scene_root.add_child(hud)
 	hud.owner = scene_root

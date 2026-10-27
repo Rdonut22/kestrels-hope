@@ -29,6 +29,12 @@ func _ready() -> void:
 	spring_arm.add_excluded_object(get_rid())
 	_setup_footsteps()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# Coming from the intro cinematic: start behind the pilot seats.
+	if get_tree().root.has_meta("spawn_cockpit"):
+		get_tree().root.remove_meta("spawn_cockpit")
+		global_position = Vector3(4.0, 1.1, -9.3)
+		pivot.rotation = Vector3(-0.1, 0.0, 0.0)
+		mesh.rotation.y = 0.0
 
 func _add_key(action: String, key: Key) -> void:
 	if not InputMap.has_action(action):

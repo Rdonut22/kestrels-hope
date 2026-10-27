@@ -261,12 +261,11 @@ func _go(scene: String) -> void:
 	if _music:
 		tw.tween_property(_music, "volume_db", -40.0, 1.5)
 	await tw.finished
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	get_tree().change_scene_to_file(scene)
 
 
 func _on_new_game() -> void:
-	_go("res://main.tscn")
+	_go("res://intro.tscn")
 
 
 func _on_crash_site() -> void:

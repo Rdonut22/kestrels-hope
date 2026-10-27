@@ -10,3 +10,9 @@ Drop sound files here.
 - `steps/grass_1-6.ogg`: single footsteps cut from "running footstep on grass"
   (evanaeva, Pixabay). Played at random with pitch variation on each foot
   touchdown on grass (player.gd + character_model.gd footstep signal).
+- `intro_music.ogg`: intro cinematic music; starts as the ship flies past.
+- `space_hum.ogg`: space hum, used in the intro and looped aboard the ship
+  in space (ship/ship_hum.gd).
+- `thruster_flyby.ogg`: PLACEHOLDER thruster swell/burst for the intro
+  flyby, generated with ffmpeg. Replace with a real recording (keep the
+  peak around 4.5 s in, or adjust BURST timing in intro.gd).

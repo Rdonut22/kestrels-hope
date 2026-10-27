@@ -5,6 +5,7 @@ extends CanvasLayer
 ## screens consume Esc first (see hud.gd), so Esc closes those instead.
 
 const MENU_SCENE := "res://menu.tscn"
+const NO_PAUSE := ["res://menu.tscn", "res://intro.tscn"]
 
 var _root: Control
 var _backdrop: TextureRect
@@ -22,7 +23,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	var scene := get_tree().current_scene
-	if scene == null or scene.scene_file_path == MENU_SCENE:
+	if scene == null or scene.scene_file_path in NO_PAUSE:
 		return
 	get_viewport().set_input_as_handled()
 	if _root.visible:
