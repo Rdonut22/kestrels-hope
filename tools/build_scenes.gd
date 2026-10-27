@@ -2142,6 +2142,7 @@ func _build_crash_site() -> void:
 	slope.position.z = 4.6
 	slope.material = mats["dirt"]
 	slope.use_collision = true
+	slope.add_to_group("grass_surface", true)
 	ship.add_child(slope)
 	slope.owner = R
 
@@ -2157,6 +2158,7 @@ func _build_crash_site() -> void:
 	# Ground.
 	var ground := StaticBody3D.new()
 	ground.position.y = GROUND_Y
+	ground.add_to_group("grass_surface", true)
 	_add(site, ground, "Ground")
 	var gm := MeshInstance3D.new()
 	var plane := PlaneMesh.new()

@@ -6,6 +6,9 @@ extends Node3D
 
 const PREFIX := "CharacterArmature|"
 
+## Emitted when a foot touches down during the walk or run animation.
+signal footstep
+
 @export var walk_threshold := 0.05
 @export var run_threshold := 0.55
 @export var blend_time := 0.2
@@ -13,12 +16,17 @@ const PREFIX := "CharacterArmature|"
 var _move := 0.0
 var _current := ""
 var _action_left := 0.0
+var _skel: Skeleton3D
+var _feet := []  # [bone index, last height, was descending]
 
 @onready var anim: AnimationPlayer = $Adventurer/AnimationPlayer
 
 
 func _ready() -> void:
 	_attach_robot_arm()
+	_skel = find_children("*", "Skeleton3D", true, false)[0]
+	for bone in ["Foot.L", "Foot.R"]:
+		_feet.append([_skel.find_bone(bone), 0.0, false])
 	for name in ["Idle", "Walk", "Run"]:
 		var a := anim.get_animation(PREFIX + name)
 		if a:
@@ -43,6 +51,7 @@ func _process(delta: float) -> void:
 		if _move < walk_threshold:
 			return
 		_action_left = 0.0
+	_detect_footsteps()
 	if _move < walk_threshold:
 		_play("Idle")
 	elif _move < run_threshold:
@@ -69,3 +78,16 @@ func _attach_robot_arm() -> void:
 		att.bone_name = holder.get_meta("bone")
 		skel.add_child(att)
 		holder.reparent(att, false)
+
+
+# A foot touches down when its height stops falling and starts rising
+# while it's near the ground.
+func _detect_footsteps() -> void:
+	var moving := _move >= walk_threshold and _action_left <= 0.0
+	for foot in _feet:
+		var y: float = _skel.get_bone_global_pose(foot[0]).origin.y
+		var descending: bool = y < foot[1]
+		if moving and foot[2] and not descending and y < 0.06:
+			footstep.emit()
+		foot[1] = y
+		foot[2] = descending

@@ -10,6 +10,8 @@ var has_coffee := false:
 		hud.set_held("Coffee   [F] Drink" if value else "")
 
 var current_target: Interactable
+var _steps: AudioStreamPlayer
+var _floor: Object
 
 @onready var pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -25,6 +27,7 @@ func _ready() -> void:
 	_add_key("interact", KEY_E)
 	_add_key("drink", KEY_F)
 	spring_arm.add_excluded_object(get_rid())
+	_setup_footsteps()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _add_key(action: String, key: Key) -> void:
@@ -73,6 +76,14 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0, SPEED)
 
 	move_and_slide()
+	# Floor snapping doesn't always report a collision, so keep the last
+	# floor we touched until we leave the ground.
+	if not is_on_floor():
+		_floor = null
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		if c.get_normal().y > 0.7:
+			_floor = c.get_collider()
 	mesh.set_move(Vector2(velocity.x, velocity.z).length() / SPEED)
 	# Hide the body when a wall shoves the camera right up against it.
 	mesh.visible = spring_arm.get_hit_length() > 0.9
@@ -103,3 +114,22 @@ func _update_target(busy: bool) -> void:
 		hud.set_prompt("[E] " + current_target.get_prompt())
 	else:
 		hud.set_prompt(current_target.get_prompt())
+
+# Random grass step samples, triggered by the model's footstep signal.
+func _setup_footsteps() -> void:
+	var random := AudioStreamRandomizer.new()
+	random.random_pitch = 1.12
+	random.random_volume_offset_db = 2.0
+	for i in 6:
+		random.add_stream(i, load("res://audio/steps/grass_%d.ogg" % (i + 1)))
+	_steps = AudioStreamPlayer.new()
+	_steps.stream = random
+	add_child(_steps)
+	if mesh.has_signal("footstep"):
+		mesh.footstep.connect(_on_footstep)
+
+func _on_footstep() -> void:
+	if _floor is Node and (_floor as Node).is_in_group("grass_surface"):
+		var running := Vector2(velocity.x, velocity.z).length() > SPEED * 0.55
+		_steps.volume_db = -6.0 if running else -11.0
+		_steps.play()

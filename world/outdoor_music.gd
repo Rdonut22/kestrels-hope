@@ -1,11 +1,11 @@
 extends Node
 
-## Music outside the crashed ship. Silent until the player first steps out
+## Wind ambience outside the crashed ship. Silent until the player first steps out
 ## of the wreck, then plays on loop while outside and fades down inside.
 
-@export var stream: AudioStream = preload("res://audio/outside_theme.ogg")
+@export var stream: AudioStream = preload("res://audio/wind_ambience.ogg")
 @export var outside_db := -4.0
-@export var inside_db := -30.0
+@export var inside_db := -20.0  # still faintly audible through the breach
 @export var fade_speed := 12.0  # dB per second
 
 var _player: Node3D
