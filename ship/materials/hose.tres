@@ -1,0 +1,12 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/hose.gdshader" id="1_glprf"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_glprf")
+shader_parameter/rib_spacing = 0.03
+shader_parameter/rib_depth = 0.7
+shader_parameter/grime = 0.45
+shader_parameter/grime_color = Color(0.2, 0.16, 0.11, 1)
+shader_parameter/dust_color = Color(0.6, 0.57, 0.5, 1)

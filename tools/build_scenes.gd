@@ -114,6 +114,12 @@ func _make_materials() -> void:
 	ResourceSaver.save(door, "res://ship/materials/door.tres")
 	door.take_over_path("res://ship/materials/door.tres")
 	mats["door"] = door
+	_shader_mat("hose", "hose", {})
+	_shader_mat("crate", "worn", {"base_color": Color(0.8, 0.78, 0.71), "grime": 0.75, "chips": 0.15,
+		"scratches": 0.45, "fade": 0.3, "noise_scale": 2.5, "roughness_amount": 0.7, "metallic_amount": 0.0})
+	_shader_mat("pad_frame", "worn", {"base_color": Color(0.5, 0.47, 0.41), "grime": 0.6, "chips": 0.1,
+		"scratches": 0.3, "fade": 0.3, "noise_scale": 2.0, "roughness_amount": 0.6, "metallic_amount": 0.2})
+	_mat("tie", Color(0.86, 0.85, 0.8), 0.55)
 	_mat("hazard", Color(0.78, 0.42, 0.12), 0.6, 0.2)
 	_mat("copper", Color(0.62, 0.33, 0.18), 0.4, 0.85)
 	_mat("cable", Color(0.06, 0.06, 0.06), 0.7)
@@ -369,6 +375,8 @@ func _build_ship() -> void:
 	_room(hull, "Kitchen", 2.4, 5.6, -6.8, -3.4)
 	var lounge := _half_cyl(hull, "Lounge", 4.7, 3.0, 1.5, Vector3(2.4, 0, -3.2), Vector3(8, 3, 6.4), "gunmetal")
 	lounge.operation = CSGShape3D.OPERATION_SUBTRACTION
+	# Collar around the round lounge entrance, standing out into the lounge.
+	_lounge_tube(hull, "LoungeEntranceCollar", LOUNGE_DOOR_R + 0.25, 2.0, 3.4, -0.2, "gunmetal")
 	_room(hull, "Deck", -2.3, 2.0, -5.6, 9.2)
 	_room(hull, "Quarters", -2.6, 1.8, -9.6, -5.9)
 	_room(hull, "Bathroom", -6.0, -2.6, -4.4, -1.6)
@@ -380,7 +388,7 @@ func _build_ship() -> void:
 
 	# Oval doorways. Walls facing Z use axis "z", walls facing X use "x".
 	_oval_door(hull, "Door_Kitchen", "x", Vector3(2.2, 1.0, -4.9), 0.95, 1.35)
-	_oval_door(hull, "Door_Lounge", "x", Vector3(2.2, 0.55, 1.0), 1.3, 1.35)
+	_lounge_tube(hull, "Door_Lounge", LOUNGE_DOOR_R, 1.8, 3.5, 0.02, "couch_seam").operation = CSGShape3D.OPERATION_SUBTRACTION
 	# Square openings for the sliding doors (see _doors()).
 	for d in DOORS:
 		var cut := CSGBox3D.new()
@@ -422,8 +430,6 @@ func _build_ship() -> void:
 	var ribs := _add(scene_root, Node3D.new(), "Ribs")
 	for x in [1.95, 2.45]:
 		_rib(ribs, "Kitchen%d" % int(x * 100), "x", Vector3(x, 1.0, -4.9), 0.95, 1.35)
-	for x in [1.95, 2.45, 2.9, 3.35]:
-		_rib(ribs, "Lounge%d" % int(x * 100), "x", Vector3(x, 0.55, 1.0), 1.3, 1.35)
 	_rib(ribs, "Gunner", "z", Vector3(-4.0, 1.1, 3.4), 0.8, 1.5)
 
 	_doors()
@@ -483,6 +489,8 @@ func _build_ship() -> void:
 	_box(kitchen, "FoodDispenser", Vector3(5.15, 0.97, -5.3), Vector3(5.6, 1.6, -4.7), "metal_dark")
 
 	_lounge()
+	_lounge_entrance()
+	_crates()
 
 	var deck := _furniture("DeckFurniture")
 	_box(deck, "SuitLocker", Vector3(1.45, 0, 6.6), Vector3(2.0, 2.1, 7.6), "metal_dark")
@@ -961,6 +969,20 @@ func _side_arch(z: float) -> void:
 			button.material_override = mats["harness"]
 			_add(arch, button, "Stud%d_%d" % [k, int(zz * 10)])
 			button.position = at.call(r - 0.245) + Vector3(0, 0, zz)
+	# Solid panel filling the gap between the back of the arch and the wall.
+	var fill_pts := PackedVector2Array()
+	for k in 25:
+		var ang := a0 + (a1 - a0) * k / 24.0
+		fill_pts.append(center + Vector2(cos(ang), sin(ang)) * (r + 0.07))
+	fill_pts.append(Vector2(1.99, center.y + sin(a1) * (r + 0.07)))
+	fill_pts.append(Vector2(1.99, center.y + sin(a0) * (r + 0.07)))
+	var fill := CSGPolygon3D.new()
+	fill.polygon = fill_pts
+	fill.depth = 0.6
+	fill.position.z = z + 0.3
+	fill.material = mats["rib"]
+	fill.use_collision = true
+	_add(arch, fill, "BackFill")
 	var foot := center + Vector2(cos(a0), sin(a0)) * r
 	_mesh_box(arch, "Foot", Vector3(foot.x + 0.05, 0.05, z), Vector3(0.5, 0.1, 0.64), "metal_dark")
 	var body := StaticBody3D.new()
@@ -1064,14 +1086,10 @@ func _deck_details() -> void:
 			_add(ribs, brace, "Brace" + side[2] + tag)
 
 	var pipes := _add(scene_root, Node3D.new(), "Pipes")
-	_pipe(pipes, "CopperA", Vector3(-2.2, 2.62, -5.6), Vector3(-2.2, 2.62, 9.2), 0.05, "copper")
-	_pipe(pipes, "CopperB", Vector3(-2.12, 2.52, -5.6), Vector3(-2.12, 2.52, 9.2), 0.035, "copper")
-	for i in 3:
-		_pipe(pipes, "Cable%d" % i, Vector3(1.92, 2.64 - i * 0.05, -5.6), Vector3(1.92, 2.64 - i * 0.05, 9.2), 0.03, "cable")
 	_pipe(pipes, "EngRiserA", Vector3(-6.15, 0, -1.15), Vector3(-6.15, 3.0, -1.15), 0.07, "copper")
 	_pipe(pipes, "EngRiserB", Vector3(-5.95, 0, -1.15), Vector3(-5.95, 3.0, -1.15), 0.045, "copper")
 	_pipe(pipes, "EngOverhead", Vector3(-6.15, 2.7, -1.15), Vector3(-2.7, 2.7, -1.15), 0.06, "copper")
-	_pipe(pipes, "KitchenPipe", Vector3(5.5, 2.75, -6.7), Vector3(5.5, 2.75, -3.5), 0.05, "copper")
+	_ship_hoses()
 
 	_side_arch(4.3)
 	_exhaust()
@@ -1677,11 +1695,12 @@ func _cushion_mesh(flat: float, pinch: float) -> ArrayMesh:
 				var b: Vector3 = pts[j][i + 1]
 				var c: Vector3 = pts[j + 1][i + 1]
 				var d: Vector3 = pts[j + 1][i]
+				# Godot's front faces wind clockwise seen from outside.
 				if side > 0:
-					for q in [a, b, c, a, c, d]:
+					for q in [a, c, b, a, d, c]:
 						st.add_vertex(q)
 				else:
-					for q in [a, c, b, a, d, c]:
+					for q in [a, b, c, a, c, d]:
 						st.add_vertex(q)
 	st.generate_normals()
 	return st.commit()
@@ -1886,10 +1905,13 @@ func _lounge() -> void:
 		_pipe(ducts, "Duct%d" % k, p1, p2, 0.13, "metal_dark")
 		if k % 2 == 0:
 			_pipe(ducts, "DuctRib%d" % k, p1 - (p2 - p1).normalized() * 0.03, p1 + (p2 - p1).normalized() * 0.03, 0.16, "rib")
-		var q1 := Vector3(LOUNGE_C.x + cos(ang) * 4.6, 2.5, LOUNGE_C.y + sin(ang) * 4.6)
-		var q2 := Vector3(LOUNGE_C.x + cos(ang2) * 4.6, 2.5, LOUNGE_C.y + sin(ang2) * 4.6)
-		_pipe(ducts, "WireA%d" % k, q1, q2, 0.022, "cable")
-		_pipe(ducts, "WireB%d" % k, q1 + Vector3(0, -0.06, 0), q2 + Vector3(0, -0.06, 0), 0.016, "copper")
+	# Flex hoses draped along under the duct, running between the end vents.
+	var hose_anchors := []
+	for k in 9:
+		var ang := deg_to_rad(-70.0 + k * 17.5)
+		var p := Vector3(LOUNGE_C.x + cos(ang) * 4.62, 2.44 if k % 2 else 2.5, LOUNGE_C.y + sin(ang) * 4.62)
+		hose_anchors.append(_anchor(p, Vector3(-cos(ang), 0, -sin(ang)), 1.2))
+	_hoses(ducts, "LoungeHoses", _hose_bundle(hose_anchors, 4, 67, 0.022, 0.05, 0.09))
 	# Vent grilles and switch panels at each end of the window.
 	for side in [-1.0, 1.0]:
 		var ang := deg_to_rad(70.0 * side)
@@ -1921,6 +1943,450 @@ func _lounge() -> void:
 		tl.omni_range = 3.2
 		_add(ducts, tl, "TubeLight%d" % i)
 		tl.transform = _lounge_xf(ang, 4.1, 2.3)
+
+
+# Round Falcon-style entrance between the corridor and the lounge.
+const LOUNGE_DOOR_R := 1.45
+const LOUNGE_DOOR_C := Vector2(1.35, 1.0)  # (y, z) of the tunnel's axis
+
+
+# Cylinder along x (from x0 to x1) around the lounge entrance axis, cut off
+# below `floor_y` and at the ceiling.
+func _lounge_tube(parent: Node, name: String, radius: float, x0: float, x1: float, floor_y: float, mat: String) -> CSGCombiner3D:
+	var comb := _add(parent, CSGCombiner3D.new(), name)
+	var c := CSGCylinder3D.new()
+	c.radius = radius
+	c.height = x1 - x0
+	c.sides = 48
+	c.rotation.z = PI / 2
+	c.position = Vector3((x0 + x1) / 2.0, LOUNGE_DOOR_C.x, LOUNGE_DOOR_C.y)
+	c.material = mats[mat]
+	_add(comb, c, "Round")
+	var clip := _box(comb, "Clip", Vector3(x0 - 0.1, floor_y, -2.0), Vector3(x1 + 0.1, 3.0, 4.0), mat)
+	clip.operation = CSGShape3D.OPERATION_INTERSECTION
+	return comb
+
+
+# Flat grimy beige pads lining the entrance tunnel in staggered rings, with
+# chunky frame rings at both mouths, little warm lamps and floor glow strips.
+func _lounge_entrance() -> void:
+	var E := _add(scene_root, Node3D.new(), "LoungeEntrance")
+	var pad_mesh := _cushion_mesh(10.0, 0.0)
+	var r := LOUNGE_DOOR_R
+	var around := 18
+	var rings := [[2.0, 2.47], [2.47, 2.94], [2.94, 3.4]]
+	for i in rings.size():
+		var x0: float = rings[i][0]
+		var x1: float = rings[i][1]
+		for k in around:
+			var ang := TAU * (k + 0.5 * (i % 2)) / around
+			var out := Vector3(0, cos(ang), sin(ang))
+			var pos := Vector3((x0 + x1) / 2.0, LOUNGE_DOOR_C.x, LOUNGE_DOOR_C.y) + out * (r - 0.045)
+			if pos.y < 0.3:
+				continue
+			var tangent := Vector3(0, -sin(ang), cos(ang))
+			var inward := -out
+			if tangent.cross(Vector3.RIGHT).dot(inward) < 0.0:
+				tangent = -tangent
+			var xf := Transform3D(Basis(tangent, Vector3.RIGHT, inward), pos)
+			_cushion(E, "Pad%d_%d" % [i, k], pad_mesh, xf, Vector3(TAU * r / around - 0.08, x1 - x0 - 0.06, 0.09), "couch_leather")
+	for x in [1.96, 3.42]:
+		var ring := MeshInstance3D.new()
+		var tm := TorusMesh.new()
+		tm.inner_radius = r - 0.1
+		tm.outer_radius = r + 0.16
+		tm.rings = 48
+		tm.ring_segments = 10
+		ring.mesh = tm
+		ring.material_override = mats["pad_frame"]
+		ring.position = Vector3(x, LOUNGE_DOOR_C.x, LOUNGE_DOOR_C.y)
+		ring.rotation.z = PI / 2
+		_add(E, ring, "Frame%d" % int(x * 100))
+	# A row of small warm lamps up one side, like the Falcon's.
+	var lamp := SphereMesh.new()
+	lamp.radius = 0.045
+	lamp.height = 0.05
+	for i in 4:
+		var ang := deg_to_rad(52.0 + i * 9.0)
+		var mi := MeshInstance3D.new()
+		mi.mesh = lamp
+		mi.material_override = mats["warm_tube"]
+		mi.position = Vector3(2.7, LOUNGE_DOOR_C.x + cos(ang) * (r - 0.1), LOUNGE_DOOR_C.y - sin(ang) * (r - 0.1))
+		_add(E, mi, "Lamp%d" % i)
+	for side in [-1.0, 1.0]:
+		_mesh_box(E, "FloorGlow%d" % int(side), Vector3(2.7, 0.03, LOUNGE_DOOR_C.y + side * 0.78), Vector3(1.35, 0.02, 0.04), "led_strip")
+	var glow := OmniLight3D.new()
+	glow.position = Vector3(2.7, 2.2, LOUNGE_DOOR_C.y)
+	glow.light_color = Color(1.0, 0.75, 0.5)
+	glow.light_energy = 0.5
+	glow.omni_range = 2.6
+	_add(E, glow, "Glow")
+
+
+# Rounded box (corner radius r) centred on the origin.
+func _rounded_box_mesh(size: Vector3, r: float) -> ArrayMesh:
+	var h := size / 2.0
+	var inner := h - Vector3.ONE * r
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var axes := [Vector3.RIGHT, Vector3.UP, Vector3.BACK]
+	var first := 0
+	for f in 6:
+		var n: Vector3 = axes[f % 3] * (1.0 if f < 3 else -1.0)
+		var u: Vector3 = axes[(f + 1) % 3]
+		var v: Vector3 = axes[(f + 2) % 3]
+		var su := _round_steps(absf(u.dot(h)), r)
+		var sv := _round_steps(absf(v.dot(h)), r)
+		for a in sv:
+			for b in su:
+				var q: Vector3 = n * absf(n.dot(h)) + u * b + v * a
+				var c := q.clamp(-inner, inner)
+				var d := (q - c).normalized()
+				st.set_normal(d)
+				st.add_vertex(c + d * r)
+		var w := su.size()
+		for j in sv.size() - 1:
+			for i in w - 1:
+				var a0 := first + j * w + i
+				# u x v points out of the positive faces; Godot wants clockwise
+				# winding seen from outside, so those faces are flipped.
+				var tris := [a0, a0 + w, a0 + 1, a0 + 1, a0 + w, a0 + w + 1] if f < 3 else [a0, a0 + 1, a0 + w, a0 + 1, a0 + w + 1, a0 + w]
+				for t in tris:
+					st.add_index(t)
+		first += w * sv.size()
+	return st.commit()
+
+
+# Sample positions across one axis of a rounded box face, bunched into the
+# rounded edges.
+func _round_steps(half: float, r: float) -> Array:
+	var out := []
+	for k in 4:
+		out.append(-(half - r) - r * cos(k / 3.0 * PI / 2.0))
+	for k in 4:
+		out.append((half - r) + r * sin(k / 3.0 * PI / 2.0))
+	return out
+
+
+# Battered cream storage crates: rounded shell, lid seam, latches, side grips.
+const CRATE := Vector3(0.9, 0.42, 0.6)
+
+func _crates() -> void:
+	var C := _add(scene_root, Node3D.new(), "Crates")
+	var shell := _rounded_box_mesh(CRATE, 0.07)
+	var seam := _rounded_box_mesh(Vector3(CRATE.x + 0.01, 0.014, CRATE.z + 0.01), 0.075)
+	var grip := _rounded_box_mesh(Vector3(0.03, 0.09, 0.24), 0.012)
+	var handle := _rounded_box_mesh(Vector3(0.24, 0.035, 0.07), 0.015)
+	# [position on the floor, yaw, how many stacked]
+	var spots := [[Vector3(1.66, 0, 6.05), PI / 2 + 0.04, 2], [Vector3(-1.97, 0, 7.85), PI / 2 - 0.06, 1],
+		[Vector3(-3.2, 0, 2.95), 0.05, 2], [Vector3(2.76, 0, -6.28), PI / 2 + 0.12, 1]]
+	for i in spots.size():
+		var base: Vector3 = spots[i][0]
+		for level in spots[i][2]:
+			var yaw: float = spots[i][1] + (0.09 if level == 1 else 0.0)
+			var crate := Node3D.new()
+			crate.position = base + Vector3(0, level * (CRATE.y + 0.005), 0)
+			crate.rotation.y = yaw
+			if crashed and level == 1:
+				# Knocked half off the one below in the crash.
+				crate.position += Vector3(0.12, -0.04, 0.1)
+				crate.rotation += Vector3(0.0, 0.3, 0.1)
+			_add(C, crate, "Crate%d_%d" % [i, level])
+			var parts := [[shell, "crate", Vector3(0, CRATE.y / 2.0, 0)], [seam, "rib", Vector3(0, CRATE.y * 0.7, 0)],
+				[handle, "crate", Vector3(0.18, CRATE.y + 0.012, 0.14)]]
+			for side in [-1.0, 1.0]:
+				parts.append([grip, "rib", Vector3(side * CRATE.x / 2.0, CRATE.y * 0.45, 0)])
+				for lx in [-0.28, 0.28]:
+					parts.append([null, "metal_dark", Vector3(lx, CRATE.y * 0.7, side * (CRATE.z / 2.0 + 0.008))])
+			for k in parts.size():
+				if parts[k][0] == null:
+					_mesh_box(crate, "Latch%d" % k, parts[k][2], Vector3(0.05, 0.08, 0.02), parts[k][1])
+					continue
+				var mi := MeshInstance3D.new()
+				mi.mesh = parts[k][0]
+				mi.material_override = mats[parts[k][1]]
+				mi.position = parts[k][2]
+				_add(crate, mi, "Part%d" % k)
+			var body := StaticBody3D.new()
+			_add(crate, body, "Body")
+			var cs := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = CRATE
+			cs.shape = box
+			cs.position.y = CRATE.y / 2.0
+			_add(body, cs, "Shape")
+
+
+# ---------- flex hoses ----------
+
+# Mostly beige, a few greyer ones, like old ship conduit.
+const HOSE_TINTS := [Color(0.78, 0.74, 0.64), Color(0.72, 0.68, 0.58), Color(0.84, 0.81, 0.72),
+	Color(0.67, 0.63, 0.55), Color(0.76, 0.74, 0.68), Color(0.53, 0.52, 0.5)]
+
+
+# Anchor for _hose_bundle: where the bundle is fixed, which way is away from
+# the surface it's fixed to, how much the span after it sags (1 = normal),
+# extra stand-off (to clear a brace) and whether there's a bracket here.
+func _anchor(p: Vector3, out: Vector3, sag := 1.0, lift := 0.0, strap := false) -> Dictionary:
+	return {"p": p, "out": out.normalized(), "sag": sag, "lift": lift, "strap": strap}
+
+
+# Smooth path through `pts` (Catmull-Rom), sampled about every `step` metres.
+func _spline(pts: Array, step := 0.09) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var n := pts.size()
+	for i in n - 1:
+		var p0: Vector3 = pts[maxi(i - 1, 0)]
+		var p1: Vector3 = pts[i]
+		var p2: Vector3 = pts[i + 1]
+		var p3: Vector3 = pts[mini(i + 2, n - 1)]
+		var steps := maxi(2, ceili(p1.distance_to(p2) / step))
+		for s in steps:
+			var t := float(s) / steps
+			out.append(0.5 * (2.0 * p1 + (p2 - p0) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t
+				+ (3.0 * p1 - p0 - 3.0 * p2 + p3) * t * t * t))
+	out.append(pts[n - 1])
+	return out
+
+
+# Appends a tube swept along `path` to `st` and returns the next free vertex
+# index. UV.x is metres along the hose, restarted every HOSE_UV_WRAP (a whole
+# number of ribs) because GPUs lose the precision for fine ribs on big values;
+# the ring at each restart is doubled so the ribs stay seamless.
+const HOSE_UV_WRAP := 0.6
+
+func _sweep(st: SurfaceTool, path: PackedVector3Array, radius: float, tint: Color, first: int) -> int:
+	var sides := 9
+	var ring := sides + 1
+	var t := (path[1] - path[0]).normalized()
+	var nrm := t.cross(Vector3.UP if absf(t.y) < 0.9 else Vector3.RIGHT).normalized()
+	var length := 0.0
+	var base := 0.0
+	var rings := 0
+	for i in path.size():
+		var prev_t := t
+		if i == path.size() - 1:
+			t = (path[i] - path[i - 1]).normalized()
+		elif i > 0:
+			t = (path[i + 1] - path[i - 1]).normalized()
+		if i > 0:
+			length += path[i].distance_to(path[i - 1])
+			# Parallel transport keeps the rings from twisting.
+			var axis := prev_t.cross(t)
+			if axis.length() > 0.0001:
+				nrm = nrm.rotated(axis.normalized(), prev_t.angle_to(t))
+		nrm = (nrm - t * nrm.dot(t)).normalized()
+		var bin := t.cross(nrm)
+		var us := [length - base]
+		if length - base >= HOSE_UV_WRAP:
+			base += floorf((length - base) / HOSE_UV_WRAP) * HOSE_UV_WRAP
+			us.append(length - base)
+		for n in us.size():
+			if i > 0 and n == 0:
+				var a := first + (rings - 1) * ring
+				for k in sides:
+					for v in [a + k, a + ring + k, a + k + 1, a + k + 1, a + ring + k, a + ring + k + 1]:
+						st.add_index(v)
+			for k in ring:
+				var ang := TAU * k / sides
+				var d := nrm * cos(ang) + bin * sin(ang)
+				st.set_color(tint)
+				st.set_normal(d)
+				# Tangent runs along the hose, which is the way the ribs bump.
+				st.set_tangent(Plane(t, 1.0))
+				st.set_uv(Vector2(us[n], float(k) / sides))
+				st.add_vertex(path[i] + d * radius)
+			rings += 1
+	return first + rings * ring
+
+
+# Builds hose runs into one mesh (saved next to the ship's materials so the
+# scenes stay small) with white zip ties. Each run: {"pts", "r", "tint", "ties"}
+# where "ties" lists indices into "pts".
+func _hoses(parent: Node, name: String, runs: Array) -> Node3D:
+	var node := _add(parent, Node3D.new(), name)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var first := 0
+	var ties: Array[Transform3D] = []
+	for run: Dictionary in runs:
+		var pts: Array = run.pts
+		first = _sweep(st, _spline(pts), run.r, run.tint, first)
+		for i: int in run.ties:
+			var tan: Vector3 = (pts[mini(i + 1, pts.size() - 1)] - pts[maxi(i - 1, 0)]).normalized()
+			var side := tan.cross(Vector3.UP if absf(tan.y) < 0.9 else Vector3.RIGHT).normalized()
+			var s: float = run.r * 1.05
+			ties.append(Transform3D(Basis(side * s, tan * s, side.cross(tan) * s), pts[i]))
+	var path := "res://ship/meshes/%s.res" % name.to_snake_case()
+	DirAccess.make_dir_recursive_absolute("res://ship/meshes")
+	ResourceSaver.save(st.commit(), path)
+	var mi := MeshInstance3D.new()
+	mi.mesh = load(path)
+	mi.material_override = mats["hose"]
+	_add(node, mi, "Hoses")
+	if ties.size() > 0:
+		var tie := TorusMesh.new()
+		tie.inner_radius = 0.92
+		tie.outer_radius = 1.12
+		tie.rings = 12
+		tie.ring_segments = 4
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = tie
+		mm.instance_count = ties.size()
+		for i in ties.size():
+			mm.set_instance_transform(i, ties[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = mats["tie"]
+		_add(node, mmi, "Ties")
+	return node
+
+
+# A loose bundle of `count` hoses strung between anchors. Every hose gets
+# its own thickness, colour, stand-off and sag, and wanders a little at each
+# anchor, so they cross over and droop unevenly instead of running in lines.
+func _hose_bundle(anchors: Array, count: int, seed: int, rmin := 0.025, rmax := 0.055, sag := 0.07) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	var spacing := (rmin + rmax) * 1.1
+	var runs := []
+	for i in count:
+		var r := rng.randf_range(rmin, rmax)
+		var slot := (i - (count - 1) / 2.0) * spacing
+		var stand := rng.randf_range(0.0, 0.05)
+		var sag_i := sag * rng.randf_range(0.3, 1.7)
+		var qs := []
+		for j in anchors.size():
+			var a: Dictionary = anchors[j]
+			var dir: Vector3 = (anchors[mini(j + 1, anchors.size() - 1)].p - anchors[maxi(j - 1, 0)].p).normalized()
+			var spread: Vector3 = a.out.cross(dir).normalized()
+			qs.append(a.p + spread * (slot + rng.randf_range(-0.03, 0.03))
+				+ a.out * (r + stand + a.lift + rng.randf_range(-0.01, 0.02)))
+		var pts := []
+		var ties := []
+		for j in qs.size():
+			if j > 0 and j < qs.size() - 1 and rng.randf() < 0.75:
+				ties.append(pts.size())
+			pts.append(qs[j])
+			if j == qs.size() - 1:
+				break
+			var span: float = qs[j].distance_to(qs[j + 1])
+			if span > 0.45:
+				var flat := 1.0 - absf((qs[j + 1] - qs[j]).normalized().y)
+				var out: Vector3 = anchors[j].out
+				pts.append((qs[j] + qs[j + 1]) / 2.0 + Vector3.DOWN * sag_i * span * flat * anchors[j].sag
+					+ out * rng.randf_range(-0.01, 0.04))
+		runs.append({"pts": pts, "r": r, "tint": HOSE_TINTS[rng.randi() % HOSE_TINTS.size()], "ties": ties})
+	return runs
+
+
+# Dark metal strap holding a bundle at an anchor, with legs back to the surface.
+func _hose_straps(parent: Node, tag: String, anchors: Array, count: int, rmax: float) -> void:
+	var width := count * rmax * 2.2 + 0.1
+	for j in anchors.size():
+		var a: Dictionary = anchors[j]
+		if not a.strap:
+			continue
+		var dir: Vector3 = (anchors[mini(j + 1, anchors.size() - 1)].p - anchors[maxi(j - 1, 0)].p).normalized()
+		var spread: Vector3 = a.out.cross(dir).normalized()
+		var depth: float = a.lift + rmax * 2.0 + 0.08
+		var basis := Basis(spread, dir, a.out)
+		var bar := _mesh_box(parent, tag + "Strap%d" % j, Vector3.ZERO, Vector3(width, 0.05, 0.025), "metal_dark")
+		bar.transform = Transform3D(basis, a.p + a.out * depth)
+		for side in [-1.0, 1.0]:
+			var leg := _mesh_box(parent, tag + "StrapLeg%d_%d" % [j, int(side)], Vector3.ZERO, Vector3(0.025, 0.05, depth), "metal_dark")
+			leg.transform = Transform3D(basis, a.p + spread * side * width * 0.5 + a.out * depth * 0.5)
+
+
+# Single hand-routed hose with ties at its inner points.
+func _hose_run(pts: Array, r: float, tint: Color) -> Dictionary:
+	return {"pts": pts, "r": r, "tint": tint, "ties": range(1, pts.size() - 1)}
+
+
+func _junction_box(parent: Node, name: String, pos: Vector3, size: Vector3) -> void:
+	_mesh_box(parent, name, pos, size, "metal_dark")
+	# Status light on the face toward the room (boxes sit on the side walls).
+	_mesh_box(parent, name + "Led", pos + Vector3(-signf(pos.x) * size.x * 0.5, size.y * 0.25, 0), Vector3(0.012, 0.025, 0.025), "panel_led")
+
+
+# Hoses down the main corridor and through engineering, the galley and the
+# cockpit. Along the corridor they ride the angled ceiling edges, bump over
+# the braces at each rib, droop between them and peel off around doors.
+func _ship_hoses() -> void:
+	var root := _add(scene_root, Node3D.new(), "FlexHoses")
+	var B := 0.7071
+	# Left ceiling edge: the bevel face is x = y - 4.69.
+	var out_l := Vector3(B, -B, 0)
+	var left := []
+	for a in [[-5.6, 1.0, 0.0, false], [-4.5, 0.4, 0.0, false], [-1.6, 1.0, 0.13, true], [-0.35, 0.25, 0.0, false],
+			[2.45, 1.0, 0.0, false], [3.2, 0.35, 0.13, true], [5.4, 0.35, 0.13, true], [7.2, 1.2, 0.0, false],
+			[8.9, 1.0, 0.13, true], [9.2, 1.0, 0.0, false]]:
+		left.append(_anchor(Vector3(-2.13, 2.56, a[0]), out_l, a[1], a[2], a[3]))
+	var right := []
+	var out_r := Vector3(-B, -B, 0)
+	for a in [[-5.6, 1.0, 0.0, false], [-3.7, 1.0, 0.0, false], [-1.6, 0.8, 0.13, true], [-0.5, 0.35, 0.0, false],
+			[2.5, 1.0, 0.0, false], [3.2, 1.3, 0.13, true], [5.4, 1.0, 0.13, true], [8.9, 1.0, 0.13, true],
+			[9.2, 1.0, 0.0, false]]:
+		right.append(_anchor(Vector3(1.73, 2.66, a[0]), out_r, a[1], a[2], a[3]))
+	var corridor := _hose_bundle(left, 5, 11, 0.025, 0.058) + _hose_bundle(right, 4, 23, 0.022, 0.048)
+	var c1 := Color(0.78, 0.74, 0.64)
+	var c2 := Color(0.68, 0.64, 0.55)
+	# Drop beside the bathroom door into a junction box.
+	corridor.append(_hose_run([Vector3(-2.1, 2.42, -5.0), Vector3(-2.19, 1.95, -4.68), Vector3(-2.23, 1.6, -4.5), Vector3(-2.24, 1.36, -4.45)], 0.04, c1))
+	corridor.append(_hose_run([Vector3(-2.05, 2.36, -5.2), Vector3(-2.17, 1.9, -4.82), Vector3(-2.24, 1.6, -4.5), Vector3(-2.25, 1.36, -4.4)], 0.028, c2))
+	_junction_box(root, "BoxBath", Vector3(-2.25, 1.22, -4.45), Vector3(0.1, 0.3, 0.22))
+	# Up and over the engineering door frame and down the far side.
+	for k in 2:
+		var dx := -2.21 + k * 0.07
+		var dz := k * 0.06
+		var top := 2.34 + k * 0.05
+		corridor.append(_hose_run([Vector3(-2.24, 0.95, -0.38 - dz), Vector3(dx, 1.4, -0.3 - dz), Vector3(dx, 2.05, -0.24 - dz),
+			Vector3(dx, top, 0.15), Vector3(dx, top + 0.03, 1.1), Vector3(dx, top, 2.05), Vector3(dx, 2.0, 2.44 + dz),
+			Vector3(dx, 1.45, 2.5 + dz), Vector3(-2.24, 1.1, 2.56 + dz)], 0.05 - k * 0.015, c1 if k == 0 else Color(0.48, 0.47, 0.44)))
+	_junction_box(root, "BoxEngA", Vector3(-2.25, 0.8, -0.42), Vector3(0.1, 0.3, 0.24))
+	_junction_box(root, "BoxEngB", Vector3(-2.25, 0.95, 2.6), Vector3(0.1, 0.3, 0.24))
+	# One feeding the exhaust unit.
+	corridor.append(_hose_run([Vector3(-2.12, 2.4, 4.85), Vector3(-2.04, 2.47, 5.25), Vector3(-2.0, 2.44, 5.5), Vector3(-1.98, 2.3, 5.62)], 0.045, c2))
+	# Right side: one drops to a floor box beside the lounge door.
+	corridor.append(_hose_run([Vector3(1.8, 2.55, 2.55), Vector3(1.9, 1.9, 2.62), Vector3(1.93, 0.9, 2.65), Vector3(1.92, 0.3, 2.67)], 0.04, c1))
+	_junction_box(root, "BoxLounge", Vector3(1.9, 0.14, 2.67), Vector3(0.16, 0.28, 0.22))
+	# A few strung across the ceiling between the two sides.
+	for c in [[-0.95, 0.04, c1], [-0.8, 0.03, c2], [4.75, 0.05, c2], [4.92, 0.032, Color(0.47, 0.46, 0.43)]]:
+		var z: float = c[0]
+		corridor.append(_hose_run([Vector3(-2.06, 2.64, z - 0.12), Vector3(-1.65, 2.9, z - 0.06), Vector3(-0.2, 2.76 - c[1], z),
+			Vector3(1.25, 2.9, z + 0.06), Vector3(1.68, 2.7, z + 0.12)], c[1], c[2]))
+	var cn := _hoses(root, "CorridorHoses", corridor)
+	_hose_straps(cn, "Left", left, 5, 0.058)
+	_hose_straps(cn, "Right", right, 4, 0.048)
+
+	# Engineering: a droopy bundle from the back corner plugs into the
+	# reactor cap, and two fat feeds snake across the floor to the power panel.
+	var eng := []
+	for p in [Vector3(-6.28, 2.9, 2.6), Vector3(-5.3, 2.93, 2.0), Vector3(-4.3, 2.93, 0.9), Vector3(-3.75, 2.86, -0.1)]:
+		eng.append(_anchor(p, Vector3.DOWN, 1.0))
+	var eng_runs := _hose_bundle(eng, 5, 37, 0.03, 0.065, 0.12)
+	eng_runs.append(_hose_run([Vector3(-3.55, 0.12, 0.05), Vector3(-3.95, 0.065, 0.35), Vector3(-4.6, 0.065, 0.22),
+		Vector3(-5.08, 0.065, -0.45), Vector3(-5.14, 0.3, -1.0), Vector3(-5.12, 0.82, -1.24)], 0.065, c1))
+	eng_runs.append(_hose_run([Vector3(-3.62, 0.1, -0.08), Vector3(-4.0, 0.05, 0.12), Vector3(-4.68, 0.05, -0.12),
+		Vector3(-4.84, 0.07, -0.75), Vector3(-4.8, 0.4, -1.1), Vector3(-4.78, 0.84, -1.24)], 0.05, c2))
+	_hoses(root, "EngineeringHoses", eng_runs)
+
+	# Galley: three along the ceiling corner over the cabinets.
+	var galley := []
+	for z in [-6.8, -5.7, -4.5, -3.4]:
+		galley.append(_anchor(Vector3(5.5, 2.86, z), Vector3(-B, -B, 0)))
+	_hoses(root, "GalleyHoses", _hose_bundle(galley, 3, 41, 0.025, 0.045))
+
+	# Cockpit: a bundle along the leaning right wall, one hose dropping into
+	# the computer bench.
+	var lean := Vector3(-0.986, -0.168, 0)
+	var cockpit := []
+	for a in [[-6.95, 1.0, false], [-8.0, 1.0, true], [-9.0, 1.0, false], [-9.8, 1.0, false]]:
+		cockpit.append(_anchor(Vector3(5.31, 2.6, a[0]), lean, a[1], 0.0, a[2]))
+	var cockpit_runs := _hose_bundle(cockpit, 3, 53, 0.025, 0.05)
+	cockpit_runs.append(_hose_run([Vector3(5.22, 2.5, -9.0), Vector3(5.36, 1.7, -9.15), Vector3(5.43, 1.12, -9.22), Vector3(5.45, 0.86, -9.25)], 0.035, c1))
+	_hose_straps(_hoses(root, "CockpitHoses", cockpit_runs), "", cockpit, 3, 0.05)
 
 
 # ---------- exterior ----------
