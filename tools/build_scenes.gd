@@ -102,6 +102,18 @@ func _make_materials() -> void:
 	_mat("blanket", Color(0.33, 0.37, 0.42), 1.0)
 	_mat("crate", Color(0.55, 0.5, 0.39), 0.85)
 	_mat("barrel", Color(0.42, 0.4, 0.36), 0.6, 0.4)
+	var door := StandardMaterial3D.new()
+	door.albedo_texture = load("res://ship/models/door/door_albedo.jpg")
+	door.normal_enabled = true
+	door.normal_texture = load("res://ship/models/door/door_normal.jpg")
+	door.ao_enabled = true
+	door.ao_texture = load("res://ship/models/door/door_ao.jpg")
+	door.metallic = 0.8
+	door.metallic_texture = load("res://ship/models/door/door_scratches.jpg")
+	door.roughness = 0.5
+	ResourceSaver.save(door, "res://ship/materials/door.tres")
+	door.take_over_path("res://ship/materials/door.tres")
+	mats["door"] = door
 	_mat("hazard", Color(0.78, 0.42, 0.12), 0.6, 0.2)
 	_mat("copper", Color(0.62, 0.33, 0.18), 0.4, 0.85)
 	_mat("cable", Color(0.06, 0.06, 0.06), 0.7)
@@ -367,12 +379,17 @@ func _build_ship() -> void:
 		_carve_pod(hull, pod)
 
 	# Oval doorways. Walls facing Z use axis "z", walls facing X use "x".
-	_oval_door(hull, "Door_Quarters", "z", Vector3(-0.15, 1.05, -5.75), 1.1, 1.15)
 	_oval_door(hull, "Door_Kitchen", "x", Vector3(2.2, 1.0, -4.9), 0.95, 1.35)
 	_oval_door(hull, "Door_Lounge", "x", Vector3(2.2, 0.55, 1.0), 1.3, 1.35)
-	_oval_door(hull, "Door_Cockpit", "z", Vector3(4.0, 1.1, -6.9), 0.8, 1.5)
-	_oval_door(hull, "Door_Bathroom", "x", Vector3(-2.45, 1.1, -3.0), 0.8, 1.5)
-	_oval_door(hull, "Door_Engineering", "x", Vector3(-2.45, 1.1, 1.1), 0.8, 1.5)
+	# Square openings for the sliding doors (see _doors()).
+	for d in DOORS:
+		var cut := CSGBox3D.new()
+		cut.size = Vector3(d[3] + 0.2, 2.4, 2.72 * d[4])
+		cut.position = d[1] + Vector3(0, 1.0, 0)
+		cut.rotation.y = d[2]
+		cut.material = mats["trim"]
+		cut.operation = CSGShape3D.OPERATION_SUBTRACTION
+		_add(hull, cut, "Door_" + d[0])
 	_oval_door(hull, "Door_Gunner", "z", Vector3(-4.0, 1.1, 3.55), 0.8, 1.5)
 
 	var view := _half_cyl(hull, "Window_Lounge", 5.3, 1.4, 1.75, Vector3(5.95, 1.05, -5), Vector3(8, 2.45, 9), "trim")
@@ -403,16 +420,13 @@ func _build_ship() -> void:
 
 	# Rib frames around the doorways (the "entrance lines").
 	var ribs := _add(scene_root, Node3D.new(), "Ribs")
-	_rib(ribs, "Quarters", "z", Vector3(-0.15, 1.05, -5.55), 1.1, 1.15)
 	for x in [1.95, 2.45]:
 		_rib(ribs, "Kitchen%d" % int(x * 100), "x", Vector3(x, 1.0, -4.9), 0.95, 1.35)
 	for x in [1.95, 2.45, 2.9, 3.35]:
 		_rib(ribs, "Lounge%d" % int(x * 100), "x", Vector3(x, 0.55, 1.0), 1.3, 1.35)
-	_rib(ribs, "Cockpit", "z", Vector3(4.0, 1.1, -6.75), 0.8, 1.5)
-	_rib(ribs, "Bathroom", "x", Vector3(-2.25, 1.1, -3.0), 0.8, 1.5)
-	_rib(ribs, "Engineering", "x", Vector3(-2.25, 1.1, 1.1), 0.8, 1.5)
 	_rib(ribs, "Gunner", "z", Vector3(-4.0, 1.1, 3.4), 0.8, 1.5)
 
+	_doors()
 	_deck_details()
 
 	var windows := _add(scene_root, Node3D.new(), "Windows")
@@ -573,6 +587,67 @@ func _build_ship() -> void:
 		_save(scene_root, "res://ship/ship_crashed.tscn")
 	else:
 		_save(scene_root, "res://ship/ship_interior.tscn")
+
+
+# Sliding doors: [name, floor centre in the wall, yaw, wall thickness,
+# width scale]. The model is 0.3 deep along x and 2.8 wide along z.
+const DOORS := [
+	["Quarters", Vector3(-0.15, 0, -5.75), PI / 2, 0.3, 0.85],
+	["Cockpit", Vector3(4.0, 0, -6.9), PI / 2, 0.2, 0.7],
+	["Bathroom", Vector3(-2.45, 0, -3.0), 0.0, 0.3, 0.85],
+	["Engineering", Vector3(-2.45, 0, 1.1), 0.0, 0.3, 0.85],
+]
+const DOOR_HEIGHT := 0.85
+
+
+func _doors() -> void:
+	var root := _add(scene_root, Node3D.new(), "Doors")
+	var frame_mesh: Mesh = load("res://ship/models/door/frame.obj")
+	var sound: AudioStream = load("res://audio/door_slide.ogg")
+	for d in DOORS:
+		var thick: float = d[3]
+		var ws: float = d[4]
+		var door := Node3D.new()
+		door.set_script(load("res://ship/sliding_door.gd"))
+		door.position = d[1]
+		door.rotation.y = d[2]
+		door.set("travel", 1.3 * ws)
+		door.set("sluggish", crashed)
+		_add(root, door, d[0])
+		# Frame sticks out a little past both wall faces so it doesn't flicker.
+		var frame := MeshInstance3D.new()
+		frame.mesh = frame_mesh
+		frame.material_override = mats["door"]
+		frame.scale = Vector3((thick + 0.04) / 0.3, DOOR_HEIGHT, ws)
+		_add(door, frame, "Frame")
+		for leaf in [["LeafLeft", "leaf_left", -0.583], ["LeafRight", "leaf_right", 0.565]]:
+			var body := AnimatableBody3D.new()
+			_add(door, body, leaf[0])
+			var mi := MeshInstance3D.new()
+			mi.mesh = load("res://ship/models/door/%s.obj" % leaf[1])
+			mi.material_override = mats["door"]
+			mi.scale = Vector3(thick / 0.3, DOOR_HEIGHT, ws)
+			_add(body, mi, "Mesh")
+			var cs := CollisionShape3D.new()
+			var shape := BoxShape3D.new()
+			shape.size = Vector3(0.1 * thick / 0.3, 2.44 * DOOR_HEIGHT, 1.414 * ws)
+			cs.shape = shape
+			cs.position = Vector3(0, 1.33 * DOOR_HEIGHT, leaf[2] * ws)
+			_add(body, cs, "Shape")
+		var sensor := Area3D.new()
+		_add(door, sensor, "Sensor")
+		var scs := CollisionShape3D.new()
+		var sbox := BoxShape3D.new()
+		sbox.size = Vector3(3.6, 2.2, 2.2 * ws)
+		scs.shape = sbox
+		scs.position = Vector3(0, 1.1, 0)
+		_add(sensor, scs, "Shape")
+		var sp := AudioStreamPlayer3D.new()
+		sp.stream = sound
+		sp.volume_db = -8.0
+		sp.unit_size = 3.0
+		sp.position = Vector3(0, 2.0, 0)
+		_add(door, sp, "Sound")
 
 
 # Warm orange accent light with no fixture (doorway / ramp glow).

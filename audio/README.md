@@ -16,3 +16,6 @@ Drop sound files here.
 - `thruster_flyby.ogg`: jet ship pass-by for the intro flyby (peak at 4.2 s,
   synced to the pass via THRUST_PEAK in intro.gd).
 - `type_blip.ogg`: soft blip per typed character in the intro narration (generated).
+
+- `door_slide.ogg` — pneumatic hiss and soft thunk for the sliding doors
+  (synthesised with ffmpeg).

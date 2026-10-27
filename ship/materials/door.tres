@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://ship/models/door/door_albedo.jpg" id="1_1mwm5"]
+[ext_resource type="Texture2D" path="res://ship/models/door/door_ao.jpg" id="2_yvr7g"]
+[ext_resource type="Texture2D" path="res://ship/models/door/door_scratches.jpg" id="3_5amny"]
+[ext_resource type="Texture2D" path="res://ship/models/door/door_normal.jpg" id="4_d3w68"]
+
+[resource]
+albedo_texture = ExtResource("1_1mwm5")
+metallic = 0.8
+metallic_texture = ExtResource("3_5amny")
+roughness = 0.5
+normal_enabled = true
+normal_texture = ExtResource("4_d3w68")
+ao_enabled = true
+ao_texture = ExtResource("2_yvr7g")
