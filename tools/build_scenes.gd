@@ -2109,6 +2109,11 @@ func _build_crash_site() -> void:
 	moon.transform = Transform3D(Basis.looking_at(-Vector3(-0.8, 0.5, 0.35).normalized(), Vector3.UP), Vector3.ZERO)
 	R.add_child(moon)
 	moon.owner = R
+	var music := Node.new()
+	music.name = "OutdoorMusic"
+	music.set_script(load("res://world/outdoor_music.gd"))
+	R.add_child(music)
+	music.owner = R
 	var clock := Node.new()
 	clock.name = "DayNight"
 	clock.set_script(load("res://world/day_night.gd"))

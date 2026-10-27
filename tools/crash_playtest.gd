@@ -66,6 +66,8 @@ func _run() -> void:
 	_check(player.is_on_floor(), "wakes up on the quarters floor at %s" % player.global_position)
 	await _shot("x1_wake")
 
+	var music: Node = current_scene.get_node("OutdoorMusic")
+	_check(not music._music.playing, "outdoor music silent while waking inside")
 	await _place(Vector3(-0.15, 1.1, -6.5), PI)
 	await _walk(PI, 1.0)
 	var lp := ship.to_local(player.global_position)
@@ -77,6 +79,7 @@ func _run() -> void:
 	await _place(Vector3(4.2, 1.1, 2.4), -PI / 2)
 	await _walk(-PI / 2, 2.0)
 	lp = ship.to_local(player.global_position)
+	_check(music._music.playing, "outdoor music starts on first step outside")
 	_check(lp.x > 9.0 and player.is_on_floor(), "out through the breach onto the ground (local x %.1f, y %.2f)" % [lp.x, player.global_position.y])
 	await _walk(-PI / 2, 2.0)
 	_check(player.global_position.x > 13.0, "keep walking into the forest (x %.1f)" % player.global_position.x)
@@ -84,6 +87,8 @@ func _run() -> void:
 	await _walk(PI / 2, 2.6)
 	lp = ship.to_local(player.global_position)
 	_check(lp.x < 6.0, "walk back in through the breach (local x %.1f)" % lp.x)
+	await _wait(150)
+	_check(music._music.playing and music._music.volume_db < -20.0, "music fades down back inside (%.1f dB)" % music._music.volume_db)
 
 	await _place(Vector3(4.3, 1.1, -8.4), -PI / 2)
 	_check(hud.prompt_label.text == "[E] Use ship computer", "computer prompt: '%s'" % hud.prompt_label.text)
