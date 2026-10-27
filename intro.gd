@@ -10,9 +10,9 @@ const NEXT_SCENE := "res://main.tscn"
 const BURST := 10.5          # seconds: ship passes the camera, music starts
 const END := 31.0            # seconds: fade to black
 const PLANET_RADIUS := 6000.0
-# Planet seen as a bright dome low in the frame: ~35 degrees across its
-# radius, top edge about 18 degrees below the horizon line.
-const PLANET_CENTER := Vector3(0.0, -8350.0, -6290.0)
+# Planet directly below the camera so its edge is a wide, gentle arc across
+# the whole frame, about 16 degrees below eye level (cos 16 = R / (R + h)).
+const PLANET_CENTER := Vector3(0.0, -6242.0, 0.0)
 const THRUST_PEAK := 4.2     # seconds into thruster_flyby.ogg at its loudest
 
 var _t := 0.0
@@ -72,7 +72,7 @@ func _build_space() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.light_energy = 2.8
 	sun.light_color = Color(1.0, 0.95, 0.88)
-	sun.basis = Basis.looking_at(-Vector3(0.3, 0.5, 0.81).normalized(), Vector3.UP)
+	sun.basis = Basis.looking_at(-Vector3(0.25, 0.85, 0.45).normalized(), Vector3.UP)
 	add_child(sun)
 	_cam = Camera3D.new()
 	_cam.fov = 60
@@ -99,7 +99,7 @@ func _build_planet() -> void:
 	add_child(planet)
 	var atmo := MeshInstance3D.new()
 	var shell := SphereMesh.new()
-	shell.radius = PLANET_RADIUS * 1.012
+	shell.radius = PLANET_RADIUS * 1.008
 	shell.height = shell.radius * 2.0
 	shell.radial_segments = 160
 	shell.rings = 80
@@ -213,7 +213,7 @@ func _update_ship() -> void:
 		var a := clampf((_t - BURST) / (END + 2.0 - BURST), 0.0, 1.0)
 		# Accelerates away so it lingers large, then dwindles to a speck.
 		var e := pow(a, 1.5)
-		_ship.position = pass_pos.lerp(Vector3(-20.0, -560.0, -1750.0), e)
+		_ship.position = pass_pos.lerp(Vector3(-20.0, -500.0, -1740.0), e)
 		_ship.rotation = Vector3(-0.1 - 0.25 * e, 0.012 * e, 0.05 * sin(_t * 0.6) * (1.0 - e))
 
 

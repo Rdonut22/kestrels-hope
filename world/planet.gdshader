@@ -11,7 +11,7 @@ uniform vec3 rock : source_color = vec3(0.52, 0.48, 0.46);
 uniform vec3 water : source_color = vec3(0.18, 0.5, 0.86);
 uniform vec3 cloud : source_color = vec3(0.95, 0.96, 1.0);
 uniform vec3 night_tint : source_color = vec3(0.03, 0.05, 0.12);
-uniform float texel = 0.003;
+uniform float texel = 0.0012;
 
 varying vec3 opos;
 
@@ -61,7 +61,7 @@ void fragment() {
 	float c = smoothstep(0.5, 0.6, fbm(cp + fbm(cp * 2.0)));
 	col = mix(col, cloud, c * 0.95);
 	// Hazy blue toward the limb, like Earth from orbit.
-	col = mix(col, vec3(0.62, 0.85, 1.0), pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5) * 0.75);
+	col = mix(col, vec3(0.62, 0.85, 1.0), pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 6.0) * 0.6);
 	ALBEDO = col;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
