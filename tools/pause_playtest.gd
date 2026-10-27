@@ -25,11 +25,19 @@ func _run() -> void:
 	_check(not paused, "Esc ignored on title screen")
 	change_scene_to_file("res://crash_site.tscn")
 	for i in 30: await process_frame
+	var t1 := Time.get_ticks_usec()
+	for i in 30: await process_frame
+	print("unpaused frame time ms: ", (Time.get_ticks_usec() - t1) / 30000.0)
 	await _esc()
+	for i in 3: await process_frame
 	_check(paused, "Esc pauses the game")
+	_check(root.disable_3d, "3D rendering stopped while paused")
+	var t0 := Time.get_ticks_usec()
+	for i in 30: await process_frame
+	print("paused frame time ms: ", (Time.get_ticks_usec() - t0) / 30000.0)
 	root.get_texture().get_image().save_png(OUT + "pause.png")
 	await _esc()
-	_check(not paused, "Esc again resumes")
+	_check(not paused and not root.disable_3d, "Esc again resumes and 3D renders again")
 	var hud: Node = current_scene.get_node("HUD")
 	var comp: Node = current_scene.get_node("Ship/ShipInterior/Interactables/ShipComputer")
 	comp.interact(current_scene.get_node("Player"))

@@ -7,6 +7,7 @@ extends CanvasLayer
 const MENU_SCENE := "res://menu.tscn"
 
 var _root: Control
+var _backdrop: TextureRect
 var _resume: Button
 
 
@@ -32,17 +33,26 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func pause() -> void:
 	get_tree().paused = true
-	_root.show()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# Freeze the last frame as a still backdrop and stop rendering the 3D
+	# world while paused, so the menu stays responsive.
+	await RenderingServer.frame_post_draw
+	_backdrop.texture = ImageTexture.create_from_image(get_viewport().get_texture().get_image())
+	get_viewport().disable_3d = true
+	_root.show()
 
 
 func resume() -> void:
+	get_viewport().disable_3d = false
+	_backdrop.texture = null
 	_root.hide()
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _quit_to_menu() -> void:
+	get_viewport().disable_3d = false
+	_backdrop.texture = null
 	_root.hide()
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -55,6 +65,11 @@ func _build() -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
+	_backdrop = TextureRect.new()
+	_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_backdrop.stretch_mode = TextureRect.STRETCH_SCALE
+	_root.add_child(_backdrop)
 	var dim := ColorRect.new()
 	dim.color = Color(0.06, 0.03, 0.08, 0.6)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
