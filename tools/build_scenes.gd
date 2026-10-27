@@ -2931,6 +2931,12 @@ func _build_crash_site() -> void:
 	scene_root = (load("res://main.tscn") as PackedScene).instantiate()
 	var R := scene_root
 	const GROUND_Y := -0.5
+	# Built from the space scene, but the ship's space hum doesn't belong on
+	# the ground (it would also play under the start menu, which uses this).
+	var hum := R.get_node_or_null("ShipHum")
+	if hum:
+		R.remove_child(hum)
+		hum.free()
 
 	# Day sky and sun.
 	var env := Environment.new()
