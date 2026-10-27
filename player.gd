@@ -7,7 +7,12 @@ const MOUSE_SENSITIVITY = 0.003
 var has_coffee := false:
 	set(value):
 		has_coffee = value
-		hud.set_held("Coffee   [F] Drink" if value else "")
+		_show_held()
+## Id of the book we're carrying (see Library), or "".
+var held_book := "":
+	set(value):
+		held_book = value
+		_show_held()
 
 var current_target: Interactable
 var _steps: AudioStreamPlayer
@@ -29,6 +34,7 @@ func _ready() -> void:
 	_add_key("jump", KEY_SPACE)
 	_add_key("interact", KEY_E)
 	_add_key("drink", KEY_F)
+	_add_key("read", KEY_R)
 	spring_arm.add_excluded_object(get_rid())
 	_setup_footsteps()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -64,6 +70,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("drink") and has_coffee:
 		has_coffee = false
 		hud.show_message("Ahh. That's the stuff.")
+	if event.is_action_pressed("read") and held_book != "":
+		hud.open_book(held_book)
 
 func _physics_process(delta: float) -> void:
 	var busy: bool = hud.is_busy()
@@ -211,12 +219,25 @@ func _seated_input(event: InputEvent) -> void:
 		var media: Node = _seat.media()
 		if media:
 			media.interact(self)
+	elif event.is_action_pressed("read") and held_book != "":
+		hud.open_book(held_book)
 
 
 func _update_seated_prompt() -> void:
 	current_target = null
 	var media: Node = _seat.media()
 	var text := "[Space] Stand up"
+	if held_book != "":
+		text = "[R] Read      " + text
 	if media:
 		text = "[E] " + media.get_prompt() + "      " + text
 	hud.set_prompt(text)
+
+
+func _show_held() -> void:
+	var lines := PackedStringArray()
+	if has_coffee:
+		lines.append("Coffee   [F] Drink")
+	if held_book != "":
+		lines.append("%s   [R] Read" % Library.find(held_book).title)
+	hud.set_held("\n".join(lines))

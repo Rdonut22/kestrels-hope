@@ -3,6 +3,7 @@ extends CanvasLayer
 var _entries: Array = []
 var _message_tween: Tween
 var _sleeping := false
+var _reader: Control
 
 @onready var prompt_label: Label = %PromptLabel
 @onready var message_label: Label = %MessageLabel
@@ -41,9 +42,29 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## True while a menu or the sleep fade is up, so the player can't move.
+## True while a menu, a book or the sleep fade is up, so the player can't move.
 func is_busy() -> bool:
-	return screen.visible or _sleeping
+	return screen.visible or _sleeping or (_reader != null and _reader.visible)
+
+
+## Show the lounge bookshelf; `on_take` gets the id of the book picked.
+func open_shelf(on_take: Callable) -> void:
+	var reader := _book_reader()
+	for c in reader.book_taken.get_connections():
+		reader.book_taken.disconnect(c.callable)
+	reader.book_taken.connect(on_take, CONNECT_ONE_SHOT)
+	reader.open_shelf()
+
+
+func open_book(id: String) -> void:
+	_book_reader().open_book(id)
+
+
+func _book_reader() -> Control:
+	if not _reader:
+		_reader = (load("res://ui/book_reader.gd") as GDScript).new()
+		add_child(_reader)
+	return _reader
 
 
 func set_prompt(text: String) -> void:

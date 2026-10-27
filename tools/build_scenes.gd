@@ -115,6 +115,7 @@ func _make_materials() -> void:
 	door.take_over_path("res://ship/materials/door.tres")
 	mats["door"] = door
 	_shader_mat("hose", "hose", {})
+	_mat("wood", Color(0.36, 0.23, 0.14), 0.75)
 	_shader_mat("crate", "worn", {"base_color": Color(0.8, 0.78, 0.71), "grime": 0.75, "chips": 0.15,
 		"scratches": 0.45, "fade": 0.3, "noise_scale": 2.5, "roughness_amount": 0.7, "metallic_amount": 0.0})
 	_shader_mat("pad_frame", "worn", {"base_color": Color(0.5, 0.47, 0.41), "grime": 0.6, "chips": 0.1,
@@ -490,6 +491,7 @@ func _build_ship() -> void:
 
 	_lounge()
 	_lounge_entrance()
+	_bookshelf()
 	_crates()
 
 	var deck := _furniture("DeckFurniture")
@@ -2024,6 +2026,89 @@ func _round_steps(half: float, r: float) -> Array:
 	for k in 4:
 		out.append((half - r) + r * sin(k / 3.0 * PI / 2.0))
 	return out
+
+
+# Wooden bookshelf on the lounge's flat wall, packed with old books. Two of
+# them (see Library) can be taken down and read.
+func _bookshelf() -> void:
+	var B := _furniture("Bookshelf")
+	var x0 := 2.4
+	var x1 := 2.76
+	var z0 := 3.55
+	var z1 := 4.85
+	_box(B, "Back", Vector3(x0, 0, z0), Vector3(x0 + 0.04, 1.9, z1), "wood")
+	_box(B, "SideA", Vector3(x0, 0, z0), Vector3(x1, 1.9, z0 + 0.04), "wood")
+	_box(B, "SideB", Vector3(x0, 0, z1 - 0.04), Vector3(x1, 1.9, z1), "wood")
+	_box(B, "Top", Vector3(x0, 1.86, z0), Vector3(x1 + 0.02, 1.92, z1), "wood")
+	var shelves := [0.06, 0.5, 0.94, 1.38]
+	for y in shelves:
+		_box(B, "Shelf%d" % int(y * 100), Vector3(x0, y - 0.03, z0), Vector3(x1, y, z1), "wood")
+	# Filler books as one coloured MultiMesh.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2026
+	var colors := [Color(0.45, 0.12, 0.1), Color(0.14, 0.2, 0.36), Color(0.36, 0.38, 0.18), Color(0.62, 0.48, 0.2),
+		Color(0.8, 0.75, 0.62), Color(0.3, 0.2, 0.13), Color(0.16, 0.32, 0.33), Color(0.5, 0.3, 0.32)]
+	var spots := []  # [transform, color]
+	var real_row := 2
+	for row in shelves.size():
+		var z := z0 + 0.05
+		while z < z1 - 0.08:
+			var w := rng.randf_range(0.025, 0.055)
+			if row == real_row and z > 4.02 and z < 4.2:
+				z = 4.2  # room for the readable books
+				continue
+			if rng.randf() < 0.06:
+				z += rng.randf_range(0.05, 0.12)  # a gap
+				continue
+			var h := rng.randf_range(0.21, 0.33)
+			var d := rng.randf_range(0.17, 0.23)
+			var tilt := 0.0
+			if rng.randf() < 0.07:
+				tilt = rng.randf_range(0.12, 0.3)  # leaning on its neighbour
+			var basis := Basis(Vector3.RIGHT, -tilt).scaled(Vector3(d, h, w))
+			var pos := Vector3(x0 + 0.04 + d / 2.0, shelves[row] + h / 2.0 * cos(tilt), z + w / 2.0 + sin(tilt) * h / 2.0)
+			spots.append([Transform3D(basis, pos), colors[rng.randi() % colors.size()].darkened(rng.randf_range(0.0, 0.25))])
+			z += w + sin(tilt) * h + 0.002
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = BoxMesh.new()
+	mm.instance_count = spots.size()
+	for i in spots.size():
+		mm.set_instance_transform(i, spots[i][0])
+		mm.set_instance_color(i, spots[i][1])
+	var books := MultiMeshInstance3D.new()
+	books.multimesh = mm
+	var bm := StandardMaterial3D.new()
+	bm.vertex_color_use_as_albedo = true
+	bm.roughness = 0.85
+	books.material_override = bm
+	_add(scene_root, books, "ShelfBooks")
+	# The readable ones, with gold titles down their spines.
+	var font: Font = load("res://ui/fonts/LiberationSerif-Bold.ttf")
+	for i in Library.BOOKS.size():
+		var book: Dictionary = Library.BOOKS[i]
+		var w := 0.06
+		var h := 0.31
+		var d := 0.22
+		var z := 4.05 + i * (w + 0.008)
+		var spine := _mesh_box(scene_root, "Book_" + book.id, Vector3(x0 + 0.04 + d / 2.0, shelves[real_row] + h / 2.0, z + w / 2.0), Vector3(d, h, w), "wood")
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = book.color
+		mat.roughness = 0.7
+		spine.material_override = mat
+		var title := Label3D.new()
+		title.text = String(book.title).to_upper()
+		title.font = font
+		title.font_size = 40
+		title.pixel_size = 0.0005
+		title.outline_size = 0
+		title.modulate = Color(0.95, 0.8, 0.45)
+		# Faces the room, reading top to bottom like a real spine.
+		title.basis = Basis(Vector3.DOWN, Vector3(0, 0, -1), Vector3.RIGHT)
+		title.position = Vector3(d / 2.0 + 0.002, 0, 0)
+		_add(spine, title, "Title")
+	_interactable(scene_root, "BookshelfUse", "bookshelf", Vector3(2.95, 1.0, 4.2), {"interact_range": 1.6})
 
 
 # Battered cream storage crates: rounded shell, lid seam, latches, side grips.
