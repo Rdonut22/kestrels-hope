@@ -257,3 +257,29 @@ A way to get around the forest faster. Options:
 6. Night bioluminescence, alien plants, floating rocks, ambient sound
 7. Solar power and irrigation; workbench; medicine; cooking
 8. Animals; reading in the lounge; sitting; repairs; greenhouse; hydroponics
+
+## Opening: bringing Meki back
+
+Meki is the ship's floating drone and Gana's link to the ship's computer.
+The pirate surge 43 days ago blew his core capacitor, so the game opens on
+emergency power: dim red lights, a faint hum, and anything marked
+`needs_power` (coffee, ship computer, personal log, the lounge holo) shows
+"(no power)".
+
+1. Rummage through the parts barrel in engineering (where the old reactor
+   stood): capacitors, fuse, coil, tape, wrench and a welding torch.
+2. Meki lies dead on the workbench. The repair screen (camera over the
+   bench, inventory on the right, Gana thinking out loud below) asks for one
+   item per step. Wrong items get a characterful line; after two misses the
+   line gets a hint.
+   - Replace the blown capacitor: the round capacitor.
+   - Seal the shell: the welding torch.
+3. Meki boots, rises off the bench and says hello; the rooms power back up
+   one by one. From then on he floats off Gana's shoulder and E talks to him
+   (ship status, what happened, where we are, what next).
+
+The repair screen is data-driven (see `MEKI_REPAIR` in
+`interactables/workbench.gd`), so later repairs and builds reuse it.
+Story flags and the inventory live in the `GameState` autoload.
+
+The reactor is now the column beside the cockpit door.

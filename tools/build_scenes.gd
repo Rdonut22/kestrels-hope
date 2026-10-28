@@ -493,6 +493,7 @@ func _build_ship() -> void:
 	_lounge_entrance()
 	_bookshelf()
 	_crates()
+	_reactor_pod()
 
 	var deck := _furniture("DeckFurniture")
 	_box(deck, "SuitLocker", Vector3(1.45, 0, 6.6), Vector3(2.0, 2.1, 7.6), "metal_dark")
@@ -523,18 +524,7 @@ func _build_ship() -> void:
 	_box(eng, "PowerPanel", Vector3(-5.6, 0.8, -1.3), Vector3(-4.3, 2.0, -1.2), "trim")
 	_box(eng, "Shelves", Vector3(-6.3, 0, 2.9), Vector3(-5.0, 2.0, 3.4), "trim")
 	_mesh_box(scene_root, "PowerPanelScreen", Vector3(-4.95, 1.4, -1.18), Vector3(1.0, 0.6, 0.02), "screen_cyan")
-	var reactor := _add(scene_root, Node3D.new(), "Reactor")
-	reactor.position = Vector3(-3.4, 0, -0.5)
-	_cyl(reactor, "Base", 0.7, 0.25, 0.125, "metal_dark", true)
-	_cyl(reactor, "Cap", 0.7, 0.25, 2.855, "metal_dark", true)
-	_cyl(reactor, "Glass", 0.55, 2.48, 1.49, "glass", true)
-	_cyl(reactor, "Core", 0.22, 2.48, 1.49, "reactor_core", false)
-	var core_light := OmniLight3D.new()
-	core_light.position = Vector3(0, 1.5, 0)
-	core_light.light_color = Color(0.4, 0.7, 1.0)
-	core_light.light_energy = 0.6
-	core_light.omni_range = 3.0
-	_add(reactor, core_light, "CoreLight")
+	_parts_barrel(Vector3(-3.4, 0, -0.5))
 
 	var gunner := _furniture("GunnerFurniture")
 	_box(gunner, "TurretConsole", Vector3(-6.2, 0, 6.7), Vector3(-3.8, 1.0, 7.3), "trim")
@@ -543,11 +533,11 @@ func _build_ship() -> void:
 	# Things you can use.
 	var use := _add(scene_root, Node3D.new(), "Interactables")
 
-	var computer := _interactable(use, "ShipComputer", "ship_computer", Vector3(5.3, 0.9, -8.4), {"prompt": "Use ship computer"})
+	var computer := _interactable(use, "ShipComputer", "ship_computer", Vector3(5.3, 0.9, -8.4), {"prompt": "Use ship computer", "needs_power": true})
 	var screen := _mesh_box(computer, "Screen", Vector3(0.1, 0.75, 0), Vector3(0.04, 0.45, 1.0), "screen_cyan")
 	screen.rotation.z = 0.17
 
-	var coffee := _interactable(use, "CoffeeMachine", "coffee_machine", Vector3(5.3, 0.97, -6.1))
+	var coffee := _interactable(use, "CoffeeMachine", "coffee_machine", Vector3(5.3, 0.97, -6.1), {"needs_power": true})
 	_box(_own_csg(coffee, "Body"), "Shell", Vector3(-0.18, 0, -0.18), Vector3(0.18, 0.45, 0.18), "counter")
 	var lamp := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
@@ -557,7 +547,7 @@ func _build_ship() -> void:
 	lamp.position = Vector3(-0.19, 0.36, 0)
 	_add(coffee, lamp, "Lamp")
 
-	var log_terminal := _interactable(use, "LogTerminal", "log_terminal", Vector3(1.55, 0.8, -7.4), {"prompt": "Read personal log"})
+	var log_terminal := _interactable(use, "LogTerminal", "log_terminal", Vector3(1.55, 0.8, -7.4), {"prompt": "Read personal log", "needs_power": true})
 	_mesh_box(log_terminal, "Screen", Vector3(0.22, 0.65, 0), Vector3(0.04, 0.5, 0.75), "screen_amber")
 
 	_interactable(use, "Bed", "bunk", Vector3(-2.75, 0.85, -7.6), {"prompt": "Sleep", "interact_range": 1.8})
@@ -576,10 +566,10 @@ func _build_ship() -> void:
 		"Recycled water, two-minute limit. Luxury.", 1.8)
 	_inspect(use, "Mirror", Vector3(-3.65, 1.5, -4.2), "Mirror",
 		"You look tired. The ship doesn't judge.", 1.6)
-	_inspect(use, "Reactor", Vector3(-3.4, 1.2, -0.5), "Check reactor",
-		"Output steady at 72%. The hum is the closest thing to company out here.", 1.6)
-	_inspect(use, "Workbench", Vector3(-5.9, 1.0, 1.1), "Workbench",
-		"A half-disassembled nav sensor. The fault's in here somewhere.", 1.6)
+	_inspect(use, "Reactor", Vector3(2.85, 1.2, -6.0), "Check reactor",
+		"Limping along at 31%. It's been humming like that since the pirates hit us.", 1.4)
+	_interactable(use, "Workbench", "workbench", Vector3(-5.9, 1.0, 1.1), {"interact_range": 1.6})
+	_interactable(use, "PartsBarrel", "parts_barrel", Vector3(-3.4, 1.0, -0.5), {"interact_range": 1.5, "per_rummage": 3})
 	_inspect(use, "TurretControls", Vector3(-5.0, 1.0, 6.4), "Turret controls",
 		"Turret systems cold. Nothing to shoot at out here. Thankfully.", 1.8)
 	_inspect(use, "SuitLocker", Vector3(1.7, 1.0, 7.1), "EVA suit",
@@ -645,6 +635,7 @@ func _doors() -> void:
 			cs.position = Vector3(0, 1.33 * DOOR_HEIGHT, leaf[2] * ws)
 			_add(body, cs, "Shape")
 		var sensor := Area3D.new()
+		sensor.collision_mask = 3  # the player and Meki
 		_add(door, sensor, "Sensor")
 		var scs := CollisionShape3D.new()
 		var sbox := BoxShape3D.new()
@@ -1437,6 +1428,27 @@ func _update_main() -> void:
 	scene_root.add_child(hud)
 	hud.owner = scene_root
 
+	# Meki, dead on the engineering workbench, and the emergency power that
+	# stays on until he's repaired.
+	for old in ["Meki", "ShipPower"]:
+		var n := scene_root.get_node_or_null(old)
+		if n:
+			scene_root.remove_child(n)
+			n.free()
+	var meki := CharacterBody3D.new()
+	meki.name = "Meki"
+	meki.set_script(load("res://characters/meki/meki.gd"))
+	meki.position = Vector3(-5.95, 1.1, 1.1)
+	scene_root.add_child(meki)
+	meki.owner = scene_root
+	var power := Node.new()
+	power.name = "ShipPower"
+	power.set_script(load("res://ship/ship_power.gd"))
+	power.set("lights_path", NodePath("../ShipInterior/Lights"))
+	power.set("hum_path", NodePath("../ShipHum"))
+	scene_root.add_child(power)
+	power.owner = scene_root
+
 	_save(scene_root, "res://main.tscn")
 
 
@@ -2111,6 +2123,70 @@ func _bookshelf() -> void:
 	_interactable(scene_root, "BookshelfUse", "bookshelf", Vector3(2.95, 1.0, 4.2), {"interact_range": 1.6})
 
 
+# Reactor column beside the cockpit door, in the galley corner.
+func _reactor_pod() -> void:
+	var r := Node3D.new()
+	r.set_script(load("res://ship/reactor.gd"))
+	r.position = Vector3(2.85, 0, -6.0)
+	_add(scene_root, r, "ReactorPod")
+	var model: Node3D = (load("res://ship/models/reactor/reactor_pod.glb") as PackedScene).instantiate()
+	model.scale = Vector3.ONE * 0.42
+	r.add_child(model)
+	model.owner = scene_root
+	var body := StaticBody3D.new()
+	_add(r, body, "Collision")
+	var cs := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = 0.38
+	cyl.height = 1.52
+	cs.shape = cyl
+	cs.position.y = 0.76
+	_add(body, cs, "Shape")
+
+
+# Barrel of salvage in engineering with parts poking out of the top.
+func _parts_barrel(pos: Vector3) -> void:
+	var b := _add(scene_root, Node3D.new(), "PartsBarrel")
+	b.position = pos
+	var solid := _add(b, CSGCombiner3D.new(), "Body")
+	solid.use_collision = true
+	_ccyl(solid, "Drum", 0.3, 0.86, Vector3(0, 0.43, 0), "barrel")
+	_ccyl(solid, "Rim", 0.315, 0.04, Vector3(0, 0.86, 0), "metal_dark")
+	var hole := _ccyl(solid, "Hollow", 0.27, 0.3, Vector3(0, 0.78, 0), "metal_dark")
+	hole.operation = CSGShape3D.OPERATION_SUBTRACTION
+	# Junk: pipes, coils, capacitors and a panel at odd angles.
+	var junk := [["pipe", Vector3(0.08, 0.95, 0.05), Vector3(0.3, 0, 0.4), "copper"],
+		["pipe", Vector3(-0.1, 0.92, -0.06), Vector3(-0.45, 0.3, 0.1), "metal_dark"],
+		["cap", Vector3(-0.05, 0.9, 0.12), Vector3(0.6, 0, -0.3), "panel_led"],
+		["cap", Vector3(0.12, 0.88, -0.1), Vector3(-0.2, 0, 0.7), "hazard"],
+		["coil", Vector3(-0.12, 0.86, 0.05), Vector3(1.2, 0.2, 0.3), "copper"],
+		["panel", Vector3(0.02, 0.98, -0.12), Vector3(0.35, 0.6, -0.2), "trim"],
+		["pipe", Vector3(0.14, 0.97, 0.12), Vector3(0.15, 0, -0.55), "cable"]]
+	for i in junk.size():
+		var j: Array = junk[i]
+		var mi := MeshInstance3D.new()
+		match j[0]:
+			"pipe":
+				mi.mesh = _scyl(0.025, 0.5, 10)
+			"cap":
+				mi.mesh = _scyl(0.035, 0.12, 12)
+			"coil":
+				var tm := TorusMesh.new()
+				tm.inner_radius = 0.05
+				tm.outer_radius = 0.08
+				tm.rings = 16
+				tm.ring_segments = 6
+				mi.mesh = tm
+			"panel":
+				var bm := BoxMesh.new()
+				bm.size = Vector3(0.22, 0.3, 0.015)
+				mi.mesh = bm
+		mi.material_override = mats[j[3]]
+		mi.position = j[1]
+		mi.rotation = j[2]
+		_add(b, mi, "Junk%d" % i)
+
+
 # Battered cream storage crates: rounded shell, lid seam, latches, side grips.
 const CRATE := Vector3(0.9, 0.42, 0.6)
 
@@ -2122,7 +2198,7 @@ func _crates() -> void:
 	var handle := _rounded_box_mesh(Vector3(0.24, 0.035, 0.07), 0.015)
 	# [position on the floor, yaw, how many stacked]
 	var spots := [[Vector3(1.66, 0, 6.05), PI / 2 + 0.04, 2], [Vector3(-1.97, 0, 7.85), PI / 2 - 0.06, 1],
-		[Vector3(-3.2, 0, 2.95), 0.05, 2], [Vector3(2.76, 0, -6.28), PI / 2 + 0.12, 1]]
+		[Vector3(-3.2, 0, 2.95), 0.05, 2], [Vector3(4.45, 0, -4.5), 0.12, 1]]
 	for i in spots.size():
 		var base: Vector3 = spots[i][0]
 		for level in spots[i][2]:
@@ -2406,12 +2482,12 @@ func _ship_hoses() -> void:
 	# Engineering: a droopy bundle from the back corner plugs into the
 	# reactor cap, and two fat feeds snake across the floor to the power panel.
 	var eng := []
-	for p in [Vector3(-6.28, 2.9, 2.6), Vector3(-5.3, 2.93, 2.0), Vector3(-4.3, 2.93, 0.9), Vector3(-3.75, 2.86, -0.1)]:
+	for p in [Vector3(-6.28, 2.9, 2.6), Vector3(-5.3, 2.93, 2.0), Vector3(-4.6, 2.93, 0.4), Vector3(-4.75, 2.9, -1.28)]:
 		eng.append(_anchor(p, Vector3.DOWN, 1.0))
 	var eng_runs := _hose_bundle(eng, 5, 37, 0.03, 0.065, 0.12)
-	eng_runs.append(_hose_run([Vector3(-3.55, 0.12, 0.05), Vector3(-3.95, 0.065, 0.35), Vector3(-4.6, 0.065, 0.22),
+	eng_runs.append(_hose_run([Vector3(-3.5, 0.15, -0.35), Vector3(-3.95, 0.065, 0.05), Vector3(-4.6, 0.065, 0.12),
 		Vector3(-5.08, 0.065, -0.45), Vector3(-5.14, 0.3, -1.0), Vector3(-5.12, 0.82, -1.24)], 0.065, c1))
-	eng_runs.append(_hose_run([Vector3(-3.62, 0.1, -0.08), Vector3(-4.0, 0.05, 0.12), Vector3(-4.68, 0.05, -0.12),
+	eng_runs.append(_hose_run([Vector3(-3.55, 0.12, -0.55), Vector3(-4.0, 0.05, -0.3), Vector3(-4.68, 0.05, -0.32),
 		Vector3(-4.84, 0.07, -0.75), Vector3(-4.8, 0.4, -1.1), Vector3(-4.78, 0.84, -1.24)], 0.05, c2))
 	_hoses(root, "EngineeringHoses", eng_runs)
 
@@ -2872,6 +2948,10 @@ func _apply_crash_damage() -> void:
 
 	# Updated text.
 	var use := R.get_node("Interactables")
+	# By the crash Meki is long since repaired; nothing waits on him here.
+	for n in use.get_children():
+		if "needs_power" in n:
+			n.set("needs_power", false)
 	use.get_node("ShipComputer").set("crashed", true)
 	use.get_node("ShipComputer").set("hull", 18)
 	use.get_node("ShipComputer").set("fuel", 6)
@@ -2979,10 +3059,11 @@ func _build_crash_site() -> void:
 	const GROUND_Y := -0.5
 	# Built from the space scene, but the ship's space hum doesn't belong on
 	# the ground (it would also play under the start menu, which uses this).
-	var hum := R.get_node_or_null("ShipHum")
-	if hum:
-		R.remove_child(hum)
-		hum.free()
+	for n in ["ShipHum", "Meki", "ShipPower"]:
+		var node := R.get_node_or_null(n)
+		if node:
+			R.remove_child(node)
+			node.free()
 
 	# Day sky and sun.
 	var env := Environment.new()

@@ -33,6 +33,7 @@ var _glow: OmniLight3D
 
 
 func _ready() -> void:
+	needs_power = true
 	_levels.resize(BARS)
 	var viewport := _build_screen()
 	_build_pad(viewport)
@@ -44,6 +45,9 @@ func _ready() -> void:
 	add_child(_music)
 	_spectrum = AudioServer.get_bus_effect_instance(AudioServer.get_bus_index(_music.bus), 0)
 	_refresh()
+	# The hologram only appears once Meki has the power back on.
+	visible = Game.state().meki_online
+	Game.state().meki_online_changed.connect(func(on: bool) -> void: visible = on)
 
 
 func get_prompt() -> String:

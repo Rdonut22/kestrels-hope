@@ -1,25 +1,27 @@
 [gd_scene format=3 uid="uid://cnk1liup355tq"]
 
-[ext_resource type="Shader" path="res://ship/space_sky.gdshader" id="1_5vw27"]
+[ext_resource type="Shader" path="res://ship/space_sky.gdshader" id="1_4c57u"]
 [ext_resource type="Script" path="res://player.gd" id="1_ig7tw"]
-[ext_resource type="PackedScene" path="res://ship/ship_interior.tscn" id="2_kek77"]
-[ext_resource type="PackedScene" path="res://character/character.tscn" id="4_4c57u"]
-[ext_resource type="Script" path="res://character/character_model.gd" id="5_efxa6"]
-[ext_resource type="Script" path="res://ship/ship_hum.gd" id="6_dg77c"]
-[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="7_ycdy4"]
-[ext_resource type="Script" path="res://ui/hud.gd" id="8_w48qg"]
+[ext_resource type="PackedScene" path="res://ship/ship_interior.tscn" id="2_efxa6"]
+[ext_resource type="PackedScene" path="res://character/character.tscn" id="4_dg77c"]
+[ext_resource type="Script" path="res://character/character_model.gd" id="5_ycdy4"]
+[ext_resource type="Script" path="res://ship/ship_hum.gd" id="6_w48qg"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="7_vivmo"]
+[ext_resource type="Script" path="res://ui/hud.gd" id="8_2cqfq"]
+[ext_resource type="Script" path="res://characters/meki/meki.gd" id="9_yaehf"]
+[ext_resource type="Script" path="res://ship/ship_power.gd" id="10_074og"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_vivmo"]
-shader = ExtResource("1_5vw27")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cegan"]
+shader = ExtResource("1_4c57u")
 shader_parameter/space_color = Color(0.004, 0.005, 0.012, 1)
 shader_parameter/density = 0.9985
 
-[sub_resource type="Sky" id="Sky_2cqfq"]
-sky_material = SubResource("ShaderMaterial_vivmo")
+[sub_resource type="Sky" id="Sky_82xsv"]
+sky_material = SubResource("ShaderMaterial_cegan")
 
-[sub_resource type="Environment" id="Environment_yaehf"]
+[sub_resource type="Environment" id="Environment_getpj"]
 background_mode = 2
-sky = SubResource("Sky_2cqfq")
+sky = SubResource("Sky_82xsv")
 ambient_light_source = 2
 ambient_light_color = Color(0.66, 0.5, 0.4, 1)
 ambient_light_energy = 0.8
@@ -36,15 +38,15 @@ fog_sky_affect = 0.0
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0xm2m"]
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_074og"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_ryguw"]
 radius = 0.15
 
 [node name="Main" type="Node3D" unique_id=897274453]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=114272333]
-environment = SubResource("Environment_yaehf")
+environment = SubResource("Environment_getpj")
 
-[node name="ShipInterior" type="Node3D" parent="." unique_id=21514020 instance=ExtResource("2_kek77")]
+[node name="ShipInterior" type="Node3D" parent="." unique_id=788238313 instance=ExtResource("2_efxa6")]
 
 [node name="Player" type="CharacterBody3D" parent="." unique_id=1728964109]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.1, -6.5)
@@ -53,23 +55,32 @@ script = ExtResource("1_ig7tw")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1791278488]
 shape = SubResource("CapsuleShape3D_0xm2m")
 
-[node name="Model" type="Node3D" parent="Player" unique_id=698057022 instance=ExtResource("4_4c57u")]
+[node name="Model" type="Node3D" parent="Player" unique_id=1219119381 instance=ExtResource("4_dg77c")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
-script = ExtResource("5_efxa6")
+script = ExtResource("5_ycdy4")
 
 [node name="CameraPivot" type="Node3D" parent="Player" unique_id=865327466]
 transform = Transform3D(1, 0, 0, 0, 0.9800666, 0.19866933, 0, -0.19866933, 0.9800666, 0, 0.75, 0)
 
-[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraPivot" unique_id=1058026231]
+[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraPivot" unique_id=1336355910]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
-shape = SubResource("SphereShape3D_074og")
+shape = SubResource("SphereShape3D_ryguw")
 spring_length = 2.4
 margin = 0.15
 
 [node name="Camera3D" type="Camera3D" parent="Player/CameraPivot/SpringArm3D" unique_id=499175855]
 
-[node name="ShipHum" type="AudioStreamPlayer" parent="." unique_id=766101109]
-script = ExtResource("6_dg77c")
+[node name="ShipHum" type="AudioStreamPlayer" parent="." unique_id=1732944362]
+script = ExtResource("6_w48qg")
 
-[node name="HUD" type="CanvasLayer" parent="." unique_id=1699581180 groups=["hud"] instance=ExtResource("7_ycdy4")]
-script = ExtResource("8_w48qg")
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1252630593 groups=["hud"] instance=ExtResource("7_vivmo")]
+script = ExtResource("8_2cqfq")
+
+[node name="Meki" type="CharacterBody3D" parent="." unique_id=1318330886]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.95, 1.1, 1.1)
+script = ExtResource("9_yaehf")
+
+[node name="ShipPower" type="Node" parent="." unique_id=1835755530]
+script = ExtResource("10_074og")
+lights_path = NodePath("../ShipInterior/Lights")
+hum_path = NodePath("../ShipHum")

@@ -7,6 +7,8 @@ extends Node3D
 @export var prompt := "Use"
 ## How close (in meters, ignoring height) the player must be.
 @export var interact_range := 2.0
+## Dead until Meki brings the ship's power back (see GameState).
+@export var needs_power := false
 
 
 func _enter_tree() -> void:

@@ -4,6 +4,7 @@ var _entries: Array = []
 var _message_tween: Tween
 var _sleeping := false
 var _reader: Control
+var _overlays: Array[Control] = []  # full-screen panels that pause the player
 
 @onready var prompt_label: Label = %PromptLabel
 @onready var message_label: Label = %MessageLabel
@@ -44,7 +45,16 @@ func _input(event: InputEvent) -> void:
 
 ## True while a menu, a book or the sleep fade is up, so the player can't move.
 func is_busy() -> bool:
+	for o in _overlays:
+		if is_instance_valid(o) and o.visible:
+			return true
 	return screen.visible or _sleeping or (_reader != null and _reader.visible)
+
+
+## Add a full-screen panel; the player is frozen while it's visible.
+func add_overlay(panel: Control) -> void:
+	_overlays.append(panel)
+	add_child(panel)
 
 
 ## Show the lounge bookshelf; `on_take` gets the id of the book picked.

@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+GameState="*res://game_state.gd"
 PauseMenu="*res://ui/pause_menu.gd"
 
 [display]

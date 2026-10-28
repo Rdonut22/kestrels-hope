@@ -63,7 +63,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		pivot.rotation.x = clamp(pivot.rotation.x - event.relative.y * MOUSE_SENSITIVITY, deg_to_rad(-60), deg_to_rad(30))
 	if event is InputEventMouseButton and event.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	if event.is_action_pressed("interact") and current_target and current_target.can_interact(self):
+	if event.is_action_pressed("interact") and current_target and current_target.can_interact(self) and _has_power(current_target):
 		current_target.interact(self)
 		if mesh.has_method("play_action"):
 			mesh.play_action("Interact")
@@ -133,6 +133,8 @@ func _update_target(busy: bool) -> void:
 
 	if current_target == null:
 		hud.set_prompt("")
+	elif not _has_power(current_target):
+		hud.set_prompt(current_target.get_prompt() + "   (no power)")
 	elif current_target.can_interact(self):
 		hud.set_prompt("[E] " + current_target.get_prompt())
 	else:
@@ -217,7 +219,7 @@ func _seated_input(event: InputEvent) -> void:
 		stand()
 	elif event.is_action_pressed("interact"):
 		var media: Node = _seat.media()
-		if media:
+		if media and _has_power(media):
 			media.interact(self)
 	elif event.is_action_pressed("read") and held_book != "":
 		hud.open_book(held_book)
@@ -229,7 +231,7 @@ func _update_seated_prompt() -> void:
 	var text := "[Space] Stand up"
 	if held_book != "":
 		text = "[R] Read      " + text
-	if media:
+	if media and _has_power(media):
 		text = "[E] " + media.get_prompt() + "      " + text
 	hud.set_prompt(text)
 
@@ -241,3 +243,7 @@ func _show_held() -> void:
 	if held_book != "":
 		lines.append("%s   [R] Read" % Library.find(held_book).title)
 	hud.set_held("\n".join(lines))
+
+
+func _has_power(target: Interactable) -> bool:
+	return not target.needs_power or Game.state().meki_online

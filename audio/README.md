@@ -24,3 +24,9 @@ Drop sound files here.
 
 - `music/misty.mp3` — "Misty" (Beegie Adair), the Sad Jazz selection.
 - `music/sun.mp3` — "Sun", the Vaporwave selection.
+
+## Sound effects (synthesised)
+
+`sfx/` — thunk (wrong part), click (part seated), spark, weld, boot (Meki
+waking), power_on (relay clunk + hum), beep (Meki). Generated with numpy
+and encoded with ffmpeg.
