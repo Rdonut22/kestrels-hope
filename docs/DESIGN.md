@@ -283,3 +283,115 @@ The repair screen is data-driven (see `MEKI_REPAIR` in
 Story flags and the inventory live in the `GameState` autoload.
 
 The reactor is now the column beside the cockpit door.
+
+## Act one plan (agreed, October 2026)
+
+This supersedes the older opening proposal above where they disagree.
+Nothing after INITIATE LANDING is planned in detail yet.
+
+### Story bible
+
+- **Gana**, pilot from Asura. Married to **Angel**, back home; getting home
+  to her is what keeps him going.
+- **Hale**, an engineer Gana met when they were both drafted into Asura's
+  military. Best friends; both went on to work for Ushida Industries. The
+  Kestrel B26 was crewed by just the two of them, plus Meki.
+- **Meki**, the ship's drone and link to the ship's computer. Hale built
+  half of him.
+- **The attack.** "Pirates" hit the Kestrel near Aphelion, 43 days ago.
+  Nothing was taken: the hold is still full. Hale disappeared in the attack.
+- **The truth (revealed slowly).** Ushida found the ore they mine stores
+  absurd amounts of energy and is building weapons with it. Hale saw the
+  plans and wanted out; Ushida wouldn't end his contract. The richest
+  deposits are in a system nobody has colonised yet, which is why a
+  two-person crew in an old ship was sent. The attack was Ushida.
+- The planet below stays **unnamed** for now; so does the material (Hale
+  just calls it "the ore").
+- Tone: cozy survival with a slow-burn mystery underneath. Clues are found
+  at the player's pace; no villains on screen early.
+
+### Sequence
+
+1. **Intro**, then Gana wakes in the pilot seat. Seat options: **Panel**,
+   **Kestrel drive** (computer UI), **Stand**.
+2. **Switches fail.** MAIN DRIVE, NAV and DIAGNOSTICS clack, flicker amber
+   and die; the gauge reads REACTOR 12% / REQUIRED 40%. Gana thinks out
+   loud and points himself at Meki. The Kestrel drive opens but anything
+   live says "Insufficient power".
+3. **Meki.** Gana gave up on fixing him weeks ago; out of options, he tries
+   once more. Parts barrel + workbench repair (built).
+4. **Diagnosis.** Meki explains: main cell damaged; port thrusters getting
+   no power; nav and comms damaged. He mentions one corrupted private file
+   marked HALE that he can't open.
+5. **Power reroute puzzle.** Meki jacks into the engineering computer; the
+   player routes power from backup cell B around the damage (puzzle, rules
+   TBD — e.g. drawing the line on the reactor schematic).
+6. **Back in the cockpit** the switches work and the windshield HUD boots.
+   Coffee, lounge, music and books are powered. Nav, comms and thrusters
+   have power but "not enough to get us home".
+7. **Middle repairs** (2–3, TBD) fill the space act; each gives Meki a bit
+   more power to recover Hale's file (HALE_PRIVATE.LOG: n% RECOVERED).
+8. **Hale's letter.** At 100% Meki opens it for Gana. It explains the ore,
+   the weapons, the refused contract, why they were sent, and that it
+   wouldn't be an accident.
+9. **Nav** then shows a blinking power signal on the planet, terrain notes,
+   O2/pressure/temperature (breathable), and **INITIATE LANDING** with
+   damage warnings (port thrusters, nav, hull, low success estimate).
+10. **Free time.** Landing waits as long as the player likes: cook, read,
+    music, sleep. Readouts are mood, not timers; gentle occasional nudges
+    only.
+11. Confirm landing → crash (not designed yet).
+
+### Gana thinking out loud
+
+Typed-out italic lines in the GANA box (same as the repair bench), with a
+soft blip. Used for story beats, first-time interactions and the odd idle
+nudge when stuck. Short, never blocking, E skips, no back-to-back repeats.
+After Meki wakes some become two-line exchanges with him.
+
+Personal story comes through these, tied to places:
+- Pilot seat: 43 days alone in the chair.
+- Hale's bunk / side of the quarters: Gana explains Hale disappearing in
+  the attack.
+- Photos on the desk: Gana and Hale from the draft days; Angel.
+- The full hold: "What kind of pirates leave the cargo?"
+- Hale's pried-open locker.
+- Lounge, galley, window: small memories of Hale and the planet below.
+
+### Windshield HUD
+
+A hologram layer projected on the cockpit glass, retro vector style
+(phosphor green lines, amber warnings, red damage, faint scanlines). The
+glass tints slightly darker while it's active. Seat → Panel eases into a
+first-person view out of the windshield; the switch panel sits below.
+
+Layout: one main view, a row of tabs along the bottom. Each tab is a small
+live preview; A/D selects, the main view swaps with a CRT flicker.
+
+- **Altitude**: attitude line, altitude, orbital speed, fuel, orbit
+  "stable (degrading)".
+- **Diagnostics**: rotating wireframe Kestrel; cycle systems to highlight
+  them (damage blinks red); selecting one unfolds a 2D schematic. Status
+  tiles per system (green / amber / red). Shows Hale's file recovery.
+- **Comms**: ANGEL (HOME) no carrier, USHIDA DISPATCH no response,
+  EMERGENCY BEACON transmitting, no reply. First view, Gana: "...Angel.
+  I'm so sorry. I promise I'll come back. ...Still nothing from Ushida. Or
+  our emergency beacon. What the hell are we supposed to do?"
+- **Nav**: drawn over the real planet through the glass: grid, the signal,
+  terrain labels, atmosphere; later INITIATE LANDING.
+
+Unread badges (blinking amber dot) mark tabs not yet opened and come back
+when something new happens there. Every tab must be seen, and the letter
+recovered, before landing unlocks; until then Nav says "LANDING
+CALCULATION PENDING: SYSTEM CHECK INCOMPLETE" and Gana or Meki nudge
+toward any unseen tab.
+
+### Still open
+
+- The 2–3 middle repairs (and what exactly drives the file recovery).
+- Reroute puzzle rules.
+- Days passing on the ship (sleep advances the day, small morning
+  changes) and a save system.
+- More free-time activities (cooking), and the book text files.
+- Where the full hold and Hale's locker live (a small cargo bay?).
+- Updating the intro narration and logs to match (later).
