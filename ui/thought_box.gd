@@ -6,7 +6,7 @@ extends Control
 
 signal finished
 
-const COLORS := {"GANA": Color(0.85, 0.66, 0.36), "MEKI": Color(0.45, 0.85, 1.0)}
+const COLORS := {"GANA": Color(0.85, 0.66, 0.36), "MEKI": Color(0.45, 0.85, 1.0), "KESTREL": Color(0.45, 1.0, 0.55)}
 
 var _queue: Array = []
 var _who: Label

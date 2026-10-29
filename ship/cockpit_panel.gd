@@ -386,4 +386,7 @@ func _confirm_landing() -> void:
 		["MEKI", "You're landing now? Chances of survival... twenty-three percent."],
 		"Great. What a helpful little droid."])
 	Game.state().set_flag("landing_confirmed")
-	_busy = false
+	# And down we go (ship/descent.gd).
+	var descent := get_tree().current_scene.get_node_or_null("Descent")
+	if descent:
+		descent.begin()

@@ -37,6 +37,8 @@ var system := 0
 var on := false
 ## While true the main view shows the landing warnings.
 var confirm_landing := false
+## Set every frame by ship/descent.gd during the landing; empty otherwise.
+var descent := {}
 var _boot := 0.0  # 0..1 while booting
 var _flicker := 0.0  # brief "insufficient power" flash
 var _font: Font = load("res://ui/fonts/JetBrainsMono-Regular.ttf")
@@ -90,6 +92,10 @@ func _draw() -> void:
 			_text(Vector2(s.x / 2.0, s.y / 2.0), "INSUFFICIENT POWER", 40, AMBER, true, true)
 			_text(Vector2(s.x / 2.0, s.y / 2.0 + 44), "REACTOR 12%  //  REQUIRED 40%", 20, AMBER, false, true)
 		return
+	if not descent.is_empty():
+		modulate.a = 1.0
+		_draw_descent(s, t)
+		return
 	var a := clampf(_boot * 1.4, 0.0, 1.0)
 	modulate.a = 0.35 + 0.65 * a if _boot < 1.0 else 1.0
 	# Frame and header.
@@ -121,6 +127,60 @@ func _draw() -> void:
 			"NAV":
 				_draw_nav(view, t)
 	_draw_tabs(Rect2(40, s.y - 120, s.x - 80, 86), t)
+
+
+# ---------- landing ----------
+
+## Sparse flight HUD for the descent: attitude line that tilts with the
+## bank, the flight-path marker against the guide box, altitude and speed
+## tapes, and the warnings stacking up.
+func _draw_descent(s: Vector2, t: float) -> void:
+	var d := descent
+	if d.get("off", false):
+		# Power's gone after the impact: one last flicker.
+		if fmod(t, 0.5) < 0.07:
+			_text(s / 2.0, "SYSTEM FAULT", 30, RED, true, true)
+		return
+	var fail: float = d.get("fail", 0.0)
+	var c := Vector2(s.x / 2.0, s.y * 0.5)
+	var bank: float = d.get("bank", 0.0)
+	# Attitude line, rolling against the bank.
+	var dir := Vector2(cos(-bank), sin(-bank))
+	var col := GREEN.lerp(RED, clampf(absf(bank) / deg_to_rad(30.0), 0.0, 1.0) * fail)
+	for side in [-1.0, 1.0]:
+		draw_line(c + dir * side * 70.0, c + dir * side * 260.0, col, 2.0)
+		draw_line(c + dir * side * 260.0, c + dir * side * 260.0 + Vector2(-dir.y, dir.x) * 12.0, col, 2.0)
+	for k in [-2, -1, 1, 2]:
+		var o: Vector2 = Vector2(-dir.y, dir.x) * k * 60.0
+		_dashed(c + o - dir * 120.0, c + o + dir * 120.0, Color(col, 0.5), 1.0, 10.0)
+	# Guide box and the flight-path marker (off to the side when off course).
+	var gb := Rect2(c - Vector2(46, 34), Vector2(92, 68))
+	_corners(gb, 14.0, GREEN)
+	var fpm := c + Vector2(clampf(float(d.get("x", 0.0)) * 3.0, -300.0, 300.0), -float(d.get("pitch", 0.0)) * 40.0)
+	var on_track := gb.has_point(fpm)
+	var mcol := GREEN if on_track else AMBER
+	draw_arc(fpm, 11.0, 0, TAU, 20, mcol, 2.0)
+	draw_line(fpm + Vector2(-26, 0), fpm + Vector2(-11, 0), mcol, 2.0)
+	draw_line(fpm + Vector2(11, 0), fpm + Vector2(26, 0), mcol, 2.0)
+	draw_line(fpm + Vector2(0, -11), fpm + Vector2(0, -20), mcol, 2.0)
+	_text(Vector2(c.x, gb.end.y + 26), "BANK %+03d" % int(rad_to_deg(bank)), 16, col, false, true)
+	# Tapes.
+	var alt: float = d.get("alt", 0.0)
+	var alt_s := "%.1f KM" % (alt / 1000.0) if alt > 9999.0 else "%d M" % int(alt)
+	_text(Vector2(60, c.y - 10), "ALT", 16, DIM.lightened(0.4))
+	_text(Vector2(60, c.y + 18), alt_s, 24, GREEN, true)
+	_text(Vector2(s.x - 60, c.y - 10), "SPD", 16, DIM.lightened(0.4), false, false, true)
+	_text(Vector2(s.x - 60, c.y + 18), "%d M/S" % int(d.get("spd", 0.0)), 24, GREEN, true, false, true)
+	_text(Vector2(s.x - 60, c.y + 46), "TGT %.1f KM" % (float(d.get("range", 0.0)) / 1000.0 * 45.0), 16, DIM.lightened(0.4), false, false, true)
+	# Warnings, top centre, blinking when red.
+	var y := 56.0
+	for w in d.get("warn", []):
+		var wc: Color = w[1]
+		if wc == RED and fmod(t, 0.6) > 0.42:
+			y += 26.0
+			continue
+		_text(Vector2(c.x, y), w[0], 18, wc, true, true)
+		y += 26.0
 
 
 # ---------- tabs ----------

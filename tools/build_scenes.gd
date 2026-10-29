@@ -1526,7 +1526,7 @@ func _update_main() -> void:
 
 	# Meki, dead on the engineering workbench, and the emergency power that
 	# stays on until he's repaired.
-	for old in ["Meki", "ShipPower"]:
+	for old in ["Meki", "ShipPower", "Descent"]:
 		var n := scene_root.get_node_or_null(old)
 		if n:
 			scene_root.remove_child(n)
@@ -1544,6 +1544,12 @@ func _update_main() -> void:
 	power.set("hum_path", NodePath("../ShipHum"))
 	scene_root.add_child(power)
 	power.owner = scene_root
+	# The moon outside the windows, and the landing that flies down to it.
+	var descent := Node3D.new()
+	descent.name = "Descent"
+	descent.set_script(load("res://ship/descent.gd"))
+	scene_root.add_child(descent)
+	descent.owner = scene_root
 
 	_save(scene_root, "res://main.tscn")
 
@@ -3155,7 +3161,7 @@ func _build_crash_site() -> void:
 	const GROUND_Y := -0.5
 	# Built from the space scene, but the ship's space hum doesn't belong on
 	# the ground (it would also play under the start menu, which uses this).
-	for n in ["ShipHum", "Meki", "ShipPower"]:
+	for n in ["ShipHum", "Meki", "ShipPower", "Descent"]:
 		var node := R.get_node_or_null(n)
 		if node:
 			R.remove_child(node)
@@ -3212,6 +3218,12 @@ func _build_crash_site() -> void:
 	clock.set_script(load("res://world/day_night.gd"))
 	R.add_child(clock)
 	clock.owner = R
+	# Coming round after the landing (only when arriving from it).
+	var wake := Node.new()
+	wake.name = "WakeUp"
+	wake.set_script(load("res://world/wake_up.gd"))
+	R.add_child(wake)
+	wake.owner = R
 
 	# Swap the space ship for the crashed one, tilted and sunk into the dirt.
 	var old := R.get_node("ShipInterior")

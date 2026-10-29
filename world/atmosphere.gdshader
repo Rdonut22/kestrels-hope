@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, blend_add, cull_front, depth_draw_never, shadows_disabled;
+render_mode unshaded, blend_add, cull_front, depth_draw_never, shadows_disabled, fog_disabled;
 
 // Thin atmospheric halo around the planet: a slightly larger sphere drawn
 // from the inside, brightest at the limb on the sunlit side.

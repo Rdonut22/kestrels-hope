@@ -1,4 +1,5 @@
 shader_type spatial;
+render_mode fog_disabled;
 
 // Forest moon seen from orbit: pixel-art continents of forest green with
 // lakes, drifting cloud bands, toon-stepped day/night shading. Works in
@@ -15,6 +16,15 @@ uniform float texel = 0.0012;
 // Scales the continents and clouds up for close views where only a small
 // cap of the sphere is on screen.
 uniform float zoom = 1.0;
+// Aerial haze for the descent (the scene fog would swallow the whole planet).
+uniform float clouds = 1.0;
+// Keep forest (not sea) under the crash site during the descent.
+uniform vec3 site_dir = vec3(0.0, 1.0, 0.0);
+uniform float site_forest = 0.0;
+uniform float haze = 0.0;
+uniform vec3 haze_color : source_color = vec3(0.62, 0.74, 0.82);
+uniform float haze_near = 150.0;
+uniform float haze_far = 2500.0;
 
 varying vec3 opos;
 
@@ -51,6 +61,7 @@ void fragment() {
 	vec3 p = floor(opos * zoom / texel) * texel;
 	float land = fbm(p * 4.0);
 	float detail = fbm(p * 22.0);
+	land = mix(land, clamp(land, 0.45, 0.66), site_forest * smoothstep(0.984, 0.996, dot(opos, normalize(site_dir))));
 	vec3 col;
 	if (land < 0.42) {
 		col = water * (0.85 + 0.3 * detail);
@@ -62,10 +73,12 @@ void fragment() {
 	}
 	vec3 cp = p * 3.0 + vec3(TIME * 0.004, 0.0, TIME * 0.002);
 	float c = smoothstep(0.5, 0.6, fbm(cp + fbm(cp * 2.0)));
-	col = mix(col, cloud, c * 0.95);
+	col = mix(col, cloud, c * 0.95 * clouds);
 	// Hazy blue toward the limb, like Earth from orbit.
 	col = mix(col, vec3(0.62, 0.85, 1.0), pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 6.0) * 0.6);
-	ALBEDO = col;
+	float hz = haze * smoothstep(haze_near, haze_far, length(VERTEX));
+	ALBEDO = col * (1.0 - hz);
+	EMISSION = haze_color * hz;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }

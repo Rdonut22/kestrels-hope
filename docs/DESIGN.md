@@ -346,7 +346,7 @@ Nothing after INITIATE LANDING is planned in detail yet.
     refused contract, why they were sent, that it wouldn't be an accident).
 11. **Closing it resumes the landing**, now with the weight of the letter.
     Meki: "You're landing now? Chances of survival... 23%." Gana, dry:
-    "Great. What a helpful little droid." → crash (not designed yet).
+    "Great. What a helpful little droid." → the landing (below).
 
 ### Gana thinking out loud
 
@@ -391,6 +391,40 @@ when something new happens there. Every tab must be seen before landing unlocks
 (the letter itself interrupts the landing); until then Nav says "LANDING
 CALCULATION PENDING: SYSTEM CHECK INCOMPLETE" and Gana or Meki nudge
 toward any unseen tab.
+
+### The landing (built, October 2026)
+
+One continuous flight from orbit to the crash site, flown from the pilot
+seat (`ship/descent.gd`, about 80 seconds):
+
+1. **Briefing.** KESTREL (the ship's computer, green in the thought box)
+   loads the descent profile, port thrusters dead; Meki balances on the
+   starboard side; the ship swings onto the descent heading.
+2. **Orbital approach.** The moon fills the windshield and grows; the HUD
+   switches to a flight view (attitude line, flight-path marker in a guide
+   box, ALT/SPD tapes, warnings). A/D banks, W/S nose.
+3. **Entry.** Plasma streaming over the glass, hull temperature, buffeting;
+   the sky turns from stars to the crash site's day sky; through two cloud
+   layers (white-out) and out over the forest.
+4. **The emergency.** Attitude control fails under load and she rolls
+   right; hold A/D against it. KESTREL / Gana exchange ("That's not a
+   trajectory." "No."). How well you hold her changes how hard the impact
+   shakes.
+5. **Impact.** Down at the start of the furrow, skidding along it, snapping
+   the trees whose stumps line the trail, dirt and sparks; she comes to
+   rest exactly where the wreck lies. Silence, ringing ears, Meki: "Gana?",
+   black.
+6. **Waking** in the quarters of the wreck (`world/wake_up.gd`): black,
+   blurred view from the floor, two blinks, up to the normal view.
+
+How it's done: the moon isn't one continuous level, so the descent runs in
+the space scene around the real ship and the *world* moves instead. It
+loads the crash site's own terrain, trees, ruins and sky from
+`crash_site.tscn` (without its player/ship/HUD), plus a moon sphere and a
+finer cap of it, clouds and a carpet of low-poly pines, all in the crash
+site's coordinates, and the path ends on the wreck's exact position and
+tilt. The only cut is Gana blacking out. The moon also hangs in the
+windows for the whole space part of the game now.
 
 ### Still open
 

@@ -11,6 +11,7 @@ var _panel_view := false
 var _eye := Vector3.ZERO
 var _target := Vector3.ZERO
 var _player: Node
+var _landing: Node  # ship/descent.gd while the landing is flying
 
 
 func _enter_tree() -> void:
@@ -80,13 +81,25 @@ func opening() -> void:
 		"...Let's see if she'll listen today."], "opening")
 
 
+## Strapped in for the landing: no standing up or menus until it's over.
+func lock_for_landing(descent: Node) -> void:
+	_landing = descent
+	if _panel_view and _player:
+		_set_panel_view(_player, false)
+
+
 func seated_prompt(_p: Node) -> String:
+	if _landing:
+		return _landing.prompt()
 	if _panel_view:
 		return _panel().prompt()
 	return "[E] Panel      [Q] Kestrel drive      [Space] Stand up"
 
 
 func seated_input(player: Node, event: InputEvent) -> bool:
+	if _landing:
+		# Keys fly the ship (read by the descent); the mouse still looks around.
+		return not event is InputEventMouseMotion
 	if _panel_view:
 		if _panel().handle_input(event):
 			get_viewport().set_input_as_handled()
