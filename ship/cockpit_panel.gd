@@ -156,6 +156,7 @@ func _build_hud() -> void:
 	mat.set_shader_parameter("screen", vp.get_texture())
 	mat.set_shader_parameter("tint", Color(0.45, 1.0, 0.55))
 	mat.set_shader_parameter("strength", 1.6)
+	mat.set_shader_parameter("jitter", 0.0)
 	quad.material_override = mat
 	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Floats just inside the window frames so the centre pillar doesn't cut it.

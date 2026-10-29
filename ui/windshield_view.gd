@@ -145,8 +145,15 @@ func _draw_tabs(r: Rect2, t: float) -> void:
 			"NAV":
 				sub = "SIGNAL" if not gs.has_flag("hud_all_seen") else "LANDING READY"
 		_text(cell.position + Vector2(14, 62), sub, 16, AMBER if TABS[i] in ["DIAGNOSTICS", "NAV"] else DIM.lightened(0.2))
-		if _unread(TABS[i]) and fmod(t, 1.0) < 0.65:
-			draw_circle(cell.position + Vector2(cell.size.x - 18, 18), 7.0, AMBER)
+		if _unread(TABS[i]):
+			# Bold NEW tag in the corner, gently pulsing (not blinking off).
+			var glow := 0.75 + 0.25 * sin(t * 4.0)
+			var tag := Rect2(cell.position + Vector2(cell.size.x - 104, -22), Vector2(96, 40))
+			draw_rect(cell, Color(AMBER, 0.12 * glow))
+			draw_rect(cell, Color(AMBER, 0.8 * glow), false, 3.0)
+			draw_rect(tag.grow(4.0), Color(AMBER, 0.3 * glow))
+			draw_rect(tag, Color(AMBER, glow))
+			_text(tag.get_center() + Vector2(0, 9), "NEW", 26, Color(0.05, 0.03, 0.0), true, true)
 
 
 func _unread(tab_name: String) -> bool:
@@ -278,8 +285,10 @@ func _draw_comms(v: Rect2, t: float) -> void:
 	draw_rect(scope, DIM, false, 1.0)
 	var prev := Vector2.ZERO
 	for i in 80:
+		# Steady, slowly drifting carrier noise.
+		var k := i * 0.45 + t * 1.2
 		var p := Vector2(scope.position.x + i * scope.size.x / 79.0,
-			scope.get_center().y + (randf() - 0.5) * 40.0 * (1.0 if fmod(t, 3.0) > 0.4 else 3.0))
+			scope.get_center().y + (sin(k) * 0.5 + sin(k * 2.7 + 1.3) * 0.3 + sin(k * 6.1) * 0.2) * 18.0)
 		if i > 0:
 			draw_line(prev, p, DIM.lightened(0.2), 1.0)
 		prev = p
