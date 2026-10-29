@@ -21,6 +21,9 @@ var _spark_light: OmniLight3D
 ## following Gana; `_hold_look` is what he faces.
 var _hold := Vector3.INF
 var _hold_look := Vector3.ZERO
+## Docked exactly in place (plugged in), no drifting or bobbing.
+var _docked := false
+var _arm: Node3D
 
 
 func _enter_tree() -> void:
@@ -38,6 +41,11 @@ func _ready() -> void:
 	shape.shape = ball
 	add_child(shape)
 	_build_model()
+	_arm = Node3D.new()
+	_arm.name = "JackArm"
+	_arm.set_script(load("res://characters/meki/jack_arm.gd"))
+	_arm.set("reach", 0.5)
+	add_child(_arm)
 	_sfx = AudioStreamPlayer3D.new()
 	_sfx.unit_size = 4.0
 	add_child(_sfx)
@@ -45,6 +53,7 @@ func _ready() -> void:
 		dead = false
 		_set_glow(1.0)
 		_add_talk()
+		Game.state().set_flag("meki_waiting")
 	else:
 		# Slumped on the bench, lights out.
 		_model.rotation = Vector3(0.35, 0.4, 0.75)
@@ -175,9 +184,11 @@ func diagnose() -> void:
 		["MEKI", "Port thrusters aren't getting any power at all. Nav array and comms are damaged too."],
 		["MEKI", "One more thing. There's a private file in my memory marked HALE. It's corrupted. I'll... keep working on it."],
 		"...Hale's?",
-		["MEKI", "First things first. I can jack into the engineering computer and route the backup cell around the damage."],
-		["MEKI", "Meet me at the power panel, by the bench."],
+		["MEKI", "First things first. I can jack into the power junction and route the backup cell around the damage."],
+		["MEKI", "Meet me in engineering, at the junction next to the power panel."],
 	])
+	# Float over to the jack socket and wait there (see jack_socket.gd).
+	Game.state().set_flag("meki_waiting")
 
 
 ## Park at a spot (plugged into a computer) looking at `look`.
@@ -188,6 +199,35 @@ func hold_at(pos: Vector3, look: Vector3) -> void:
 
 func release() -> void:
 	_hold = Vector3.INF
+	_docked = false
+
+
+## Glide to exactly `pos` facing `look` and stay put there (to plug in).
+func dock(pos: Vector3, look: Vector3) -> void:
+	hold_at(pos, look)
+	_docked = true
+	velocity = Vector3.ZERO
+	var face := look - pos
+	var tw := create_tween().set_parallel()
+	tw.tween_property(self, "global_position", pos, 0.9).set_trans(Tween.TRANS_SINE)
+	var yaw := _model.rotation.y + wrapf(atan2(face.x, face.z) - _model.rotation.y, -PI, PI)
+	tw.tween_property(_model, "rotation", Vector3(0, yaw, 0), 0.6)
+	tw.tween_property(_model, "position:y", 0.0, 0.6)
+	await tw.finished
+
+
+## Model yaw that points his lens (on the model's +X side) along `dir`.
+static func _yaw_to(dir: Vector3) -> float:
+	return atan2(-dir.z, dir.x)
+
+
+## His telescoping jack arm (characters/meki/jack_arm.gd).
+func jack_arm() -> Node3D:
+	return _arm
+
+
+func play_sfx(path: String) -> void:
+	_play(path)
 
 
 func _add_talk() -> void:
@@ -198,7 +238,7 @@ func _add_talk() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if dead:
+	if dead or _docked:
 		return
 	if not _player:
 		_player = get_tree().current_scene.get_node_or_null("Player")
@@ -226,9 +266,8 @@ func _physics_process(delta: float) -> void:
 	_hover += delta
 	_model.position.y = sin(_hover * 2.1) * 0.04
 	var look := (_player.global_position + Vector3(0, 0.6, 0) if _hold == Vector3.INF else _hold_look) - global_position
-	var yaw := atan2(look.x, look.z)
-	_model.rotation.y = lerp_angle(_model.rotation.y, yaw, minf(1.0, delta * 3.0))
-	_model.rotation.x = lerpf(_model.rotation.x, clampf(velocity.length() * 0.08, 0.0, 0.3), minf(1.0, delta * 3.0))
+	_model.rotation.y = lerp_angle(_model.rotation.y, _yaw_to(look), minf(1.0, delta * 3.0))
+	_model.rotation.z = lerpf(_model.rotation.z, -clampf(velocity.length() * 0.08, 0.0, 0.3), minf(1.0, delta * 3.0))
 
 
 func _play(path: String) -> void:

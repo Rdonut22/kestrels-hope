@@ -644,7 +644,15 @@ func _build_ship() -> void:
 		_add(scene_root, panel, "CockpitPanel")
 		_interactable(use, "PilotSeat", "pilot_seat", Vector3(3.3, 0.0, -11.0),
 			{"interact_range": 1.2, "panel_path": NodePath("../../CockpitPanel"), "computer_path": NodePath("../ShipComputer")})
-		_interactable(use, "PowerPanel", "power_panel", Vector3(-4.95, 1.2, -0.95), {"interact_range": 1.4})
+		# The jack socket on the back wall beside it: Meki plugs in here.
+		var socket: Node3D = (load("res://ship/mechanical_assembly.tscn") as PackedScene).instantiate()
+		socket.set("outer_radius", 0.2)
+		# Back of the housing flush with the wall, face out into the room.
+		socket.position = Vector3(-3.6, 1.38, -1.3 + 0.26 * 0.4)
+		socket.rotation.y = PI
+		_add(scene_root, socket, "JackSocket")
+		_interactable(use, "JackSocket", "jack_socket", Vector3(-3.6, 1.2, -1.0),
+			{"interact_range": 1.7, "socket_path": NodePath("../../JackSocket")})
 		_thought_zones()
 	_inspect(use, "FoodDispenser", Vector3(5.35, 1.2, -5.0), "Food dispenser",
 		"Ration paste. Today's flavor: 'savory'.", 1.6)

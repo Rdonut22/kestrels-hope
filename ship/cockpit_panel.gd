@@ -316,7 +316,7 @@ func _fail(i: int) -> void:
 	_fails += 1
 	var gs := Game.state()
 	if gs.meki_online:
-		_hud().think([["MEKI", "Not yet, Gana. The power panel first."]])
+		_hud().think([["MEKI", "Not yet, Gana. Meet me at the power junction first."]])
 		return
 	if _fails == 1:
 		_hud().think(["Nothing. Reactor's at twelve percent... I need forty just to wake her up."], "fail_1")
