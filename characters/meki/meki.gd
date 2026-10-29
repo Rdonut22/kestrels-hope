@@ -24,6 +24,11 @@ var _hold_look := Vector3.ZERO
 ## Docked exactly in place (plugged in), no drifting or bobbing.
 var _docked := false
 var _arm: Node3D
+## Where Gana has been walking (open floor, newest last); when a wall cuts
+## Meki off he pops back onto this trail instead of grinding into it.
+var _trail: Array[Vector3] = []
+var _trail_timer := 0.0
+var _blocked := 0.0
 
 
 func _enter_tree() -> void:
@@ -252,14 +257,18 @@ func _physics_process(delta: float) -> void:
 	right = right.normalized()
 	var target := _player.global_position + right * 0.75 + Vector3(0, 0.75 + sin(t * 0.7) * 0.08, 0) \
 		+ Vector3(sin(t * 0.31), 0, cos(t * 0.23)) * 0.25
+	var seat: Node3D = _player.get("_seat")
 	if _hold != Vector3.INF:
 		target = _hold
-	var to := target - global_position
-	if to.length() > 7.0 and _hold == Vector3.INF:
-		# Lost him round a corner: catch up behind Gana.
-		global_position = _player.global_position + Vector3(0, 0.8, 0) + pivot.global_transform.basis.z * 0.8
-		velocity = Vector3.ZERO
+	elif seat and seat.has_method("stand_position"):
+		# Out of the way while he's sitting: hover behind the seat.
+		var stand: Transform3D = seat.stand_position()
+		target = stand.origin + Vector3(0, 0.6 + sin(t * 0.7) * 0.06, 0.3)
+	_record_trail(delta)
+	var following := _hold == Vector3.INF and not seat
+	if _cut_off(target, following, delta):
 		return
+	var to := target - global_position
 	velocity = velocity.lerp(to * 2.2, minf(1.0, delta * 4.0)).limit_length(4.0)
 	move_and_slide()
 	# Bob, tilt into the motion and keep the lens on Gana.
@@ -268,6 +277,52 @@ func _physics_process(delta: float) -> void:
 	var look := (_player.global_position + Vector3(0, 0.6, 0) if _hold == Vector3.INF else _hold_look) - global_position
 	_model.rotation.y = lerp_angle(_model.rotation.y, _yaw_to(look), minf(1.0, delta * 3.0))
 	_model.rotation.z = lerpf(_model.rotation.z, -clampf(velocity.length() * 0.08, 0.0, 0.3), minf(1.0, delta * 3.0))
+
+
+func _record_trail(delta: float) -> void:
+	_trail_timer -= delta
+	if _trail_timer > 0.0 or not _player.is_on_floor():
+		return
+	_trail_timer = 0.2
+	var p := _player.global_position + Vector3(0, 0.8, 0)
+	if _trail.is_empty() or _trail[-1].distance_to(p) > 0.3:
+		_trail.append(p)
+		if _trail.size() > 40:
+			_trail.pop_front()
+
+
+func _clear_line(a: Vector3, b: Vector3) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(a, b, 1, [get_rid(), _player.get_rid()])
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+## Walls between Meki and where he's going for over a second: jump to the
+## closest open spot instead (his hold spot, or back along Gana's trail).
+## True if he moved.
+func _cut_off(target: Vector3, following: bool, delta: float) -> bool:
+	var head := _player.global_position + Vector3(0, 0.8, 0)
+	# Following, it's Gana he needs to see (his shoulder spot can be in a wall).
+	var goal := head if following else target
+	var far := global_position.distance_to(target) > 7.0
+	if _clear_line(global_position, goal) and not far:
+		_blocked = 0.0
+		return false
+	_blocked += delta
+	if _blocked < 1.0 and not far:
+		return false
+	_blocked = 0.0
+	var spot := target
+	if following:
+		# The most recent trail point that can see Gana and is a little
+		# behind him (so he appears from where Gana just came).
+		spot = head + _player.get_node("CameraPivot").global_transform.basis.z * 0.6
+		for i in range(_trail.size() - 1, -1, -1):
+			if _trail[i].distance_to(head) > 0.9 and _clear_line(_trail[i], head):
+				spot = _trail[i]
+				break
+	global_position = spot
+	velocity = Vector3.ZERO
+	return true
 
 
 func _play(path: String) -> void:
