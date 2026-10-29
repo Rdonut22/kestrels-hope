@@ -209,6 +209,11 @@ func _inspect(parent: Node, name: String, pos: Vector3, prompt: String, message:
 	_interactable(parent, name, "inspect", pos, {"prompt": prompt, "message": message, "interact_range": rng})
 
 
+# Like _inspect, but Gana thinks the lines out loud.
+func _thought(parent: Node, name: String, pos: Vector3, prompt: String, lines: Array, rng := 1.6) -> void:
+	_interactable(parent, name, "inspect", pos, {"prompt": prompt, "message": "|".join(lines), "interact_range": rng, "thought": true})
+
+
 # ---------- ship ----------
 
 
@@ -470,8 +475,9 @@ func _build_ship() -> void:
 	var cockpit := _furniture("CockpitFurniture")
 	_box(cockpit, "Console", Vector3(2.6, 0, -12.6), Vector3(5.4, 0.95, -11.9), "trim")
 	_box(cockpit, "ComputerBench", Vector3(5.0, 0, -9.4), Vector3(5.6, 0.9, -7.4), "trim")
-	_mesh_box(scene_root, "ConsoleScreenLeft", Vector3(3.3, 1.05, -12.3), Vector3(0.6, 0.2, 0.3), "screen_amber")
-	_mesh_box(scene_root, "ConsoleScreenRight", Vector3(4.7, 1.05, -12.3), Vector3(0.6, 0.2, 0.3), "screen_amber")
+	# Small flat screens set into the dash (the main display is the windshield HUD).
+	_mesh_box(scene_root, "ConsoleScreenLeft", Vector3(3.15, 0.96, -12.35), Vector3(0.5, 0.025, 0.22), "screen_amber")
+	_mesh_box(scene_root, "ConsoleScreenRight", Vector3(4.75, 0.96, -12.35), Vector3(0.5, 0.025, 0.22), "screen_amber")
 
 	var seat_scene: PackedScene = load("res://ship/seat.tscn")
 	for seat_pos in [[Vector3(3.3, 0, -11.0), 0.0, "PilotChair"], [Vector3(4.7, 0, -11.0), 0.0, "CopilotChair"],
@@ -507,6 +513,29 @@ func _build_ship() -> void:
 		_pod_fittings(i, POD_CENTERS[i])
 	_box(quarters, "Shelf", Vector3(1.4, 0.75, -8.0), Vector3(1.8, 0.8, -6.8), "trim")
 	_box(quarters, "Locker", Vector3(1.1, 0, -6.5), Vector3(1.8, 2.0, -5.9), "metal_dark")
+	# Hale's locker, pried open: the door hangs bent off its hinge.
+	var door := _mesh_box(scene_root, "LockerDoor", Vector3.ZERO, Vector3(0.025, 1.85, 0.56), "trim")
+	door.transform = Transform3D(Basis(Vector3.UP, 0.55) * Basis(Vector3.RIGHT, 0.05), Vector3(1.0, 1.0, -6.42))
+	_mesh_box(scene_root, "LockerInside", Vector3(1.095, 1.0, -6.2), Vector3(0.01, 1.8, 0.52), "cable")
+	_mesh_box(scene_root, "LockerScrape", Vector3(1.093, 1.15, -6.48), Vector3(0.01, 0.12, 0.03), "trim")
+	for ph in [["PhotoHaleFrame", -7.88, "photo_gana_hale"], ["PhotoAngelFrame", -6.95, "photo_angel"]]:
+		var frame := Node3D.new()
+		frame.position = Vector3(1.62, 0.8, ph[1])
+		frame.rotation = Vector3(0, -PI / 2, 0)
+		_add(scene_root, frame, ph[0])
+		var back := _mesh_box(frame, "Frame", Vector3(0, 0.1, 0.01), Vector3(0.15, 0.19, 0.015), "wood")
+		back.rotation.x = -0.25
+		var pic := MeshInstance3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(0.12, 0.15)
+		pic.mesh = qm
+		var pm := StandardMaterial3D.new()
+		pm.albedo_texture = load("res://ship/props/%s.png" % ph[2])
+		pm.roughness = 0.5
+		pic.material_override = pm
+		pic.position = Vector3(0, 0.1, 0.019)
+		pic.rotation.x = -0.25
+		_add(frame, pic, "Picture")
 
 	var bath := _furniture("BathroomFurniture")
 	_box(bath, "ShowerTray", Vector3(-6.0, 0, -4.4), Vector3(-5.0, 0.08, -3.4), "counter")
@@ -533,7 +562,7 @@ func _build_ship() -> void:
 	# Things you can use.
 	var use := _add(scene_root, Node3D.new(), "Interactables")
 
-	var computer := _interactable(use, "ShipComputer", "ship_computer", Vector3(5.3, 0.9, -8.4), {"prompt": "Use ship computer", "needs_power": true})
+	var computer := _interactable(use, "ShipComputer", "ship_computer", Vector3(5.3, 0.9, -8.4), {"prompt": "Use ship computer"})
 	var screen := _mesh_box(computer, "Screen", Vector3(0.1, 0.75, 0), Vector3(0.04, 0.45, 1.0), "screen_cyan")
 	screen.rotation.z = 0.17
 
@@ -552,12 +581,36 @@ func _build_ship() -> void:
 
 	_interactable(use, "Bed", "bunk", Vector3(-2.75, 0.85, -7.6), {"prompt": "Sleep", "interact_range": 1.8})
 
-	_inspect(use, "SpareBed", Vector3(-2.75, 2.0, -7.6), "Upper pod",
-		"Hale's bunk. Still made.")
-	_inspect(use, "Locker", Vector3(1.45, 1.0, -6.2), "Open locker",
-		"Flight suit, two spare shirts, and a photo you don't look at much anymore.", 1.4)
-	_inspect(use, "PilotSeat", Vector3(3.3, 0.5, -11.0), "Pilot seat",
-		"Not going anywhere until the nav array's fixed.", 1.3)
+	_thought(use, "SpareBed", Vector3(-2.75, 2.0, -7.6), "Hale's bunk", [
+		"Hale's bunk. Still made. Never could bring myself to strip it.",
+		"When they boarded, he went aft to lock down engineering. Told me to stay at the helm.",
+		"By the time I got back there, the airlock had cycled.",
+		"No body. No message. He was just... gone."], 1.8)
+	_thought(use, "Locker", Vector3(1.45, 1.0, -6.2), "Hale's locker", [
+		"Hale's locker. Pried open.",
+		"They went through his things... and nothing else on the whole ship.",
+		"What were you mixed up in, Hale?"], 1.4)
+	_thought(use, "PhotoHale", Vector3(1.6, 0.9, -7.9), "Photo", [
+		"Asura, the draft. Hale and me, too young and too stupid to be scared.",
+		"He swore we'd always make it out together."], 1.3)
+	_thought(use, "PhotoAngel", Vector3(1.6, 0.9, -6.95), "Photo of Angel", [
+		"Angel.",
+		"Hang on. I'm coming home. I promised."], 1.3)
+	_thought(use, "CargoCrates", Vector3(1.35, 0.7, 6.05), "Cargo crates", [
+		"Every crate still sealed. Six months of ore, right where we left it.",
+		"What kind of pirates leave the cargo?"], 1.3)
+	if crashed:
+		_inspect(use, "PilotSeat", Vector3(3.3, 0.5, -11.0), "Pilot seat",
+			"Not going anywhere until the nav array's fixed.", 1.3)
+	else:
+		# Flight panel (switches + windshield HUD), the pilot seat that
+		# drives it, and the engineering power panel for Meki's reroute.
+		var panel := Node3D.new()
+		panel.set_script(load("res://ship/cockpit_panel.gd"))
+		_add(scene_root, panel, "CockpitPanel")
+		_interactable(use, "PilotSeat", "pilot_seat", Vector3(3.3, 0.0, -11.0),
+			{"interact_range": 1.2, "panel_path": NodePath("../../CockpitPanel"), "computer_path": NodePath("../ShipComputer")})
+		_interactable(use, "PowerPanel", "power_panel", Vector3(-4.95, 1.2, -0.95), {"interact_range": 1.4})
 	_inspect(use, "FoodDispenser", Vector3(5.35, 1.2, -5.0), "Food dispenser",
 		"Ration paste. Today's flavor: 'savory'.", 1.6)
 	_inspect(use, "LoungeWindow", Vector3(6.6, 1.6, 1.6), "Look outside",

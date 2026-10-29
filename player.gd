@@ -38,12 +38,17 @@ func _ready() -> void:
 	spring_arm.add_excluded_object(get_rid())
 	_setup_footsteps()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	# Coming from the intro cinematic: start behind the pilot seats.
+	# Coming from the intro cinematic: start sat in the pilot seat.
 	if get_tree().root.has_meta("spawn_cockpit"):
 		get_tree().root.remove_meta("spawn_cockpit")
-		global_position = Vector3(4.0, 1.1, -9.3)
-		pivot.rotation = Vector3(-0.1, 0.0, 0.0)
-		mesh.rotation.y = 0.0
+		_start_in_pilot_seat.call_deferred()
+
+func _start_in_pilot_seat() -> void:
+	var seat := get_tree().get_first_node_in_group("pilot_seat")
+	if seat:
+		sit(seat)
+		seat.opening()
+
 
 func _add_key(action: String, key: Key) -> void:
 	if not InputMap.has_action(action):
@@ -177,17 +182,15 @@ func sit(seat: Node3D) -> void:
 	_sit_look = Vector2.ZERO
 	_aim_sit_cam()
 	_sit_cam.make_current()
-	var media: Node = seat.media()
-	if media:
-		media.face(seat.eye_position())
+	if seat.has_method("on_sit"):
+		seat.on_sit(self)
 
 
 func stand() -> void:
 	var seat := _seat
 	_seat = null
-	var media: Node = seat.media()
-	if media:
-		media.unface()
+	if seat.has_method("on_stand"):
+		seat.on_stand(self)
 	# Step off the couch toward the room.
 	var ahead: Vector3 = seat.look_target() - seat.global_position
 	ahead.y = 0
@@ -208,7 +211,16 @@ func _aim_sit_cam() -> void:
 	_sit_cam.rotate_object_local(Vector3.RIGHT, _sit_look.y)
 
 
+## Point the seated camera again (seats call this when they change view).
+func reaim() -> void:
+	_sit_look = Vector2.ZERO
+	_aim_sit_cam()
+
+
 func _seated_input(event: InputEvent) -> void:
+	# The seat gets first go (e.g. the pilot seat's menu and panel).
+	if _seat.has_method("seated_input") and _seat.seated_input(self, event):
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_sit_look.x = clampf(_sit_look.x - event.relative.x * MOUSE_SENSITIVITY, -1.1, 1.1)
 		_sit_look.y = clampf(_sit_look.y - event.relative.y * MOUSE_SENSITIVITY, -0.5, 0.45)
@@ -217,7 +229,7 @@ func _seated_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if event.is_action_pressed("jump") or event.is_action_pressed("move_back"):
 		stand()
-	elif event.is_action_pressed("interact"):
+	elif event.is_action_pressed("interact") and _seat.has_method("media"):
 		var media: Node = _seat.media()
 		if media and _has_power(media):
 			media.interact(self)
@@ -227,6 +239,9 @@ func _seated_input(event: InputEvent) -> void:
 
 func _update_seated_prompt() -> void:
 	current_target = null
+	if _seat.has_method("seated_prompt"):
+		hud.set_prompt(_seat.seated_prompt(self))
+		return
 	var media: Node = _seat.media()
 	var text := "[Space] Stand up"
 	if held_book != "":
@@ -246,4 +261,4 @@ func _show_held() -> void:
 
 
 func _has_power(target: Interactable) -> bool:
-	return not target.needs_power or Game.state().meki_online
+	return not target.needs_power or Game.state().power_restored

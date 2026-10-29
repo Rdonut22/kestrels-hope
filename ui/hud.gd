@@ -5,6 +5,7 @@ var _message_tween: Tween
 var _sleeping := false
 var _reader: Control
 var _overlays: Array[Control] = []  # full-screen panels that pause the player
+var _thoughts: Control
 
 @onready var prompt_label: Label = %PromptLabel
 @onready var message_label: Label = %MessageLabel
@@ -28,6 +29,8 @@ func _ready() -> void:
 	fade.color.a = 0.0
 	entry_list.item_selected.connect(_on_entry_selected)
 	%CloseButton.pressed.connect(close_screen)
+	_thoughts = (load("res://ui/thought_box.gd") as GDScript).new()
+	add_child(_thoughts)
 
 
 func _input(event: InputEvent) -> void:
@@ -55,6 +58,22 @@ func is_busy() -> bool:
 func add_overlay(panel: Control) -> void:
 	_overlays.append(panel)
 	add_child(panel)
+
+
+## Gana (or Meki) thinking out loud. Lines are Strings (Gana) or
+## [who, text]. With a `once` key the lines only ever play the first time.
+## Await the result to wait until they've all been shown.
+func think(lines: Array, once := "", interrupt := false) -> void:
+	if once != "":
+		if Game.state().has_flag(once):
+			return
+		Game.state().set_flag(once)
+	_thoughts.say(lines, interrupt)
+	await _thoughts.finished
+
+
+func is_thinking() -> bool:
+	return _thoughts.is_talking()
 
 
 ## Show the lounge bookshelf; `on_take` gets the id of the book picked.

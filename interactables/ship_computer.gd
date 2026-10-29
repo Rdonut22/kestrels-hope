@@ -18,6 +18,16 @@ func interact(_player: Node) -> void:
 			{"title": "Diagnostics", "body": "Life support ....... [color=#ffb347]DEGRADED[/color]\nReactor ............ [color=#ffb347]EMERGENCY POWER[/color]\nArtificial gravity . [color=#888888]OFFLINE[/color]\nHull ............... [color=#ff5555]BREACHED (lounge)[/color]\nMain engines ....... [color=#ff5555]FAULT[/color]\nCoffee machine ..... [color=#7CFC00]OK[/color]"},
 		])
 		return
+	if not Game.state().power_restored:
+		var low := "[color=#ffb347]INSUFFICIENT POWER[/color]\n\nReactor output 12%. This function needs 40%."
+		hud().open_screen(ship_name + " // KESTREL DRIVE  [EMERGENCY POWER]", [
+			{"title": "Status", "body": "Reactor output  [color=#ff5555]12%[/color]  (main cell fault)\nLife support    [color=#ffb347]MINIMUM[/color]\nLights          [color=#ffb347]EMERGENCY[/color]\n\nDays since last fix: 43"},
+			{"title": "Navigation", "body": low},
+			{"title": "Comms", "body": low},
+			{"title": "Diagnostics", "body": low},
+			{"title": "Crew", "body": "GANA ........ PILOT ......... [color=#7CFC00]ON BOARD[/color]\nHALE ........ ENGINEER ...... [color=#ff5555]NO SIGNAL[/color]\nMEKI ........ DRONE ......... %s" % ("[color=#7CFC00]ONLINE[/color]" if Game.state().meki_online else "[color=#ff5555]OFFLINE[/color]")},
+		])
+		return
 	hud().open_screen(ship_name + " // SHIP COMPUTER", [
 		{"title": "Status", "body": _status()},
 		{"title": "Navigation", "body": "Position: [color=#ffb347]UNKNOWN[/color]\nVelocity: drifting\n\nNav array offline. Last good fix 43 days ago.\nRecommend manual star sighting."},

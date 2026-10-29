@@ -26,7 +26,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	var t := Time.get_ticks_msec() * 0.001
-	var level := 1.0 if Game.state().meki_online else 0.35
+	var gs := Game.state()
+	var level := 1.0 if gs.power_restored else (0.5 if gs.meki_online else 0.3)
 	var pulse := (0.75 + 0.25 * sin(t * 2.2)) * level
 	for m in _glass:
 		m.emission_energy_multiplier = 2.2 * pulse

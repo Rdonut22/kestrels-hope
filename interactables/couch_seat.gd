@@ -35,3 +35,15 @@ func look_target() -> Vector3:
 	if m:
 		return m.global_position + Vector3(0, 1.4, 0)
 	return eye_position() - global_transform.basis.z
+
+
+func on_sit(_player: Node) -> void:
+	var m := media()
+	if m:
+		m.face(eye_position())
+
+
+func on_stand(_player: Node) -> void:
+	var m := media()
+	if m:
+		m.unface()

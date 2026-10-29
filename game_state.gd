@@ -3,6 +3,8 @@ extends Node
 ## Story flags and the player's inventory, kept across scenes (autoload).
 
 signal meki_online_changed(online: bool)
+signal power_restored_changed(on: bool)
+signal flag_set(flag: String)
 signal inventory_changed
 
 ## Everything that can be carried. Tools aren't used up by repairs.
@@ -25,7 +27,32 @@ var meki_online := false:
 		if value != meki_online:
 			meki_online = value
 			meki_online_changed.emit(value)
+## Backup cell rerouted (Meki's puzzle at the engineering computer): the
+## ship's lights, galley, lounge and cockpit switches have power again.
+var power_restored := false:
+	set(value):
+		if value != power_restored:
+			power_restored = value
+			power_restored_changed.emit(value)
 var items: Array[String] = []
+## Meki rebuilds Hale's corrupted file in the background once the power is
+## back. It sits just short of done until Gana tries to land; then Meki
+## finishes it and shows him (see the windshield HUD).
+var hale_file := 0.0
+const HALE_FILE_CAP := 97.0
+const HALE_FILE_RATE := 0.25  # percent per second
+## One-off story flags ("seen_tab_nav", "thought_bunk", ...).
+var flags := {}
+
+
+func has_flag(flag: String) -> bool:
+	return flags.get(flag, false)
+
+
+func set_flag(flag: String) -> void:
+	if not has_flag(flag):
+		flags[flag] = true
+		flag_set.emit(flag)
 
 
 func add_item(id: String) -> void:
@@ -44,3 +71,8 @@ func remove_item(id: String) -> void:
 
 func item(id: String) -> Dictionary:
 	return ITEMS.get(id, {})
+
+
+func _process(delta: float) -> void:
+	if power_restored and hale_file < HALE_FILE_CAP:
+		hale_file = minf(HALE_FILE_CAP, hale_file + delta * HALE_FILE_RATE)

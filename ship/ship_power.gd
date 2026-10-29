@@ -1,8 +1,8 @@
 extends Node
 
-## Emergency power until Meki is back online: the ship's lights run dim and
-## red and the hum is faint. When he comes online the rooms come back one at
-## a time, each with a relay clunk.
+## Emergency power until Meki reroutes the backup cell: the ship's lights
+## run dim and red and the hum is faint. Then the rooms come back one at a
+## time, each with a relay clunk.
 
 @export var lights_path: NodePath
 @export var hum_path: NodePath
@@ -17,7 +17,7 @@ func _ready() -> void:
 	_clunk.stream = load("res://audio/sfx/power_on.ogg")
 	_clunk.volume_db = -8.0
 	add_child(_clunk)
-	if Game.state().meki_online:
+	if Game.state().power_restored:
 		return
 	for l in _lights():
 		l.set_meta("energy", l.light_energy)
@@ -31,7 +31,7 @@ func _ready() -> void:
 	var hum := get_node_or_null(hum_path)
 	if hum:
 		hum.volume_db = -26.0
-	Game.state().meki_online_changed.connect(_on_meki, CONNECT_ONE_SHOT)
+	Game.state().power_restored_changed.connect(_on_power, CONNECT_ONE_SHOT)
 
 
 func _lights() -> Array:
@@ -39,7 +39,7 @@ func _lights() -> Array:
 	return root.get_children().filter(func(n: Node) -> bool: return n is OmniLight3D) if root else []
 
 
-func _on_meki(_online: bool) -> void:
+func _on_power(_on: bool) -> void:
 	for l: OmniLight3D in _lights():
 		if not l.has_meta("energy"):
 			continue

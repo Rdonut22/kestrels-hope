@@ -17,6 +17,10 @@ var _hover := 0.0
 var _sfx: AudioStreamPlayer3D
 var _player: Node3D
 var _spark_light: OmniLight3D
+## While set, Meki hovers here (e.g. jacked into a computer) instead of
+## following Gana; `_hold_look` is what he faces.
+var _hold := Vector3.INF
+var _hold_look := Vector3.ZERO
 
 
 func _enter_tree() -> void:
@@ -151,12 +155,39 @@ func boot() -> void:
 	tw.tween_property(self, "global_position", global_position + Vector3(0, 0.55, 0), 1.2).set_trans(Tween.TRANS_SINE)
 	await tw.finished
 	_play("res://audio/sfx/beep.ogg")
-	var hud := get_tree().get_first_node_in_group("hud")
-	hud.show_message("MEKI:  ...Gana? How long was I out?", 4.0)
-	await get_tree().create_timer(1.2).timeout
 	dead = false
 	_add_talk()
 	Game.state().meki_online = true
+	diagnose()
+
+
+## Meki's first words and his ship diagnosis, right after he wakes.
+func diagnose() -> void:
+	var hud := get_tree().get_first_node_in_group("hud")
+	await hud.think([
+		["MEKI", "...Gana? How long was I out?"],
+		"Forty-three days, buddy. Welcome back.",
+		["MEKI", "Forty-three... Running diagnostics. Please hold."],
+	])
+	_play("res://audio/sfx/beep.ogg")
+	await hud.think([
+		["MEKI", "Main power cell is cracked. We've been running on scraps this whole time."],
+		["MEKI", "Port thrusters aren't getting any power at all. Nav array and comms are damaged too."],
+		["MEKI", "One more thing. There's a private file in my memory marked HALE. It's corrupted. I'll... keep working on it."],
+		"...Hale's?",
+		["MEKI", "First things first. I can jack into the engineering computer and route the backup cell around the damage."],
+		["MEKI", "Meet me at the power panel, by the bench."],
+	])
+
+
+## Park at a spot (plugged into a computer) looking at `look`.
+func hold_at(pos: Vector3, look: Vector3) -> void:
+	_hold = pos
+	_hold_look = look
+
+
+func release() -> void:
+	_hold = Vector3.INF
 
 
 func _add_talk() -> void:
@@ -181,8 +212,10 @@ func _physics_process(delta: float) -> void:
 	right = right.normalized()
 	var target := _player.global_position + right * 0.75 + Vector3(0, 0.75 + sin(t * 0.7) * 0.08, 0) \
 		+ Vector3(sin(t * 0.31), 0, cos(t * 0.23)) * 0.25
+	if _hold != Vector3.INF:
+		target = _hold
 	var to := target - global_position
-	if to.length() > 7.0:
+	if to.length() > 7.0 and _hold == Vector3.INF:
 		# Lost him round a corner: catch up behind Gana.
 		global_position = _player.global_position + Vector3(0, 0.8, 0) + pivot.global_transform.basis.z * 0.8
 		velocity = Vector3.ZERO
@@ -192,7 +225,7 @@ func _physics_process(delta: float) -> void:
 	# Bob, tilt into the motion and keep the lens on Gana.
 	_hover += delta
 	_model.position.y = sin(_hover * 2.1) * 0.04
-	var look := _player.global_position + Vector3(0, 0.6, 0) - global_position
+	var look := (_player.global_position + Vector3(0, 0.6, 0) if _hold == Vector3.INF else _hold_look) - global_position
 	var yaw := atan2(look.x, look.z)
 	_model.rotation.y = lerp_angle(_model.rotation.y, yaw, minf(1.0, delta * 3.0))
 	_model.rotation.x = lerpf(_model.rotation.x, clampf(velocity.length() * 0.08, 0.0, 0.3), minf(1.0, delta * 3.0))

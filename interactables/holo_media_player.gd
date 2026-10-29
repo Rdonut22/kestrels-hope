@@ -45,9 +45,9 @@ func _ready() -> void:
 	add_child(_music)
 	_spectrum = AudioServer.get_bus_effect_instance(AudioServer.get_bus_index(_music.bus), 0)
 	_refresh()
-	# The hologram only appears once Meki has the power back on.
-	visible = Game.state().meki_online
-	Game.state().meki_online_changed.connect(func(on: bool) -> void: visible = on)
+	# The hologram only appears once the power is back on.
+	visible = Game.state().power_restored
+	Game.state().power_restored_changed.connect(func(on: bool) -> void: visible = on)
 
 
 func get_prompt() -> String:

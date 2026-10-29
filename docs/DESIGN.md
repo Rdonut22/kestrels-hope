@@ -400,3 +400,41 @@ toward any unseen tab.
 - More free-time activities (cooking), and the book text files.
 - Where the full hold and Hale's locker live (a small cargo bay?).
 - Updating the intro narration and logs to match (later).
+
+### Built so far (act one)
+
+- New Game: after the intro Gana is sat in the pilot seat; seat menu
+  [E] Panel / [Q] Kestrel drive / [Space] Stand. Opening thoughts play.
+- Switch plate on the dash (MAIN DRIVE, NAV, DIAGNOSTICS) with a reactor
+  gauge. Without power the switches clack, flicker and spring back, the
+  glass flashes INSUFFICIENT POWER, and Gana's thoughts point to Meki.
+- Kestrel drive opens from the seat; on emergency power its live pages say
+  INSUFFICIENT POWER (status and crew list still work).
+- Meki's repair (bench) → he wakes, talks, runs his diagnosis (main cell,
+  port thrusters, nav, comms, the corrupted HALE file) and sends Gana to
+  the power panel.
+- Engineering power panel: Meki jacks in; the reroute puzzle is a pipe
+  puzzle on a green schematic (rotate conduits so cell B feeds lights,
+  galley/lounge and cockpit around the cracked cell A). Solving it restores
+  power (lights come back room by room).
+- Two power stages in GameState: `meki_online`, then `power_restored`
+  (what `needs_power` waits for).
+- Switches then latch on; with all three the windshield HUD boots: tabs
+  ALTITUDE, DIAGNOSTICS (rotating wireframe Kestrel, W/S cycles systems,
+  HALE_PRIVATE.LOG %), COMMS (Angel / Ushida / beacon; Gana's lines on
+  first view), NAV (wireframe globe, the signal, atmosphere and terrain).
+  Unread badges; landing unlocks once every tab is seen.
+- INITIATE LANDING → warnings → confirm → Meki interrupts → Hale's letter
+  in Meki's box → "Chances of survival... twenty-three percent." / "Great.
+  What a helpful little droid." → NAV shows DESCENT PROGRAM ARMED. Nothing
+  after that is built yet.
+- Gana's thought box (typed, non-blocking, click to skip; Meki lines in
+  cyan). Thought spots: Hale's bunk (how he disappeared), Hale's pried
+  locker, photos of Gana & Hale and of Angel on the quarters shelf, the
+  sealed cargo crates.
+- Meki's talk menu adapts ("What should I do now?", "Hale's file").
+
+Simplifications to revisit: the Nav globe is drawn on the HUD rather than
+over the real planet (there's no planet in the space scene yet); the
+photos are simple painted placeholders; the 2D schematic view for each
+diagnostics system isn't done yet.
