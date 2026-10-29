@@ -191,6 +191,16 @@ func stand() -> void:
 	_seat = null
 	if seat.has_method("on_stand"):
 		seat.on_stand(self)
+	if seat.has_method("stand_position"):
+		var spot: Transform3D = seat.stand_position()
+		global_position = spot.origin
+		var face := -spot.basis.z
+		var y := atan2(-face.x, -face.z)
+		pivot.rotation = Vector3(-0.15, y, 0)
+		mesh.rotation.y = y
+		mesh.visible = true
+		($CameraPivot/SpringArm3D/Camera3D as Camera3D).make_current()
+		return
 	# Step off the couch toward the room.
 	var ahead: Vector3 = seat.look_target() - seat.global_position
 	ahead.y = 0

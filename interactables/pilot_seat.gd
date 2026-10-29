@@ -65,6 +65,13 @@ func on_stand(_player_node: Node) -> void:
 	_target = Vector3.ZERO
 
 
+## Standing up puts Gana behind the chairs, facing back into the ship
+## (in front of the seat is boxed in by the console).
+func stand_position() -> Transform3D:
+	var spot := global_position + Vector3(0.45, 1.0, 0.95)
+	return Transform3D(Basis(Vector3.UP, PI), spot)
+
+
 ## The thoughts that open the game, once, sat here after the intro.
 func opening() -> void:
 	await get_tree().create_timer(1.2).timeout
