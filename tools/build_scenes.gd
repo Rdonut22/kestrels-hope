@@ -3586,8 +3586,15 @@ func _build_crash_site() -> void:
 			var fs := rng.randf_range(0.06, 0.11)
 			flowers.append([Transform3D(Basis().scaled(Vector3(fs, fs * 0.6, fs)), Vector3(fp.x, GROUND_Y + rng.randf_range(0.15, 0.4), fp.y)),
 				petals[rng.randi() % petals.size()]])
-	var grass_mm := _multimesh(site, "Grass", blade, grass, "grass_blade")
-	grass_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Flowing grass (world/grass_field.gd), lush through the forest, short
+	# and patchy in the clearing and the ruin vistas, none on the ship,
+	# trail, pond, rocks or trunks.
+	var grass_map := _grass_map(pond_c, rocks + mossy, trunks)
+	var field := Node3D.new()
+	field.set_script(load("res://world/grass_field.gd"))
+	field.set("density_map", grass_map)
+	field.position.y = GROUND_Y
+	_add(site, field, "Grass")
 	var petal := BoxMesh.new()
 	var flower_mm := _multimesh(site, "Flowers", petal, flowers, "flower_vc")
 	flower_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -3686,6 +3693,57 @@ func _multimesh(parent: Node, name: String, mesh: Mesh, items: Array, mat: Strin
 	mmi.multimesh = mm
 	mmi.material_override = mats[mat]
 	return _add(parent, mmi, name)
+
+
+## Where the grass grows: red = how thick, green = how tall, 256 px over
+## the 200 m around the site. Saved so world/grass_field.gd can read it.
+func _grass_map(pond_c: Vector2, rocks: Array, trunks: Array) -> ImageTexture:
+	const SIZE := 256
+	const AREA := 200.0
+	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGB8)
+	var patches := FastNoiseLite.new()
+	patches.seed = 7
+	patches.frequency = 0.045
+	var fine := FastNoiseLite.new()
+	fine.seed = 19
+	fine.frequency = 0.16
+	for py in SIZE:
+		for px in SIZE:
+			var p := Vector2((px + 0.5) / SIZE - 0.5, (py + 0.5) / SIZE - 0.5) * AREA
+			var patch := patches.get_noise_2dv(p) * 0.5 + 0.5
+			var speck := fine.get_noise_2dv(p) * 0.5 + 0.5
+			# Forest floor: lush and tall, in thick and thinner patches.
+			var dens := lerpf(0.62, 1.0, smoothstep(0.3, 0.65, patch))
+			var tall := lerpf(0.45, 1.0, smoothstep(0.25, 0.7, patch)) * lerpf(0.85, 1.05, speck)
+			# The clearings stay open: short, patchy ground cover.
+			var open := 1.0 - smoothstep(-2.0, 5.0, _clear_dist(p))
+			if _in_vista(p):
+				open = maxf(open, 0.75)
+			dens = lerpf(dens, 0.2 + 0.32 * smoothstep(0.45, 0.8, speck * 0.6 + patch * 0.4), open)
+			tall = lerpf(tall, 0.1 + 0.2 * patch, open)
+			# Bare round the ship and its dirt, along the furrow, in the pond.
+			if _in_ship_zone(p, 1.5) or (absf(p.x + 0.8) < 7.5 and p.y > 6.0 and p.y < 88.0) or p.distance_to(pond_c) < 5.2:
+				dens = 0.0
+			img.set_pixel(px, py, Color(dens, clampf(tall, 0.0, 1.0), 0.0))
+	# Rocks and tree trunks punch holes in it.
+	for it in rocks + trunks:
+		var xf: Transform3D = it[0]
+		var r := xf.basis.get_scale().x * (0.5 if it in rocks else 1.0) + 0.25
+		var c := Vector2(xf.origin.x, xf.origin.z)
+		var lo := Vector2i(((c - Vector2.ONE * r) / AREA + Vector2.ONE * 0.5) * SIZE)
+		var hi := Vector2i(((c + Vector2.ONE * r) / AREA + Vector2.ONE * 0.5) * SIZE) + Vector2i.ONE
+		for py in range(maxi(lo.y, 0), mini(hi.y + 1, SIZE)):
+			for px in range(maxi(lo.x, 0), mini(hi.x + 1, SIZE)):
+				var p := Vector2((px + 0.5) / SIZE - 0.5, (py + 0.5) / SIZE - 0.5) * AREA
+				if p.distance_to(c) < r:
+					var col := img.get_pixel(px, py)
+					col.r = 0.0
+					img.set_pixel(px, py, col)
+	var tex := ImageTexture.create_from_image(img)
+	const PATH := "res://world/grass_density.res"
+	ResourceSaver.save(tex, PATH)
+	tex.take_over_path(PATH)
+	return tex
 
 
 func _pond_radius(a: float) -> float:
