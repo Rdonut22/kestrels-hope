@@ -329,9 +329,11 @@ Nothing after INITIATE LANDING is planned in detail yet.
 6. **Back in the cockpit** the switches work and the windshield HUD boots.
    Coffee, lounge, music and books are powered. Nav, comms and thrusters
    have power but "not enough to get us home".
-7. **Middle repairs** (2–3, TBD) fill the space act; each gives Meki a bit
-   more power to recover Hale's file (HALE_PRIVATE.LOG: n% RECOVERED).
-8. **Hale's letter.** At 100% Meki opens it for Gana. It explains the ore,
+7. **Hale's file recovers in the background.** No extra repairs in space
+   (ship repairs belong to the core game on the planet). Meki works on it
+   on his own; progress shows on Diagnostics (HALE_PRIVATE.LOG: n%
+   RECOVERED). Meanwhile: coffee, reading, music, sleep, the HUD tabs.
+8. **Hale's letter.** When it's done, Meki presents it to Gana. It explains the ore,
    the weapons, the refused contract, why they were sent, and that it
    wouldn't be an accident.
 9. **Nav** then shows a blinking power signal on the planet, terrain notes,
@@ -388,7 +390,8 @@ toward any unseen tab.
 
 ### Still open
 
-- The 2–3 middle repairs (and what exactly drives the file recovery).
+- Exactly when the file finishes (e.g. after a night's sleep and all HUD
+  tabs seen).
 - Reroute puzzle rules.
 - Days passing on the ship (sleep advances the day, small morning
   changes) and a save system.
