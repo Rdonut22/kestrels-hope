@@ -265,6 +265,7 @@ func _go(scene: String) -> void:
 
 
 func _on_new_game() -> void:
+	Game.state().reset()
 	_go("res://intro.tscn")
 
 

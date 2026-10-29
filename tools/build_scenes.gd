@@ -209,6 +209,45 @@ func _inspect(parent: Node, name: String, pos: Vector3, prompt: String, message:
 	_interactable(parent, name, "inspect", pos, {"prompt": prompt, "message": message, "interact_range": rng})
 
 
+# Places where Gana thinks out loud the first time he walks in.
+func _thought_zones() -> void:
+	var zones := _add(scene_root, Node3D.new(), "ThoughtZones")
+	var add := func(name: String, centre: Vector3, size: Vector3, lines: Array, when := "any") -> void:
+		var z := Area3D.new()
+		z.set_script(load("res://world/thought_zone.gd"))
+		z.position = centre
+		z.set("lines", "|".join(lines))
+		z.set("flag", "zone_" + name.to_snake_case())
+		z.set("when", when)
+		_add(zones, z, name)
+		var cs := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = size
+		cs.shape = box
+		_add(z, cs, "Shape")
+	add.call("LeavingCockpit", Vector3(4.0, 1.0, -6.0), Vector3(3.0, 2.0, 1.2), [
+		"Forty-three days since the pirates hit us.",
+		"Twenty minutes. That's all it took. Then nothing but the hum."])
+	add.call("Quarters", Vector3(-0.4, 1.0, -7.9), Vector3(4.0, 2.0, 3.2), [
+		"Hale's bunk. Still made. Never could bring myself to strip it.",
+		"When they boarded, he went aft to lock down engineering. Told me to stay at the helm.",
+		"By the time I got back there, the airlock had cycled.",
+		"No body. No message. He was just... gone."])
+	add.call("HalesLocker", Vector3(1.15, 1.0, -6.35), Vector3(1.2, 2.0, 0.9), [
+		"His locker's still pried open.",
+		"They went through Hale's things... and nothing else on the whole ship."])
+	add.call("Photos", Vector3(1.0, 1.0, -7.4), Vector3(1.0, 2.0, 1.5), [
+		"Hale and me in Asura, back in the draft. Too young and too stupid to be scared.",
+		"And Angel. Hang on. I'm coming home."])
+	add.call("CargoCrates", Vector3(1.0, 1.0, 6.05), Vector3(1.6, 2.0, 1.4), [
+		"Every crate still sealed. Six months of ore, right where we left it.",
+		"What kind of pirates leave the cargo?"])
+	add.call("Engineering", Vector3(-4.4, 1.0, 1.0), Vector3(3.4, 2.0, 4.2), [
+		"Meki. Right where I left him on the bench.",
+		"I gave up on you weeks ago, buddy. Nothing I tried would take.",
+		"...I'm out of options now. One more try."], "meki_dead")
+
+
 # Like _inspect, but Gana thinks the lines out loud.
 func _thought(parent: Node, name: String, pos: Vector3, prompt: String, lines: Array, rng := 1.6) -> void:
 	_interactable(parent, name, "inspect", pos, {"prompt": prompt, "message": "|".join(lines), "interact_range": rng, "thought": true})
@@ -581,11 +620,6 @@ func _build_ship() -> void:
 
 	_interactable(use, "Bed", "bunk", Vector3(-2.75, 0.85, -7.6), {"prompt": "Sleep", "interact_range": 1.8})
 
-	_thought(use, "SpareBed", Vector3(-2.75, 2.0, -7.6), "Hale's bunk", [
-		"Hale's bunk. Still made. Never could bring myself to strip it.",
-		"When they boarded, he went aft to lock down engineering. Told me to stay at the helm.",
-		"By the time I got back there, the airlock had cycled.",
-		"No body. No message. He was just... gone."], 1.8)
 	_thought(use, "Locker", Vector3(1.45, 1.0, -6.2), "Hale's locker", [
 		"Hale's locker. Pried open.",
 		"They went through his things... and nothing else on the whole ship.",
@@ -611,6 +645,7 @@ func _build_ship() -> void:
 		_interactable(use, "PilotSeat", "pilot_seat", Vector3(3.3, 0.0, -11.0),
 			{"interact_range": 1.2, "panel_path": NodePath("../../CockpitPanel"), "computer_path": NodePath("../ShipComputer")})
 		_interactable(use, "PowerPanel", "power_panel", Vector3(-4.95, 1.2, -0.95), {"interact_range": 1.4})
+		_thought_zones()
 	_inspect(use, "FoodDispenser", Vector3(5.35, 1.2, -5.0), "Food dispenser",
 		"Ration paste. Today's flavor: 'savory'.", 1.6)
 	_inspect(use, "LoungeWindow", Vector3(6.6, 1.6, 1.6), "Look outside",

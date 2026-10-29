@@ -45,6 +45,16 @@ const HALE_FILE_RATE := 0.25  # percent per second
 var flags := {}
 
 
+## Back to the very start (New Game).
+func reset() -> void:
+	meki_online = false
+	power_restored = false
+	items.clear()
+	flags.clear()
+	hale_file = 0.0
+	inventory_changed.emit()
+
+
 func has_flag(flag: String) -> bool:
 	return flags.get(flag, false)
 
