@@ -46,7 +46,7 @@ radius = 0.15
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=114272333]
 environment = SubResource("Environment_getpj")
 
-[node name="ShipInterior" type="Node3D" parent="." unique_id=1444319954 instance=ExtResource("2_efxa6")]
+[node name="ShipInterior" type="Node3D" parent="." unique_id=1105699684 instance=ExtResource("2_efxa6")]
 
 [node name="Player" type="CharacterBody3D" parent="." unique_id=1728964109]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.1, -6.5)
@@ -55,14 +55,14 @@ script = ExtResource("1_ig7tw")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1791278488]
 shape = SubResource("CapsuleShape3D_0xm2m")
 
-[node name="Model" type="Node3D" parent="Player" unique_id=40723824 instance=ExtResource("4_dg77c")]
+[node name="Model" type="Node3D" parent="Player" unique_id=1752001051 instance=ExtResource("4_dg77c")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
 script = ExtResource("5_ycdy4")
 
 [node name="CameraPivot" type="Node3D" parent="Player" unique_id=865327466]
 transform = Transform3D(1, 0, 0, 0, 0.9800666, 0.19866933, 0, -0.19866933, 0.9800666, 0, 0.75, 0)
 
-[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraPivot" unique_id=914601604]
+[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraPivot" unique_id=2030196142]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
 shape = SubResource("SphereShape3D_ryguw")
 spring_length = 2.4
@@ -70,17 +70,17 @@ margin = 0.15
 
 [node name="Camera3D" type="Camera3D" parent="Player/CameraPivot/SpringArm3D" unique_id=499175855]
 
-[node name="ShipHum" type="AudioStreamPlayer" parent="." unique_id=442304343]
+[node name="ShipHum" type="AudioStreamPlayer" parent="." unique_id=308857076]
 script = ExtResource("6_w48qg")
 
-[node name="HUD" type="CanvasLayer" parent="." unique_id=345240205 groups=["hud"] instance=ExtResource("7_vivmo")]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=417766703 groups=["hud"] instance=ExtResource("7_vivmo")]
 script = ExtResource("8_2cqfq")
 
-[node name="Meki" type="CharacterBody3D" parent="." unique_id=925022804]
+[node name="Meki" type="CharacterBody3D" parent="." unique_id=841687791]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.95, 1.1, 1.1)
 script = ExtResource("9_yaehf")
 
-[node name="ShipPower" type="Node" parent="." unique_id=1430840878]
+[node name="ShipPower" type="Node" parent="." unique_id=1628967109]
 script = ExtResource("10_074og")
 lights_path = NodePath("../ShipInterior/Lights")
 hum_path = NodePath("../ShipHum")

@@ -236,9 +236,6 @@ func _thought_zones() -> void:
 	add.call("HalesLocker", Vector3(1.15, 1.0, -6.35), Vector3(1.2, 2.0, 0.9), [
 		"His locker's still pried open.",
 		"They went through Hale's things... and nothing else on the whole ship."])
-	add.call("Photos", Vector3(1.0, 1.0, -7.4), Vector3(1.0, 2.0, 1.5), [
-		"Hale and me in Asura, back in the draft. Too young and too stupid to be scared.",
-		"And Angel. Hang on. I'm coming home."])
 	add.call("CargoCrates", Vector3(1.0, 1.0, 6.05), Vector3(1.6, 2.0, 1.4), [
 		"Every crate still sealed. Six months of ore, right where we left it.",
 		"What kind of pirates leave the cargo?"])
@@ -557,22 +554,25 @@ func _build_ship() -> void:
 	door.transform = Transform3D(Basis(Vector3.UP, 0.55) * Basis(Vector3.RIGHT, 0.05), Vector3(1.0, 1.0, -6.42))
 	_mesh_box(scene_root, "LockerInside", Vector3(1.095, 1.0, -6.2), Vector3(0.01, 1.8, 0.52), "cable")
 	_mesh_box(scene_root, "LockerScrape", Vector3(1.093, 1.15, -6.48), Vector3(0.01, 0.12, 0.03), "trim")
-	for ph in [["PhotoHaleFrame", -7.88, "photo_gana_hale"], ["PhotoAngelFrame", -6.95, "photo_angel"]]:
+	# [name, z on the shelf, image, picture size]: Gana & Hale is landscape.
+	for ph in [["PhotoHaleFrame", -7.82, "photo_gana_hale", Vector2(0.18, 0.135)],
+			["PhotoAngelFrame", -6.95, "photo_angel", Vector2(0.12, 0.16)]]:
+		var size: Vector2 = ph[3]
 		var frame := Node3D.new()
 		frame.position = Vector3(1.62, 0.8, ph[1])
 		frame.rotation = Vector3(0, -PI / 2, 0)
 		_add(scene_root, frame, ph[0])
-		var back := _mesh_box(frame, "Frame", Vector3(0, 0.1, 0.01), Vector3(0.15, 0.19, 0.015), "wood")
+		var back := _mesh_box(frame, "Frame", Vector3(0, size.y / 2.0 + 0.02, 0.01), Vector3(size.x + 0.03, size.y + 0.03, 0.015), "wood")
 		back.rotation.x = -0.25
 		var pic := MeshInstance3D.new()
 		var qm := QuadMesh.new()
-		qm.size = Vector2(0.12, 0.15)
+		qm.size = size
 		pic.mesh = qm
 		var pm := StandardMaterial3D.new()
 		pm.albedo_texture = load("res://ship/props/%s.png" % ph[2])
 		pm.roughness = 0.5
 		pic.material_override = pm
-		pic.position = Vector3(0, 0.1, 0.019)
+		pic.position = Vector3(0, size.y / 2.0 + 0.02, 0.019)
 		pic.rotation.x = -0.25
 		_add(frame, pic, "Picture")
 
@@ -624,12 +624,12 @@ func _build_ship() -> void:
 		"Hale's locker. Pried open.",
 		"They went through his things... and nothing else on the whole ship.",
 		"What were you mixed up in, Hale?"], 1.4)
-	_thought(use, "PhotoHale", Vector3(1.6, 0.9, -7.9), "Photo", [
-		"Asura, the draft. Hale and me, too young and too stupid to be scared.",
-		"He swore we'd always make it out together."], 1.3)
-	_thought(use, "PhotoAngel", Vector3(1.6, 0.9, -6.95), "Photo of Angel", [
-		"Angel.",
-		"Hang on. I'm coming home. I promised."], 1.3)
+	_interactable(use, "PhotoHale", "photo", Vector3(1.6, 0.9, -7.82), {"prompt": "Look at photo", "interact_range": 1.3,
+		"image": load("res://ship/props/photo_gana_hale.png"),
+		"lines": "Asura, the draft. Hale and me, too young and too stupid to be scared.|He swore we'd always make it out together."})
+	_interactable(use, "PhotoAngel", "photo", Vector3(1.6, 0.9, -6.95), {"prompt": "Look at photo of Angel", "interact_range": 1.3,
+		"image": load("res://ship/props/photo_angel.png"),
+		"lines": "Angel.|Hang on. I'm coming home. I promised."})
 	_thought(use, "CargoCrates", Vector3(1.35, 0.7, 6.05), "Cargo crates", [
 		"Every crate still sealed. Six months of ore, right where we left it.",
 		"What kind of pirates leave the cargo?"], 1.3)

@@ -58,6 +58,8 @@ func is_busy() -> bool:
 func add_overlay(panel: Control) -> void:
 	_overlays.append(panel)
 	add_child(panel)
+	# Gana's thoughts stay readable on top of any panel.
+	move_child(_thoughts, -1)
 
 
 ## Gana (or Meki) thinking out loud. Lines are Strings (Gana) or
