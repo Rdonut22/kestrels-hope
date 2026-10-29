@@ -333,16 +333,20 @@ Nothing after INITIATE LANDING is planned in detail yet.
    (ship repairs belong to the core game on the planet). Meki works on it
    on his own; progress shows on Diagnostics (HALE_PRIVATE.LOG: n%
    RECOVERED). Meanwhile: coffee, reading, music, sleep, the HUD tabs.
-8. **Hale's letter.** When it's done, Meki presents it to Gana. It explains the ore,
-   the weapons, the refused contract, why they were sent, and that it
-   wouldn't be an accident.
-9. **Nav** then shows a blinking power signal on the planet, terrain notes,
-   O2/pressure/temperature (breathable), and **INITIATE LANDING** with
-   damage warnings (port thrusters, nav, hull, low success estimate).
-10. **Free time.** Landing waits as long as the player likes: cook, read,
-    music, sleep. Readouts are mood, not timers; gentle occasional nudges
-    only.
-11. Confirm landing → crash (not designed yet).
+8. **Nav** shows a blinking power signal on the planet, terrain notes,
+   O2/pressure/temperature (breathable), and — once every HUD tab has been
+   seen — **INITIATE LANDING** with damage warnings (port thrusters, nav,
+   hull, low success estimate).
+9. **Free time.** Landing waits as long as the player likes: cook, read,
+   music, sleep. Readouts are mood, not timers; gentle occasional nudges
+   only.
+10. **The letter interrupts the landing.** Pressing INITIATE LANDING, Meki
+    cuts in: the file has just finished, and he needs Gana to see it
+    first. Hale's letter opens in Meki's box (the ore, the weapons, the
+    refused contract, why they were sent, that it wouldn't be an accident).
+11. **Closing it resumes the landing**, now with the weight of the letter.
+    Meki: "You're landing now? Chances of survival... 23%." Gana, dry:
+    "Great. What a helpful little droid." → crash (not designed yet).
 
 ### Gana thinking out loud
 
@@ -383,15 +387,13 @@ live preview; A/D selects, the main view swaps with a CRT flicker.
   terrain labels, atmosphere; later INITIATE LANDING.
 
 Unread badges (blinking amber dot) mark tabs not yet opened and come back
-when something new happens there. Every tab must be seen, and the letter
-recovered, before landing unlocks; until then Nav says "LANDING
+when something new happens there. Every tab must be seen before landing unlocks
+(the letter itself interrupts the landing); until then Nav says "LANDING
 CALCULATION PENDING: SYSTEM CHECK INCOMPLETE" and Gana or Meki nudge
 toward any unseen tab.
 
 ### Still open
 
-- Exactly when the file finishes (e.g. after a night's sleep and all HUD
-  tabs seen).
 - Reroute puzzle rules.
 - Days passing on the ship (sleep advances the day, small morning
   changes) and a save system.
