@@ -25,7 +25,7 @@ signal footstep
 @export var walk_natural_speed := 1.3
 @export var run_natural_speed := 2.5
 ## How fast the blend follows speed changes.
-@export var blend_smoothing := 16.0
+@export var blend_smoothing := 10.0
 ## Point in the Run cycle (0..1) held as the in-air pose.
 @export_range(0.0, 1.0) var air_pose := 0.12
 

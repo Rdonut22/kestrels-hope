@@ -11,14 +11,14 @@ const MOUSE_SENSITIVITY = 0.003
 ## Hold Shift to jog instead (walking is the default).
 @export var walk_by_default := false
 ## How quickly he gets up to speed (m/s per second).
-@export var acceleration := 18.0
+@export var acceleration := 9.0
 ## How quickly he slows down when you let go (m/s per second).
-@export var deceleration := 20.0
+@export var deceleration := 12.0
 ## Fastest he turns, standing / at a jog (degrees per second).
-@export var turn_speed_standing := 1000.0
-@export var turn_speed_moving := 620.0
+@export var turn_speed_standing := 600.0
+@export var turn_speed_moving := 330.0
 ## Fraction of ground control he keeps in the air.
-@export_range(0.0, 1.0) var air_control := 0.5
+@export_range(0.0, 1.0) var air_control := 0.35
 @export var jump_velocity := 4.5
 ## Jumping still works this long after stepping off a ledge (seconds).
 @export var coyote_time := 0.12
@@ -151,24 +151,20 @@ func _physics_process(delta: float) -> void:
 		var want := atan2(-direction.x, -direction.z)
 		var diff := wrapf(want - mesh.rotation.y, -PI, PI)
 		var max_turn := deg_to_rad(lerpf(turn_speed_standing, turn_speed_moving, clampf(flat_speed / jog_speed, 0.0, 1.0)))
-		var step := clampf(diff * 18.0 * delta, -max_turn * delta, max_turn * delta)
+		var step := clampf(diff * 10.0 * delta, -max_turn * delta, max_turn * delta)
 		mesh.rotation.y = wrapf(mesh.rotation.y + step, -PI, PI)
 		_turn_rate = step / delta
-		# Only a sharp reversal (more than ~110 degrees) slows him down.
-		align = smoothstep(-0.35, 0.2, facing.dot(direction.normalized()))
+		align = clampf(facing.dot(direction.normalized()), 0.0, 1.0)
 
-	# On the ground he goes where you point straight away (no drifting);
-	# only his speed ramps up and down, briefly. In the air the velocity
-	# itself turns, slowly, so a jump keeps its momentum.
-	var target_speed := pace * lerpf(0.35, 1.0, align) if direction.length() > 0.01 else 0.0
+	# Accelerate the velocity itself toward the target: a little momentum,
+	# smooth starts and stops, no ice-skating. Speed builds as he faces the
+	# way he's going.
+	var target := direction * pace * lerpf(0.25, 1.0, align * align)
 	var horizontal := Vector3(velocity.x, 0, velocity.z)
-	if grounded:
-		var rate := acceleration if target_speed > flat_speed else deceleration
-		var new_speed := move_toward(flat_speed, target_speed, rate * delta)
-		var heading := direction.normalized() if direction.length() > 0.01 else horizontal.normalized()
-		horizontal = heading * new_speed
-	else:
-		horizontal = horizontal.move_toward(direction * pace, acceleration * air_control * delta)
+	var rate := acceleration if target.length() > horizontal.length() * 0.95 else deceleration
+	if not grounded:
+		rate *= air_control
+	horizontal = horizontal.move_toward(target, rate * delta)
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 
