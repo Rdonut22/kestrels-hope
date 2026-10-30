@@ -18,8 +18,8 @@ extends Node3D
 ## angular radii in degrees.
 
 @export_group("Giant moon")
-@export_range(-180.0, 180.0) var giant_azimuth := -158.0
-@export_range(-10.0, 90.0) var giant_elevation := 22.0
+@export_range(-180.0, 180.0) var giant_azimuth := 86.0
+@export_range(-10.0, 90.0) var giant_elevation := 34.0
 @export_range(1.0, 60.0) var giant_size := 28.0
 ## Turns the surface (which craters face us), in degrees.
 @export var giant_spin := Vector3(20.0, 140.0, 0.0)
@@ -34,8 +34,8 @@ extends Node3D
 @export_range(0.0, 1.0) var shadow_visibility := 0.3
 
 @export_group("Small moon")
-@export_range(-180.0, 180.0) var small_azimuth := 172.0
-@export_range(-10.0, 90.0) var small_elevation := 41.0
+@export_range(-180.0, 180.0) var small_azimuth := 52.0
+@export_range(-10.0, 90.0) var small_elevation := 54.0
 @export_range(0.5, 20.0) var small_size := 3.5
 @export var small_spin := Vector3(-30.0, 60.0, 10.0)
 @export_range(0.0, 3.0) var small_crater_depth := 0.8

@@ -20,7 +20,7 @@ var _starting := false
 
 func _ready() -> void:
 	_quiet_world()
-	_set_dusk()
+	_set_midday()
 	_extend_forest()
 	var seat := _place_pilot()
 	_setup_camera(seat)
@@ -36,9 +36,9 @@ func _quiet_world() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-func _set_dusk() -> void:
+func _set_midday() -> void:
 	var clock := world.get_node("DayNight")
-	clock.skip_to(17.95)
+	clock.skip_to(11.0)
 	clock.set_process(false)
 	clock.set_process_unhandled_input(false)
 	var env: Environment = world.get_node("WorldEnvironment").environment
@@ -76,6 +76,11 @@ func _boost_smoke() -> void:
 	smoke.restart()
 
 
+## The redwoods' size on the title screen (they're 20-70 m tall in the
+## game): lower, and spread a little wider so the crowns close up.
+const MENU_TREE_SCALE := Vector3(0.7, 0.45, 0.7)
+
+
 # The crash-site forest only covers the play area; tile its tree layers
 # around it so the view from the ring is forest to the horizon.
 func _extend_forest() -> void:
@@ -87,6 +92,9 @@ func _extend_forest() -> void:
 	# every tree, then copied round.
 	var merged := {}  # mesh -> [material, transforms]
 	for tree: Node3D in site.get_node("Redwoods").get_children():
+		# Shrunk for this shot, so from the ring Gana looks out over the
+		# treetops to the wreck instead of into a wall of giant trunks.
+		tree.scale *= MENU_TREE_SCALE
 		for part: MeshInstance3D in [tree.get_node("BarkFar"), tree.get_node("Foliage")]:
 			# The far foliage: same kind, saved next to the full one.
 			var mesh: Mesh = part.mesh if part.name == "BarkFar" else load(part.mesh.resource_path.replace("_lod0_", "_lod1_"))
