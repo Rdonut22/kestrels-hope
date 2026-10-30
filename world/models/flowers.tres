@@ -1,0 +1,13 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://world/models/flowers_texture.res" id="1_jb8vs"]
+
+[resource]
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+cull_mode = 2
+albedo_texture = ExtResource("1_jb8vs")
+roughness = 0.9
+backlight_enabled = true
+backlight = Color(0.55, 0.55, 0.5, 1)

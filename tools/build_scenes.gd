@@ -2843,8 +2843,6 @@ func _make_world_materials() -> void:
 	_terrain_mat("dirt", 1.0)
 	mats["leaf_a"] = mats["bush"]
 	mats["leaf_b"] = mats["canopy"]
-	var flower := _wmat("flower_vc", Color(1, 1, 1))
-	flower.vertex_color_use_as_albedo = true
 	var water := ShaderMaterial.new()
 	water.shader = load("res://world/water.gdshader")
 	ResourceSaver.save(water, "res://world/materials/water.tres")
@@ -2855,10 +2853,8 @@ func _make_world_materials() -> void:
 	ResourceSaver.save(beam, "res://world/materials/sunbeam.tres")
 	beam.take_over_path("res://world/materials/sunbeam.tres")
 	mats["sunbeam"] = beam
-	_wmat("wing", Color(1.0, 0.5, 0.15), 0.8, 0.0, 0.4).cull_mode = BaseMaterial3D.CULL_DISABLED
-	_wmat("wing_red", Color(0.9, 0.2, 0.25), 0.8, 0.0, 0.4).cull_mode = BaseMaterial3D.CULL_DISABLED
 	# Re-save materials changed after _wmat first wrote them.
-	for n in ["grass_blade", "flower_vc", "wing", "wing_red"]:
+	for n in ["grass_blade"]:
 		ResourceSaver.save(mats[n], "res://world/materials/%s.tres" % n)
 
 
@@ -3583,9 +3579,7 @@ func _build_crash_site() -> void:
 	field.set("density_map", grass_map)
 	field.position.y = GROUND_Y
 	_add(site, field, "Grass")
-	var petal := BoxMesh.new()
-	var flower_mm := _multimesh(site, "Flowers", petal, flowers, "flower_vc")
-	flower_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_build_flowers(site, flowers, GROUND_Y)
 
 	# Sunbeams slanting through the canopy.
 	var axis := -Vector3(-0.65, -0.62, -0.25).normalized()
@@ -3608,8 +3602,7 @@ func _build_crash_site() -> void:
 			_add(site, bm, "Sunbeam%d_%d" % [k, q])
 
 	# Butterflies around the meadow and pond.
-	var wing_quad := QuadMesh.new()
-	wing_quad.size = Vector2(0.12, 0.1)
+	var butterfly := _butterfly_model()
 	for k in 8:
 		var fly := Node3D.new()
 		fly.set_script(load("res://world/butterfly.gd"))
@@ -3617,15 +3610,14 @@ func _build_crash_site() -> void:
 		var home := pond_c + Vector2(rng.randf_range(-9, 6), rng.randf_range(-8, 8))
 		fly.position = Vector3(home.x, GROUND_Y + rng.randf_range(0.6, 1.6), home.y)
 		_add(site, fly, "Butterfly%d" % k)
-		for side in [-1.0, 1.0]:
-			var pivot := Node3D.new()
-			_add(fly, pivot, "WingL" if side < 0 else "WingR")
-			var w := MeshInstance3D.new()
-			w.mesh = wing_quad
-			w.material_override = mats["wing" if k % 3 else "wing_red"]
-			w.position = Vector3(0.06 * side, 0, 0)
-			w.rotation.x = -PI / 2
-			_add(pivot, w, "Wing")
+		var body := MeshInstance3D.new()
+		body.mesh = butterfly[0]
+		for i in (butterfly[1] as Array).size():
+			body.set_surface_override_material(i, butterfly[1][i])
+		body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# The model's head is at +Z and it's about a metre across.
+		body.transform = Transform3D(Basis(Vector3.UP, PI).scaled(Vector3.ONE * 0.2), Vector3.ZERO)
+		_add(fly, body, "Body")
 
 	_build_ruins(site)
 
@@ -3799,6 +3791,93 @@ func _build_redwoods(site: Node3D, ground_y: float) -> Array:
 		_add(body, cs, "Shape")
 	print("redwoods: ", placed.size())
 	return trunks
+
+
+## A model's scene from a glTF file, read directly (the source models sit in
+## world/models/source, which Godot doesn't import).
+func _gltf_scene(path: String) -> Node:
+	var doc := GLTFDocument.new()
+	var state := GLTFState.new()
+	doc.append_from_file(ProjectSettings.globalize_path(path), state)
+	return doc.generate_scene(state)
+
+
+## Meadow flowers (Quaternius' low-poly flowers): one multimesh per flower
+## model under "Flowers", at the spots the meadow layout picked. `spots` are
+## [Transform3D, colour] from the old box petals: their position and size
+## are kept, the model is picked from where they are.
+func _build_flowers(site: Node3D, spots: Array, ground_y: float) -> void:
+	var scene := _gltf_scene("res://world/models/source/flowers.glb")
+	var parts := scene.find_children("*", "MeshInstance3D", true, false)
+	parts.sort_custom(func(a: Node, b: Node) -> bool: return a.name < b.name)
+	# One shared material, its texture with mipmaps.
+	var src: StandardMaterial3D = (parts[0] as MeshInstance3D).mesh.surface_get_material(0)
+	# A colour atlas: 256 px is plenty.
+	var img := src.albedo_texture.get_image()
+	img.resize(256, 256, Image.INTERPOLATE_LANCZOS)
+	img.generate_mipmaps()
+	var tex := ImageTexture.create_from_image(img)
+	_save_resource(tex, "res://world/models/flowers_texture.res")
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = tex
+	mat.roughness = 0.9
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# The petals are cut out of the texture.
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	mat.alpha_scissor_threshold = 0.5
+	# Petals glow a little with the sun behind them instead of going black.
+	mat.backlight_enabled = true
+	mat.backlight = Color(0.55, 0.55, 0.5)
+	_save_resource(mat, "res://world/models/flowers.tres")
+	var root := _add(site, Node3D.new(), "Flowers")
+	var items := []
+	for part in parts:
+		items.append([])
+	for spot in spots:
+		var xf: Transform3D = spot[0]
+		var at := Vector3(xf.origin.x, ground_y, xf.origin.z)
+		var k := int(absf(at.x * 13.7 + at.z * 7.3)) % parts.size()
+		var size := xf.basis.get_scale().x * 7.0
+		var turn := Basis(Vector3.UP, fposmod(at.x * 3.1 + at.z * 1.7, TAU))
+		(items[k] as Array).append(Transform3D(turn.scaled(Vector3.ONE * size) * (parts[k] as MeshInstance3D).transform.basis, at))
+	for k in parts.size():
+		var mi: MeshInstance3D = parts[k]
+		var mesh: ArrayMesh = mi.mesh
+		mesh.surface_set_material(0, mat)
+		_save_resource(mesh, "res://world/models/%s.res" % String(mi.name).to_snake_case())
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = (items[k] as Array).size()
+		for i in mm.instance_count:
+			mm.set_instance_transform(i, items[k][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_add(root, mmi, String(mi.name))
+	scene.free()
+
+
+## The butterfly model (Hugo Gibson's), saved as world/models/butterfly.res,
+## with one flapping material (world/butterfly.gdshader) per surface in the
+## model's colours: [mesh, materials].
+func _butterfly_model() -> Array:
+	var scene := _gltf_scene("res://world/models/source/butterfly.glb")
+	var mi: MeshInstance3D = scene.find_children("*", "MeshInstance3D", true, false)[0]
+	var mesh: ArrayMesh = mi.mesh
+	var shader := load("res://world/butterfly.gdshader")
+	var surface_mats := []
+	for i in mesh.get_surface_count():
+		var m := ShaderMaterial.new()
+		m.shader = shader
+		var src := mesh.surface_get_material(i) as BaseMaterial3D
+		m.set_shader_parameter("albedo", src.albedo_color if src else Color(1, 1, 1))
+		_save_resource(m, "res://world/models/butterfly_%d.tres" % i)
+		mesh.surface_set_material(i, m)
+		surface_mats.append(m)
+	_save_resource(mesh, "res://world/models/butterfly.res")
+	scene.free()
+	return [mesh, surface_mats]
 
 
 func _save_resource(res: Resource, path: String) -> void:

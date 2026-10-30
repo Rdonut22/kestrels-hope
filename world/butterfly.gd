@@ -1,6 +1,7 @@
 extends Node3D
 
-## Flutters around its starting point, flapping two wings.
+## Flutters around its starting point. The wings flap in its shader
+## (world/butterfly.gdshader).
 
 @export var wander := 4.0
 @export var speed := 1.2
@@ -8,9 +9,6 @@ extends Node3D
 var _home: Vector3
 var _target: Vector3
 var _t := 0.0
-
-@onready var wing_l: Node3D = $WingL
-@onready var wing_r: Node3D = $WingR
 
 
 func _ready() -> void:
@@ -25,9 +23,6 @@ func _pick() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	var flap := sin(_t * 18.0) * 0.9
-	wing_l.rotation.z = flap
-	wing_r.rotation.z = -flap
 	var to := _target - position
 	if to.length() < 0.3:
 		_pick()
