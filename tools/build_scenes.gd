@@ -3676,14 +3676,15 @@ const REDWOOD_KINDS := [
 	{"count": 26, "height": 44.0, "trunk_radius": 1.5, "crown_width": 17.0, "crown_start": 0.2, "ancient": false, "tree_seed": 5},
 	{"count": 40, "height": 22.0, "trunk_radius": 0.65, "crown_width": 10.0, "crown_start": 0.1, "ancient": false, "tree_seed": 12, "foliage_density": 1.3},
 ]
-const REDWOOD_CHUNK := 40.0
-## Beyond this the distant (lod 1) version takes over.
-const REDWOOD_LOD_DISTANCE := 80.0
+## Beyond this (from each tree) the distant (lod 1) version takes over. The
+## scene fog is complete by 90 m, so the switch can't be seen.
+const REDWOOD_LOD_DISTANCE := 96.0
 
 
 ## The redwood forest round the meadows: each kind built once (full and
-## distant versions, saved under world/redwoods/), then instanced in 40 m
-## chunks so far chunks switch to the distant version. Spaced so the crowns
+## distant versions, saved under world/redwoods/) and shared by every tree of
+## that kind; each tree switches to its distant version on its own, out in
+## the fog. Spaced so the crowns
 ## leave gaps for the sky, thicker deeper into the forest, kept off the
 ## clearing, the trail, the vistas to the ruins and the glades. Returns the
 ## trunks (as scaled transforms) for the grass map to grow round.
@@ -3758,17 +3759,28 @@ func _build_redwoods(site: Node3D, ground_y: float) -> Array:
 
 	var root := _add(site, Node3D.new(), "Redwoods")
 	var bodies := _add(site, Node3D.new(), "TreeCollision")
-	var groups := {}  # Vector3i(chunk x, chunk z, kind) -> [Transform3D]
 	var trunks := []
 	for i in placed.size():
 		var p: Vector2 = placed[i][0]
 		var k: int = placed[i][1]
 		var sc: float = placed[i][2]
 		var kind: Dictionary = REDWOOD_KINDS[k]
-		var key := Vector3i(floori(p.x / REDWOOD_CHUNK), floori(p.y / REDWOOD_CHUNK), k)
-		if not groups.has(key):
-			groups[key] = []
-		(groups[key] as Array).append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(p.x, ground_y, p.y)))
+		var tree := Node3D.new()
+		tree.transform = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(p.x, ground_y, p.y))
+		_add(root, tree, "Tree%d" % i)
+		for lod in 2:
+			for part in 2:
+				var mi := MeshInstance3D.new()
+				mi.mesh = meshes[k][lod][part]
+				mi.material_override = rmats[part]
+				if lod == 0:
+					mi.visibility_range_end = REDWOOD_LOD_DISTANCE
+					mi.visibility_range_end_margin = 6.0
+				else:
+					mi.visibility_range_begin = REDWOOD_LOD_DISTANCE
+					mi.visibility_range_begin_margin = 6.0
+					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				_add(tree, mi, ["Bark", "Foliage"][part] + ("" if lod == 0 else "Far"))
 		var r: float = kind["trunk_radius"] * sc
 		trunks.append([Transform3D(Basis().scaled(Vector3.ONE * r * 1.6), Vector3(p.x, ground_y, p.y)), Color(1, 1, 1)])
 		var body := StaticBody3D.new()
@@ -3780,30 +3792,6 @@ func _build_redwoods(site: Node3D, ground_y: float) -> Array:
 		shape.height = 14.0
 		cs.shape = shape
 		_add(body, cs, "Shape")
-	for key: Vector3i in groups:
-		var centre := Vector3((key.x + 0.5) * REDWOOD_CHUNK, ground_y, (key.y + 0.5) * REDWOOD_CHUNK)
-		var xfs: Array = groups[key]
-		for lod in 2:
-			for part in 2:
-				var mm := MultiMesh.new()
-				mm.transform_format = MultiMesh.TRANSFORM_3D
-				mm.mesh = meshes[key.z][lod][part]
-				mm.instance_count = xfs.size()
-				for j in xfs.size():
-					var xf: Transform3D = xfs[j]
-					mm.set_instance_transform(j, Transform3D(xf.basis, xf.origin - centre))
-				var mmi := MultiMeshInstance3D.new()
-				mmi.multimesh = mm
-				mmi.position = centre
-				mmi.material_override = rmats[part]
-				if lod == 0:
-					mmi.visibility_range_end = REDWOOD_LOD_DISTANCE
-					mmi.visibility_range_end_margin = 8.0
-				else:
-					mmi.visibility_range_begin = REDWOOD_LOD_DISTANCE
-					mmi.visibility_range_begin_margin = 8.0
-					mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				_add(root, mmi, "C%d_%d_K%d_L%d_%s" % [key.x, key.y, key.z, lod, ["Bark", "Foliage"][part]])
 	print("redwoods: ", placed.size())
 	return trunks
 

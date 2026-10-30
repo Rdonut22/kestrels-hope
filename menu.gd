@@ -83,29 +83,26 @@ func _extend_forest() -> void:
 	var offsets := [Vector3(184, 0, 0), Vector3(0, 0, 184), Vector3(0, 0, -184),
 		Vector3(184, 0, 184), Vector3(184, 0, -184), Vector3(-184, 0, 0),
 		Vector3(-184, 0, 184), Vector3(-184, 0, -184)]
-	# One multimesh per redwood kind and part, gathered from the distant
-	# (lod 1) chunks, then copied round.
-	var merged := {}  # "K<kind>_<part>" -> [mesh, material, transforms]
-	for src: MultiMeshInstance3D in site.get_node("Redwoods").get_children():
-		if not "_L1_" in src.name:
-			continue
-		var key := String(src.name).get_slice("_", 2) + String(src.name).get_slice("_", 4)
-		if not merged.has(key):
-			merged[key] = [src.multimesh.mesh, src.material_override, []]
-		for i in src.multimesh.instance_count:
-			(merged[key][2] as Array).append(src.transform * src.multimesh.get_instance_transform(i))
-	for key in merged:
+	# One multimesh per distant redwood mesh (kind and part), gathered from
+	# every tree, then copied round.
+	var merged := {}  # mesh -> [material, transforms]
+	for tree: Node3D in site.get_node("Redwoods").get_children():
+		for part: MeshInstance3D in [tree.get_node("BarkFar"), tree.get_node("FoliageFar")]:
+			if not merged.has(part.mesh):
+				merged[part.mesh] = [part.material_override, []]
+			(merged[part.mesh][1] as Array).append(tree.transform)
+	for mesh: Mesh in merged:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = merged[key][0]
-		var xfs: Array = merged[key][2]
+		mm.mesh = mesh
+		var xfs: Array = merged[mesh][1]
 		mm.instance_count = xfs.size()
 		for i in xfs.size():
 			mm.set_instance_transform(i, xfs[i])
 		for off in offsets:
 			var copy := MultiMeshInstance3D.new()
 			copy.multimesh = mm
-			copy.material_override = merged[key][1]
+			copy.material_override = merged[mesh][0]
 			copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			copy.position = off
 			site.add_child(copy)

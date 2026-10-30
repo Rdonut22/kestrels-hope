@@ -354,18 +354,20 @@ func _attach_site() -> void:
 			_low_detail.append(node)
 	# The Kestrel is wider than the trail the crash site keeps clear; trees
 	# overhanging the furrow would cut through the cabin as she skids.
-	var layers: Array[Node] = [_site.get_node_or_null("Bushes")]
 	var redwoods := _site.get_node_or_null("Redwoods")
 	if redwoods:
-		layers.append_array(redwoods.get_children())
-	for mmi: MultiMeshInstance3D in layers.filter(func(n: Node) -> bool: return n is MultiMeshInstance3D):
-		var mm := mmi.multimesh.duplicate() as MultiMesh
+		for tree: Node3D in redwoods.get_children():
+			if absf(tree.position.x + 0.8) < 12.0 and tree.position.z > 4.0 and tree.position.z < 110.0:
+				tree.visible = false
+	var bushes := _site.get_node_or_null("Bushes") as MultiMeshInstance3D
+	if bushes:
+		var mm := bushes.multimesh.duplicate() as MultiMesh
 		for i in mm.instance_count:
 			var xf := mm.get_instance_transform(i)
-			var o := mmi.transform * xf.origin
+			var o := bushes.transform * xf.origin
 			if absf(o.x + 0.8) < 12.0 and o.z > 4.0 and o.z < 110.0:
 				mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * 0.0001), xf.origin))
-		mmi.multimesh = mm
+		bushes.multimesh = mm
 	# The crash hasn't happened yet: no smoke, no trail. The furrow is dug
 	# as the ship skids, the trees at the stumps get knocked down.
 	var smoke := _site.get_node_or_null("Smoke")
