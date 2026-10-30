@@ -4061,6 +4061,184 @@ func _rcyl(st: SurfaceTool, xf: Transform3D, r: float, height: float, col: Color
 				st.add_vertex(xf * q)
 
 
+## The Great Ring's working clutter, after a weathered industrial tower:
+## cantilevered platforms with railings and crates, antenna masts with dishes
+## and guy wires, open bays showing ribs, pipes and tanks, and cable bundles
+## sagging along its faces and dangling from its underside. Ring-local space
+## (as _ring_ruin: the ring in the XY plane, Z across its width; local +Y is
+## close to world up). Its own random numbers, so the other ruins don't move.
+func _ring_dressing(st: SurfaceTool, R: float, T: float, W: float, gap_from: float, gap_to: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var outer := R + T * 0.5
+	var visible := func(a: float) -> bool:
+		# Above the ground (the ring is half buried) and not in the gap.
+		var aa := fposmod(a, TAU)
+		return sin(aa) > -0.42 and not (aa > gap_from - 0.05 and aa < gap_to + 0.05)
+	var face := func(a: float, side: float, radial: float, out := 0.0) -> Vector3:
+		return Vector3(cos(a), sin(a), 0) * radial + Vector3(0, 0, side * (W * 0.5 + out))
+
+	# Open bays: the plating is gone and the ribs, pipes and tanks show.
+	for k in 7:
+		var a := rng.randf() * TAU
+		if not visible.call(a):
+			continue
+		var side := -1.0 if rng.randf() < 0.5 else 1.0
+		var span := rng.randf_range(0.08, 0.16)
+		var rd := Vector3(cos(a), sin(a), 0)
+		var b := Basis(Vector3(-sin(a), cos(a), 0), rd, Vector3.BACK)
+		var len := R * span
+		_rbox(st, Transform3D(b, face.call(a, side, R, 0.25)), Vector3(len, T * 0.85, 0.5), RUIN_DARK)
+		for r in int(len / 1.4):
+			var off := -len * 0.5 + 0.7 + r * 1.4
+			_rbox(st, Transform3D(b, face.call(a, side, R, 0.75) + b.x * off), Vector3(0.3, T * 0.9, 0.5), RUIN_FRAME)
+		for pz in 3:
+			var radial := R - T * 0.3 + pz * T * 0.3
+			_rbox(st, Transform3D(b, face.call(a, side, radial, 0.9 + pz * 0.2)), Vector3(len * 0.95, 0.45, 0.45), RUIN_STEEL if pz != 1 else RUIN_RUST)
+		for t in rng.randi_range(1, 2):
+			var tp: Vector3 = face.call(a, side, R + rng.randf_range(-T * 0.25, T * 0.25), 1.3) + b.x * rng.randf_range(-len * 0.3, len * 0.3)
+			_rcyl(st, Transform3D(b, tp), rng.randf_range(0.7, 1.1), T * 0.5, RUIN_PLATE, 10)
+
+	# Cantilevered platforms on the faces and rim, with struts, railings,
+	# crates and a little antenna or lamp.
+	for k in 9:
+		var a := rng.randf() * TAU
+		if not visible.call(a) or absf(angle_difference(a, PI / 2)) < 0.25:
+			continue
+		var side := -1.0 if rng.randf() < 0.5 else 1.0
+		var radial := R + rng.randf_range(-T * 0.3, T * 0.4)
+		var size := Vector3(rng.randf_range(4.0, 7.0), 0.25, rng.randf_range(3.0, 4.5))
+		var deck: Vector3 = face.call(a, side, radial, size.z * 0.5)
+		_rbox(st, Transform3D(Basis(), deck), size, RUIN_STEEL)
+		_rbox(st, Transform3D(Basis(), deck + Vector3(0, -0.22, 0)), size + Vector3(0.2, -0.05, 0.2), RUIN_FRAME)
+		# Struts from the front corners back down to the face.
+		for sx: float in [-1.0, 1.0]:
+			var top := deck + Vector3(sx * size.x * 0.45, -0.2, side * size.z * 0.45)
+			var foot: Vector3 = Vector3(top.x, top.y - size.z * 0.9, side * (W * 0.5))
+			_rbeam(st, top, foot, 0.2, RUIN_FRAME)
+		# Railings on the three open sides.
+		var front := deck.z + side * size.z * 0.5
+		for i in int(size.x) + 1:
+			var x := deck.x - size.x * 0.5 + i * size.x / int(size.x)
+			_rbox(st, Transform3D(Basis(), Vector3(x, deck.y + 0.55, front)), Vector3(0.07, 1.1, 0.07), RUIN_FRAME)
+		_rbox(st, Transform3D(Basis(), Vector3(deck.x, deck.y + 1.1, front)), Vector3(size.x, 0.08, 0.08), RUIN_RUST)
+		for sx: float in [-1.0, 1.0]:
+			var x2 := deck.x + sx * size.x * 0.5
+			_rbox(st, Transform3D(Basis(), Vector3(x2, deck.y + 1.1, deck.z)), Vector3(0.08, 0.08, size.z), RUIN_RUST)
+			_rbox(st, Transform3D(Basis(), Vector3(x2, deck.y + 0.55, deck.z)), Vector3(0.07, 1.1, 0.07), RUIN_FRAME)
+		for c in rng.randi_range(1, 3):
+			var cs := Vector3(rng.randf_range(0.8, 2.2), rng.randf_range(0.6, 1.6), rng.randf_range(0.8, 1.6))
+			var cp := deck + Vector3(rng.randf_range(-size.x * 0.35, size.x * 0.35), 0.12 + cs.y * 0.5, rng.randf_range(-size.z * 0.3, size.z * 0.3))
+			_rbox(st, Transform3D(Basis(Vector3.UP, rng.randf_range(-0.3, 0.3)), cp), cs, _ruin_col(rng))
+		if rng.randf() < 0.5:
+			var mp := deck + Vector3(size.x * 0.4, 0, side * size.z * 0.3)
+			_rbox(st, Transform3D(Basis(), mp + Vector3(0, 2.0, 0)), Vector3(0.1, 4.0, 0.1), RUIN_STEEL)
+			_rbox(st, Transform3D(Basis(), mp + Vector3(0, 4.05, 0)), Vector3(0.22, 0.18, 0.22), RUIN_GLOW_WARM)
+		# A cable bundle sagging from the deck back to the face.
+		_rcables(st, rng, deck + Vector3(-size.x * 0.45, -0.3, side * size.z * 0.4), face.call(a - 0.06, side, radial - T * 0.3), 1.5)
+
+	# Antenna masts along the top of the rim, standing up (local +Y), with
+	# crossbars, dishes, guy wires and warning lights.
+	for k in 8:
+		var a := rng.randf_range(0.15, PI - 0.15)
+		if not visible.call(a) or absf(angle_difference(a, PI / 2)) < 0.12:
+			continue
+		var base := Vector3(cos(a), sin(a), 0) * (outer + 0.8) + Vector3(0, 0, rng.randf_range(-W * 0.35, W * 0.35))
+		var h := rng.randf_range(6.0, 15.0)
+		var thick := 0.14 + h * 0.008
+		_rbox(st, Transform3D(Basis(), base + Vector3(0, -0.6, 0)), Vector3(1.6, 1.2, 1.6), RUIN_HULL)
+		_rbox(st, Transform3D(Basis(), base + Vector3(0, h * 0.5, 0)), Vector3(thick, h, thick), RUIN_STEEL)
+		for c in rng.randi_range(2, 4):
+			var cy := rng.randf_range(h * 0.35, h * 0.95)
+			var cw := rng.randf_range(0.8, 2.4)
+			_rbox(st, Transform3D(Basis(Vector3.UP, rng.randf() * PI), base + Vector3(0, cy, 0)), Vector3(cw, 0.07, 0.07), RUIN_STEEL)
+		if rng.randf() < 0.55:
+			var dy := rng.randf_range(h * 0.4, h * 0.8)
+			var turn := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(0.8, 1.3))
+			_rcyl(st, Transform3D(turn, base + Vector3(0, dy, 0) + turn.y * 0.5), rng.randf_range(0.8, 1.5), 0.12, RUIN_PLATE, 12)
+			_rbox(st, Transform3D(turn, base + Vector3(0, dy, 0) + turn.y * 0.9), Vector3(0.08, 0.8, 0.08), RUIN_DARK)
+		for g in 3:
+			var ga := TAU * g / 3.0 + rng.randf()
+			var foot := base + Vector3(cos(ga) * h * 0.35, -0.5, sin(ga) * h * 0.35 * 0.4)
+			_rbeam(st, base + Vector3(0, h * 0.75, 0), foot, 0.035, RUIN_DARK)
+		_rbox(st, Transform3D(Basis(), base + Vector3(0, h + 0.12, 0)), Vector3(0.25, 0.22, 0.25), RUIN_GLOW_WARM)
+
+	# Cable bundles sagging between points along the faces.
+	for k in 14:
+		var a := rng.randf() * TAU
+		if not visible.call(a):
+			continue
+		var side := -1.0 if rng.randf() < 0.5 else 1.0
+		var span := rng.randf_range(0.1, 0.28)
+		var r0 := R + rng.randf_range(-T * 0.35, T * 0.35)
+		var r1 := R + rng.randf_range(-T * 0.35, T * 0.35)
+		_rcables(st, rng, face.call(a, side, r0, 0.4), face.call(a + span, side, r1, 0.4), rng.randf_range(1.5, 4.0))
+
+	# Loose cables dangling from the inside of the ring.
+	for k in 16:
+		var a := rng.randf_range(0.2, PI - 0.2)
+		if not visible.call(a):
+			continue
+		var top := Vector3(cos(a), sin(a), 0) * (R - T * 0.5 - 0.6) + Vector3(0, 0, rng.randf_range(-W * 0.4, W * 0.4))
+		var drop := rng.randf_range(3.0, 11.0)
+		var bottom := top + Vector3(rng.randf_range(-1.5, 1.5), -drop, rng.randf_range(-1.0, 1.0))
+		_rcables(st, rng, top, bottom, drop * 0.08, 2)
+
+
+## A straight square beam between two points.
+func _rbeam(st: SurfaceTool, from: Vector3, to: Vector3, thick: float, col: Color) -> void:
+	var d := to - from
+	var y := d.normalized()
+	var x := y.cross(Vector3.BACK)
+	if x.length() < 0.1:
+		x = y.cross(Vector3.RIGHT)
+	x = x.normalized()
+	_rbox(st, Transform3D(Basis(x, y, x.cross(y)), (from + to) * 0.5), Vector3(thick, d.length(), thick), col)
+
+
+## A bundle of 2-4 dark cables hanging between two points, sagging `sag`
+## metres in the middle (local -Y).
+func _rcables(st: SurfaceTool, rng: RandomNumberGenerator, from: Vector3, to: Vector3, sag: float, count := 0) -> void:
+	var n := count if count > 0 else rng.randi_range(2, 4)
+	for c in n:
+		var off := Vector3(rng.randf_range(-0.25, 0.25), rng.randf_range(-0.25, 0.25), rng.randf_range(-0.25, 0.25))
+		var s := sag * rng.randf_range(0.8, 1.25)
+		var thick := rng.randf_range(0.1, 0.24)
+		var segs := 8
+		var prev := from + off
+		for i in segs:
+			var t := float(i + 1) / segs
+			var p := from.lerp(to, t) + off + Vector3(0, -4.0 * s * t * (1.0 - t), 0)
+			_rbeam(st, prev, p, thick, RUIN_DARK if c % 3 else RUIN_FRAME)
+			prev = p
+
+
+## The Great Ring in weathered orange paint over bare metal
+## (world/worn_metal.gdshader) instead of the pale pixel-art ruin look: its
+## palette colours swapped for paint, primer, steel and grime.
+func _restyle_great_ring(ring: MeshInstance3D) -> void:
+	var swap := {RUIN_HULL: Color(0.64, 0.29, 0.09), RUIN_PLATE: Color(0.74, 0.36, 0.12),
+		RUIN_RUST: Color(0.5, 0.23, 0.1), RUIN_STEEL: Color(0.46, 0.46, 0.44),
+		RUIN_DARK: Color(0.1, 0.09, 0.085), RUIN_FRAME: Color(0.24, 0.2, 0.17)}
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://world/worn_metal.gdshader")
+	_save_resource(mat, "res://world/materials/worn_metal.tres")
+	for mi: MeshInstance3D in [ring] + ring.get_children().filter(func(n: Node) -> bool: return n is MeshInstance3D):
+		var arrays := mi.mesh.surface_get_arrays(0)
+		var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		for i in cols.size():
+			for key: Color in swap:
+				# Vertex colours come back 8-bit, so compare loosely.
+				if Vector3(cols[i].r - key.r, cols[i].g - key.g, cols[i].b - key.b).length() < 0.01:
+					cols[i] = swap[key]
+					break
+		arrays[Mesh.ARRAY_COLOR] = cols
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mi.mesh = mesh
+		mi.material_override = mat
+
+
 func _ruin_col(rng: RandomNumberGenerator) -> Color:
 	var r := rng.randf()
 	return RUIN_HULL if r < 0.35 else (RUIN_PLATE if r < 0.68 else (RUIN_DARK if r < 0.8 else (RUIN_STEEL if r < 0.92 else RUIN_RUST)))
@@ -4297,10 +4475,12 @@ func _build_ruins(site: Node) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_ring_ruin(st, rng, 40.0, 7.5, 12.0, 0.0, TAU, 1.95, 2.45)
+	_ring_dressing(st, 40.0, 7.5, 12.0, 1.95, 2.45)
 	var face_clearing := Basis(Vector3.UP, -PI / 2 + 0.25)
 	var tilt := Basis(Vector3.RIGHT, 0.12) * Basis(Vector3.BACK, 0.18)
 	_ruin_instance(ruins, "GreatRing", st, Transform3D(face_clearing * tilt, RING_POS + Vector3(0, 22.0, 0)))
 	_lookout(ruins.get_node("GreatRing"))
+	_restyle_great_ring(ruins.get_node("GreatRing"))
 
 	# A broken arc of another ring jutting out of the ground to the north.
 	st = SurfaceTool.new()

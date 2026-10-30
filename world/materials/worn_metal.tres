@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/worn_metal.gdshader" id="1_2l0ef"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_2l0ef")
+shader_parameter/world_tint = Color(1, 1, 1, 1)
+shader_parameter/haze = Color(0.52, 0.7, 0.66, 1)
+shader_parameter/haze_amount = 0.25
+shader_parameter/haze_near = 40.0
+shader_parameter/haze_far = 260.0
+shader_parameter/bare_metal = Color(0.5, 0.49, 0.46, 1)
+shader_parameter/rust = Color(0.42, 0.2, 0.09, 1)
+shader_parameter/grime = Color(0.16, 0.13, 0.1, 1)
+shader_parameter/primer = Color(0.66, 0.64, 0.58, 1)
+shader_parameter/wear = 0.6
