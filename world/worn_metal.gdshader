@@ -1,25 +1,43 @@
 shader_type spatial;
 render_mode fog_disabled, cull_disabled;
 
-// Weathered industrial metal for the Great Ring (tools/build_scenes.gd
-// _restyle_great_ring): orange paint chipped and worn through to bare
-// steel, big pale patches of primer, sun-faded areas, rust and grime
-// streaking down the walls, gathering low down and on the undersides. COLOR
-// picks the base (saturated colours are paint, grey ones are bare steel,
-// near-black is machinery); alpha < 0.5 marks a glowing light. Smooth
-// lighting; like the other ruins it ignores the scene fog (it stands beyond
-// it) and fades into its own haze with distance.
+// Weathered industrial plating for the Great Ring (tools/build_scenes.gd
+// _restyle_great_ring), textured from the Sci-Fi Kit 08 sheets: orange
+// painted panels (tube atlas), corrugated steel and dark stamped strips
+// (cable trim sheet), with the odd replaced panel in another colour. Every
+// box (UV2 = two random numbers per box, UV = metres across each face) gets
+// its own texture offset and its own amount of rust, from nearly clean to
+// heavily corroded with streaks running down. COLOR picks the material:
+// saturated = paint, near-black = machinery, grey = steel; alpha < 0.5 marks
+// a glowing light. Like the other ruins it ignores the scene fog (it stands
+// beyond it) and fades into its own haze with distance.
+
+uniform sampler2D panel_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D panel_roughness : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D panel_metallic : hint_default_black, filter_linear_mipmap, repeat_enable;
+uniform sampler2D panel_ao : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D trim_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D trim_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D trim_roughness : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D trim_metallic : hint_default_black, filter_linear_mipmap, repeat_enable;
 
 uniform vec3 world_tint : source_color = vec3(1.0);
 uniform vec3 haze : source_color = vec3(0.52, 0.7, 0.66);
 uniform float haze_amount : hint_range(0.0, 1.0) = 0.25;
 uniform float haze_near = 40.0;
 uniform float haze_far = 260.0;
-uniform vec3 bare_metal : source_color = vec3(0.5, 0.49, 0.46);
-uniform vec3 rust : source_color = vec3(0.42, 0.2, 0.09);
-uniform vec3 grime : source_color = vec3(0.16, 0.13, 0.1);
-uniform vec3 primer : source_color = vec3(0.66, 0.64, 0.58);
-uniform float wear : hint_range(0.0, 1.0) = 0.6;
+uniform vec3 rust : source_color = vec3(0.36, 0.16, 0.07);
+uniform vec3 grime : source_color = vec3(0.14, 0.12, 0.1);
+uniform vec3 primer : source_color = vec3(0.62, 0.6, 0.55);
+// Pulls the kit's bright yellow-orange paint towards a burnt orange.
+uniform vec3 paint_tint : source_color = vec3(0.92, 0.62, 0.48);
+// Share of boxes left nearly clean (the rest rust more and more).
+uniform float clean_share : hint_range(0.0, 1.0) = 0.35;
+// Metres one repeat of each sheet covers.
+uniform vec2 panel_tile = vec2(18.0, 14.0);
+uniform vec2 steel_tile = vec2(6.0, 1.8);
+uniform vec2 strip_tile = vec2(9.0, 0.7);
+uniform float metal_strength : hint_range(0.0, 1.0) = 0.35;
 
 varying vec3 v_obj;
 varying vec3 v_wpos;
@@ -51,6 +69,13 @@ float fbm(vec3 p) {
 	return v;
 }
 
+// Repeat a sub-rectangle of a texture sheet across `t` (in repeats), with
+// mip levels taken from the unwrapped coordinates so the seams don't shimmer.
+vec4 sheet(sampler2D s, vec2 t, vec2 rect_min, vec2 rect_size) {
+	vec2 a = rect_min + fract(t) * rect_size;
+	return textureGrad(s, a, dFdx(t) * rect_size, dFdy(t) * rect_size);
+}
+
 void vertex() {
 	v_obj = VERTEX;
 	v_wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -61,40 +86,81 @@ void vertex() {
 void fragment() {
 	vec3 base = v_col.rgb;
 	float sat = max(base.r, max(base.g, base.b)) - min(base.r, min(base.g, base.b));
-	float paint = smoothstep(0.2, 0.4, sat);
-	vec3 p = v_obj;
+	float lum = dot(base, vec3(0.33));
+	float paint = step(0.2, sat);
+	float dark = (1.0 - paint) * step(lum, 0.15);
+	vec2 r = UV2;
+	vec2 offset = vec2(r.x * 17.0, r.y * 5.0);
 	vec3 n = normalize(v_wnrm);
-	float vertical = 1.0 - abs(n.y);
 
-	// Paint: sun-faded patches, then chipped and worn through to steel.
-	float fade = fbm(p * 0.08);
-	vec3 col = mix(base, base * vec3(1.12, 1.18, 1.25) + vec3(0.06), smoothstep(0.5, 0.75, fade) * 0.6 * paint);
-	float chips = fbm(p * 0.35 + 5.0) * 0.7 + noise(p * 2.5) * 0.3;
-	float worn = smoothstep(0.72 - wear * 0.25, 0.78 - wear * 0.25, chips) * paint;
-	vec3 steel = bare_metal * (0.8 + 0.35 * noise(p * 6.0));
-	col = mix(col, steel, worn);
-	// Large blotches where the paint has flaked off down to pale primer.
-	float blotch = fbm(p * 0.05 + 3.0) * 0.75 + noise(p * 0.9) * 0.25;
-	float bare = smoothstep(0.6, 0.66, blotch) * paint;
-	col = mix(col, primer * (0.85 + 0.3 * noise(p * 3.0)), bare * 0.85);
-	// Rust and grime streaking down the walls from seams and edges.
+	vec3 col;
+	float rough;
+	float metal;
+	float ao = 1.0;
+	vec3 nmap = vec3(0.5, 0.5, 1.0);
+	float patched = paint * step(fract(r.y * 7.1), 0.08);
+	if (paint > 0.5 && patched < 0.5) {
+		// Orange painted panels from the tube atlas (its top-left block).
+		vec2 t = UV / panel_tile + offset;
+		vec2 rmin = vec2(0.0, 0.0);
+		vec2 rsz = vec2(0.84, 0.66);
+		col = sheet(panel_albedo, t, rmin, rsz).rgb * (0.75 + lum * 0.6);
+		col = mix(vec3(dot(col, vec3(0.3, 0.55, 0.15))), col, 0.8) * paint_tint;
+		rough = sheet(panel_roughness, t, rmin, rsz).r;
+		metal = sheet(panel_metallic, t, rmin, rsz).r;
+		ao = sheet(panel_ao, t, rmin, rsz).r;
+	} else {
+		// Trim sheet: corrugated steel, dark stamped strips, or a coloured
+		// replacement panel.
+		vec2 rmin = vec2(0.0, 0.695);
+		vec2 rsz = vec2(1.0, 0.305);
+		vec2 tile = steel_tile;
+		if (dark > 0.5) {
+			rmin = vec2(0.0, 0.082);
+			rsz = vec2(1.0, 0.07);
+			tile = strip_tile;
+		} else if (patched > 0.5) {
+			float pick = fract(r.x * 3.7);
+			rmin = vec2(0.0, pick < 0.4 ? 0.236 : (pick < 0.7 ? 0.548 : 0.392));
+			rsz = vec2(1.0, 0.065);
+			tile = strip_tile;
+		}
+		vec2 t = UV / tile + offset;
+		col = sheet(trim_albedo, t, rmin, rsz).rgb;
+		rough = sheet(trim_roughness, t, rmin, rsz).r;
+		metal = sheet(trim_metallic, t, rmin, rsz).r;
+		nmap = sheet(trim_normal, t, rmin, rsz).rgb;
+	}
+
+	// Big patches where the paint has flaked away to pale primer.
+	float flake = fbm(v_obj * 0.05 + 3.0) * 0.75 + noise(v_obj * 0.9) * 0.25;
+	col = mix(col, primer * (0.8 + 0.35 * noise(v_obj * 3.0)), smoothstep(0.6, 0.66, flake) * paint * 0.8);
+	// How rusty this box is: some nearly clean, others badly corroded.
+	float rustiness = smoothstep(clean_share, 1.0, fract(r.x * 5.3 + r.y * 2.1));
+	vec3 p = v_obj;
+	float blotch = fbm(p * 0.35 + r.x * 40.0) * 0.7 + noise(p * 3.0) * 0.3;
+	float rusted = smoothstep(0.75 - rustiness * 0.45, 0.8 - rustiness * 0.45, blotch);
+	vec3 rust_col = mix(rust, rust * 1.6 + vec3(0.05, 0.02, 0.0), noise(p * 5.0));
+	col = mix(col, rust_col, rusted * 0.9);
+	rough = mix(rough, 0.95, rusted);
+	metal *= 1.0 - rusted;
+	// Rust and grime streaking down the walls below the rusty patches.
 	vec3 w = v_wpos;
+	float vertical = 1.0 - abs(n.y);
 	float streak = noise(vec3(w.x * 1.7, w.y * 0.07, w.z * 1.7)) * 0.6 + noise(vec3(w.x * 5.0, w.y * 0.2, w.z * 5.0)) * 0.4;
-	float drip = smoothstep(0.45, 0.8, streak) * vertical;
-	col = mix(col, mix(rust, grime, 0.5) * (0.8 + 0.4 * noise(w * 3.0)), drip * 0.8);
-	// Undersides and the inner trench stay in grimy shadow.
+	float drip = smoothstep(0.62 - rustiness * 0.2, 0.85, streak) * vertical;
+	col = mix(col, mix(rust, grime, 0.5) * (0.8 + 0.4 * noise(w * 3.0)), drip * (0.35 + rustiness * 0.5));
+	// Undersides and the inner trench stay in grimy shadow; grime low down.
 	col = mix(col, col * 0.45 + grime * 0.2, smoothstep(0.2, 0.8, -n.y));
-	// Grime gathering low down and in patches; rust blooms where it's worn.
-	float low = 1.0 - smoothstep(0.0, 25.0, w.y);
-	col = mix(col, grime, clamp(low * 0.5 + smoothstep(0.6, 0.85, fbm(p * 0.15 + 21.0)) * 0.35, 0.0, 0.7));
-	col = mix(col, rust * (0.7 + 0.5 * noise(p * 4.0)), smoothstep(0.62, 0.8, fbm(p * 0.22 + 9.0)) * 0.6 * (paint + 0.3));
+	col = mix(col, grime, (1.0 - smoothstep(0.0, 25.0, w.y)) * 0.4);
 
 	float glow = 1.0 - step(0.5, v_col.a);
 	float dist = distance(v_wpos, CAMERA_POSITION_WORLD);
 	float h = haze_amount * smoothstep(haze_near, haze_far, dist) * (1.0 - glow);
-	ALBEDO = mix(col * world_tint, haze * world_tint, h);
+	ALBEDO = mix(col * ao * world_tint, haze * world_tint, h);
 	EMISSION = v_col.rgb * glow * 2.5;
-	ROUGHNESS = mix(0.75, 0.45, worn);
-	METALLIC = worn * 0.3;
-	SPECULAR = 0.35;
+	NORMAL_MAP = nmap;
+	ROUGHNESS = clamp(rough, 0.3, 1.0);
+	METALLIC = metal * metal_strength;
+	SPECULAR = 0.4;
 }

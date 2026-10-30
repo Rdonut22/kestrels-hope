@@ -4022,9 +4022,13 @@ const RUIN_GLOW_BLUE := Color(0.35, 0.75, 1.0, 0.0)
 const RUIN_GLOW_WARM := Color(1.0, 0.6, 0.3, 0.0)
 
 
-# Box centred at xf.origin, oriented by xf.basis, with vertex colour.
+# Box centred at xf.origin, oriented by xf.basis, with vertex colour. Each
+# face gets UVs in metres across it (and a tangent along U), and UV2 holds
+# two random numbers for the whole box, so a textured material can give
+# every panel its own offset and weathering.
 func _rbox(st: SurfaceTool, xf: Transform3D, size: Vector3, col: Color) -> void:
 	var h := size * 0.5
+	var rnd := _rhash(xf.origin)
 	for n in [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD]:
 		var u: Vector3 = Vector3.UP if absf(n.y) < 0.5 else Vector3.RIGHT
 		var v: Vector3 = n.cross(u)
@@ -4034,10 +4038,21 @@ func _rbox(st: SurfaceTool, xf: Transform3D, size: Vector3, col: Color) -> void:
 		var hv := absf(v.dot(h))
 		var p := [c - u * hu - v * hv, c + u * hu - v * hv, c + u * hu + v * hv, c - u * hu + v * hv]
 		var wn: Vector3 = (xf.basis * n).normalized()
+		var tg: Vector3 = (xf.basis * u).normalized()
 		for k in [0, 1, 2, 0, 2, 3]:
 			st.set_color(col)
 			st.set_normal(wn)
+			st.set_tangent(Plane(tg, 1.0))
+			st.set_uv(Vector2((p[k] as Vector3).dot(u), (p[k] as Vector3).dot(v)))
+			st.set_uv2(rnd)
 			st.add_vertex(xf * p[k])
+
+
+# Two stable pseudo-random numbers (0..1) for a point.
+static func _rhash(p: Vector3) -> Vector2:
+	var a := sin(p.dot(Vector3(12.9898, 78.233, 37.719))) * 43758.5453
+	var b := sin(p.dot(Vector3(39.346, 11.135, 83.155))) * 24634.6345
+	return Vector2(a - floorf(a), b - floorf(b))
 
 
 # Prism (cylinder) along the basis' Y axis.
@@ -4049,15 +4064,23 @@ func _rcyl(st: SurfaceTool, xf: Transform3D, r: float, height: float, col: Color
 		var p1 := Vector3(cos(a1) * r, 0, sin(a1) * r)
 		var up := Vector3(0, height * 0.5, 0)
 		var wn: Vector3 = (xf.basis * Vector3(cos((a0 + a1) * 0.5), 0, sin((a0 + a1) * 0.5))).normalized()
+		var tg: Vector3 = (xf.basis * Vector3(-sin((a0 + a1) * 0.5), 0, cos((a0 + a1) * 0.5))).normalized()
+		var rnd := _rhash(xf.origin)
 		for q in [p0 - up, p1 - up, p1 + up, p0 - up, p1 + up, p0 + up]:
 			st.set_color(col)
 			st.set_normal(wn)
+			st.set_tangent(Plane(tg, 1.0))
+			st.set_uv(Vector2((a0 if q == p0 - up or q == p0 + up else a1) * r, (q as Vector3).y))
+			st.set_uv2(rnd)
 			st.add_vertex(xf * q)
 		for cap in [-1.0, 1.0]:
 			var cn: Vector3 = (xf.basis * Vector3(0, cap, 0)).normalized()
 			for q in [Vector3(0, cap * height * 0.5, 0), p0 + up * cap, p1 + up * cap]:
 				st.set_color(col)
 				st.set_normal(cn)
+				st.set_tangent(Plane((xf.basis * Vector3.RIGHT).normalized(), 1.0))
+				st.set_uv(Vector2((q as Vector3).x, (q as Vector3).z))
+				st.set_uv2(rnd)
 				st.add_vertex(xf * q)
 
 
@@ -4213,15 +4236,21 @@ func _rcables(st: SurfaceTool, rng: RandomNumberGenerator, from: Vector3, to: Ve
 			prev = p
 
 
-## The Great Ring in weathered orange paint over bare metal
-## (world/worn_metal.gdshader) instead of the pale pixel-art ruin look: its
-## palette colours swapped for paint, primer, steel and grime.
+## The Great Ring in weathered, textured industrial plating
+## (world/worn_metal.gdshader, Sci-Fi Kit 08 texture sheets) instead of the
+## pale pixel-art ruin look: its palette colours swapped for paint, steel and
+## machinery.
 func _restyle_great_ring(ring: MeshInstance3D) -> void:
 	var swap := {RUIN_HULL: Color(0.64, 0.29, 0.09), RUIN_PLATE: Color(0.74, 0.36, 0.12),
 		RUIN_RUST: Color(0.5, 0.23, 0.1), RUIN_STEEL: Color(0.46, 0.46, 0.44),
 		RUIN_DARK: Color(0.1, 0.09, 0.085), RUIN_FRAME: Color(0.24, 0.2, 0.17)}
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://world/worn_metal.gdshader")
+	const KIT := "res://world/textures/scifi_kit/"
+	for pair in [["panel_albedo", "tube_base_color"], ["panel_roughness", "tube_roughness"], ["panel_metallic", "tube_metallic"],
+			["panel_ao", "tube_ao"], ["trim_albedo", "cable_base_color"], ["trim_normal", "cable_normal"],
+			["trim_roughness", "cable_roughness"], ["trim_metallic", "cable_metallic"]]:
+		mat.set_shader_parameter(pair[0], load(KIT + pair[1] + ".webp"))
 	_save_resource(mat, "res://world/materials/worn_metal.tres")
 	for mi: MeshInstance3D in [ring] + ring.get_children().filter(func(n: Node) -> bool: return n is MeshInstance3D):
 		var arrays := mi.mesh.surface_get_arrays(0)
@@ -4237,6 +4266,141 @@ func _restyle_great_ring(ring: MeshInstance3D) -> void:
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		mi.mesh = mesh
 		mi.material_override = mat
+
+
+## A model's scene from an FBX file, read directly (source models sit in
+## world/models/source, which Godot doesn't import).
+func _fbx_scene(path: String) -> Node:
+	var doc := FBXDocument.new()
+	var state := FBXState.new()
+	doc.append_from_file(ProjectSettings.globalize_path(path), state)
+	return doc.generate_scene(state)
+
+
+## A PBR material for the kit models from their texture sheets. They stand
+## beyond the scene fog like the ruins, so they ignore it.
+func _kit_material(path: String, albedo: String, maps: Dictionary) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(albedo)
+	m.disable_fog = true
+	if maps.has("normal"):
+		m.normal_enabled = true
+		m.normal_texture = load(maps["normal"])
+	if maps.has("roughness"):
+		m.roughness_texture = load(maps["roughness"])
+		m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	if maps.has("metallic"):
+		m.metallic_texture = load(maps["metallic"])
+		m.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		# No reflections in this world: full metal would go black.
+		m.metallic = 0.35
+	if maps.has("ao"):
+		m.ao_enabled = true
+		m.ao_texture = load(maps["ao"])
+	if maps.has("emission"):
+		m.emission_enabled = true
+		m.emission_texture = load(maps["emission"])
+		m.emission = Color(0, 0, 0)
+		m.emission_energy_multiplier = 3.0
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_ADD
+	_save_resource(m, path)
+	return m
+
+
+## The Sci-Fi Kit 08 utility truss (a 9 m painted truss carrying ribbed
+## conduits, cables and junction boxes) as one mesh, and the Sci-Fi
+## Building-05 tower (28 m tall) with one material per paint scheme, saved
+## under world/models: {truss: Mesh, tower: Mesh, towers: [Material]}.
+func _kit_models() -> Dictionary:
+	const KIT := "res://world/textures/scifi_kit/"
+	var tube := _kit_material("res://world/models/truss_frame.tres", KIT + "tube_base_color.webp",
+		{"roughness": KIT + "tube_roughness.webp", "metallic": KIT + "tube_metallic.webp", "ao": KIT + "tube_ao.webp", "emission": KIT + "tube_emissive.webp"})
+	var cable := _kit_material("res://world/models/truss_conduit.tres", KIT + "cable_base_color.webp",
+		{"normal": KIT + "cable_normal.webp", "roughness": KIT + "cable_roughness.webp", "metallic": KIT + "cable_metallic.webp"})
+	# Merge the kit's parts into one mesh, a surface per material.
+	var scene := _fbx_scene("res://world/models/source/scifi_kit.fbx")
+	var tools := {"TU_03_A": SurfaceTool.new(), "cable_01": SurfaceTool.new()}
+	for t: SurfaceTool in tools.values():
+		t.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(i)
+			var key := mat.resource_name if mat and tools.has(mat.resource_name) else "TU_03_A"
+			(tools[key] as SurfaceTool).append_from(mi.mesh, i, mi.transform)
+	var truss := ArrayMesh.new()
+	tools["TU_03_A"].commit(truss)
+	truss.surface_set_material(0, tube)
+	tools["cable_01"].commit(truss)
+	truss.surface_set_material(1, cable)
+	scene.free()
+	_save_resource(truss, "res://world/models/scifi_truss.res")
+	const B5 := "res://world/textures/building5/"
+	var towers := []
+	for scheme in ["orange", "white", "red", "blue"]:
+		towers.append(_kit_material("res://world/models/tower_%s.tres" % scheme, B5 + "base_color_%s.webp" % scheme,
+			{"normal": B5 + "normal.webp", "roughness": B5 + "roughness.webp", "metallic": B5 + "metallic.webp", "emission": B5 + "emissive.webp"}))
+	scene = _fbx_scene("res://world/models/source/building5.fbx")
+	var tower: ArrayMesh = (scene.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+	tower.surface_set_material(0, towers[0])
+	scene.free()
+	_save_resource(tower, "res://world/models/building5.res")
+	return {"truss": truss, "tower": tower, "towers": towers}
+
+
+## Hangs the kit models on the Great Ring (ring-local space, as
+## _ring_dressing): runs of utility truss along both faces and over the top
+## of the rim, one broken length dangling from the gap, and four towers
+## bolted radially onto the rim, one in each paint scheme, kept clear of the
+## lookout.
+func _ring_kit(ring: Node3D, R: float, T: float, W: float, gap_from: float, gap_to: float) -> void:
+	var kit := _kit_models()
+	var root := _add(ring, Node3D.new(), "Kit")
+	const TRUSS_SCALE := 1.5
+	var length := 9.0 * TRUSS_SCALE
+	# [first angle, last angle, side (-1/+1 across the width, 0 = rim top), radius]
+	var runs := [[-0.55, 1.25, 1.0, R - 1.2], [0.25, 1.9, -1.0, R + 1.6], [2.5, 3.6, -1.0, R - 0.8], [2.55, 3.35, 0.0, R + T * 0.5 + 1.6]]
+	var n := 0
+	for run in runs:
+		var rr: float = run[3]
+		var da := 2.0 * asin(length * 0.5 / rr)
+		var a: float = run[0]
+		while a + da <= float(run[1]):
+			var ac := a + da * 0.5
+			var rd := Vector3(cos(ac), sin(ac), 0)
+			var tg := Vector3(-sin(ac), cos(ac), 0)
+			var side: float = run[2]
+			var z := side * (W * 0.5 + 0.55 * TRUSS_SCALE + 0.3) if side != 0.0 else -W * 0.25
+			var mi := MeshInstance3D.new()
+			mi.mesh = kit["truss"]
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.transform = Transform3D(Basis(tg, rd, Vector3.BACK).scaled(Vector3.ONE * TRUSS_SCALE), rd * rr + Vector3(0, 0, z))
+			_add(root, mi, "Truss%d" % n)
+			n += 1
+			a += da
+	# A broken length hanging from the far edge of the gap.
+	var edge := Vector3(cos(gap_to), sin(gap_to), 0) * (R + T * 0.5) + Vector3(0, 0, W * 0.2)
+	var hang := Vector3(-0.35, -1.0, 0.25).normalized()
+	var side_x := hang.cross(Vector3.BACK).normalized()
+	var dangling := MeshInstance3D.new()
+	dangling.mesh = kit["truss"]
+	dangling.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	dangling.transform = Transform3D(Basis(hang, side_x, hang.cross(side_x)).scaled(Vector3.ONE * TRUSS_SCALE), edge + hang * length * 0.5)
+	_add(root, dangling, "TrussDangling")
+	# Towers standing out from the rim, each in its own paint scheme.
+	const TOWER_SCALE := 0.7
+	var tower_angles := [0.7, 1.18, 2.7, 3.15]
+	for i in tower_angles.size():
+		var a: float = tower_angles[i]
+		var rd := Vector3(cos(a), sin(a), 0)
+		var tg := Vector3(-sin(a), cos(a), 0)
+		var mi := MeshInstance3D.new()
+		mi.mesh = kit["tower"]
+		mi.material_override = kit["towers"][i]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var turn := Basis(rd, (i * 1.3 + 0.4))
+		mi.transform = Transform3D(turn * Basis(tg, rd, Vector3.BACK).scaled(Vector3.ONE * TOWER_SCALE),
+			rd * (R + T * 0.5 - 0.6) + Vector3(0, 0, (i % 2 * 2.0 - 1.0) * W * 0.12))
+		_add(root, mi, "Tower%d" % i)
 
 
 func _ruin_col(rng: RandomNumberGenerator) -> Color:
@@ -4481,6 +4645,7 @@ func _build_ruins(site: Node) -> void:
 	_ruin_instance(ruins, "GreatRing", st, Transform3D(face_clearing * tilt, RING_POS + Vector3(0, 22.0, 0)))
 	_lookout(ruins.get_node("GreatRing"))
 	_restyle_great_ring(ruins.get_node("GreatRing"))
+	_ring_kit(ruins.get_node("GreatRing"), 40.0, 7.5, 12.0, 1.95, 2.45)
 
 	# A broken arc of another ring jutting out of the ground to the north.
 	st = SurfaceTool.new()

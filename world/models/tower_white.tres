@@ -1,0 +1,19 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://world/textures/building5/base_color_white.webp" id="1_o3fxp"]
+[ext_resource type="Texture2D" path="res://world/textures/building5/emissive.webp" id="2_2vu5l"]
+[ext_resource type="Texture2D" path="res://world/textures/building5/metallic.webp" id="3_ynme8"]
+[ext_resource type="Texture2D" path="res://world/textures/building5/normal.webp" id="4_pl6du"]
+[ext_resource type="Texture2D" path="res://world/textures/building5/roughness.webp" id="5_nxrkc"]
+
+[resource]
+disable_fog = true
+albedo_texture = ExtResource("1_o3fxp")
+metallic = 0.35
+metallic_texture = ExtResource("3_ynme8")
+roughness_texture = ExtResource("5_nxrkc")
+emission_enabled = true
+emission_energy_multiplier = 3.0
+emission_texture = ExtResource("2_2vu5l")
+normal_enabled = true
+normal_texture = ExtResource("4_pl6du")

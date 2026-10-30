@@ -1,0 +1,19 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/tube_base_color.webp" id="1_sbopl"]
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/tube_ao.webp" id="2_hlo4q"]
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/tube_emissive.webp" id="3_2fqd8"]
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/tube_metallic.webp" id="4_ixngq"]
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/tube_roughness.webp" id="5_stsku"]
+
+[resource]
+disable_fog = true
+albedo_texture = ExtResource("1_sbopl")
+metallic = 0.35
+metallic_texture = ExtResource("4_ixngq")
+roughness_texture = ExtResource("5_stsku")
+emission_enabled = true
+emission_energy_multiplier = 3.0
+emission_texture = ExtResource("3_2fqd8")
+ao_enabled = true
+ao_texture = ExtResource("2_hlo4q")

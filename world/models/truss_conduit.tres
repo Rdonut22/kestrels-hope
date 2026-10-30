@@ -1,0 +1,15 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/cable_base_color.webp" id="1_246j8"]
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/cable_metallic.webp" id="2_d43ih"]
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/cable_normal.webp" id="3_smp7y"]
+[ext_resource type="Texture2D" path="res://world/textures/scifi_kit/cable_roughness.webp" id="4_2djco"]
+
+[resource]
+disable_fog = true
+albedo_texture = ExtResource("1_246j8")
+metallic = 0.35
+metallic_texture = ExtResource("2_d43ih")
+roughness_texture = ExtResource("4_2djco")
+normal_enabled = true
+normal_texture = ExtResource("3_smp7y")
