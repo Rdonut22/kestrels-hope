@@ -3707,20 +3707,29 @@ func _grass_map(pond_c: Vector2, rocks: Array, trunks: Array) -> ImageTexture:
 	var fine := FastNoiseLite.new()
 	fine.seed = 19
 	fine.frequency = 0.16
+	# Big, soft blobs: where the few open clearings fall.
+	var glades := FastNoiseLite.new()
+	glades.seed = 41
+	glades.frequency = 0.022
 	for py in SIZE:
 		for px in SIZE:
 			var p := Vector2((px + 0.5) / SIZE - 0.5, (py + 0.5) / SIZE - 0.5) * AREA
 			var patch := patches.get_noise_2dv(p) * 0.5 + 0.5
 			var speck := fine.get_noise_2dv(p) * 0.5 + 0.5
-			# Forest floor: lush and tall, in thick and thinner patches.
-			var dens := lerpf(0.62, 1.0, smoothstep(0.3, 0.65, patch))
-			var tall := lerpf(0.45, 1.0, smoothstep(0.25, 0.7, patch)) * lerpf(0.85, 1.05, speck)
-			# The clearings stay open: short, patchy ground cover.
-			var open := 1.0 - smoothstep(-2.0, 5.0, _clear_dist(p))
+			# Lush, tall fields almost everywhere, thick and thinner in patches.
+			var dens := lerpf(0.8, 1.0, smoothstep(0.3, 0.65, patch))
+			var tall := lerpf(0.65, 1.0, smoothstep(0.25, 0.7, patch)) * lerpf(0.88, 1.05, speck)
+			# A few clearings stay open with short ground cover: round the
+			# ship (so you can see where you're going when you step out),
+			# scattered glades, the vistas to the ruins and the pond's edge.
+			var ship_d := Vector2(maxf(maxf(-14.5 - p.x, p.x - 13.5), 0.0), maxf(maxf(-15.0 - p.y, p.y - 11.8), 0.0)).length()
+			var open := 1.0 - smoothstep(3.0, 9.0, ship_d)
+			open = maxf(open, smoothstep(0.66, 0.74, glades.get_noise_2dv(p) * 0.5 + 0.5))
+			open = maxf(open, 1.0 - smoothstep(5.5, 7.5, p.distance_to(pond_c)))
 			if _in_vista(p):
-				open = maxf(open, 0.75)
-			dens = lerpf(dens, 0.2 + 0.32 * smoothstep(0.45, 0.8, speck * 0.6 + patch * 0.4), open)
-			tall = lerpf(tall, 0.1 + 0.2 * patch, open)
+				open = maxf(open, 0.35)
+			dens = lerpf(dens, 0.25 + 0.3 * smoothstep(0.45, 0.8, speck * 0.6 + patch * 0.4), open)
+			tall = lerpf(tall, 0.08 + 0.18 * patch, open)
 			# Bare round the ship and its dirt, along the furrow, in the pond.
 			if _in_ship_zone(p, 1.5) or (absf(p.x + 0.8) < 7.5 and p.y > 6.0 and p.y < 88.0) or p.distance_to(pond_c) < 5.2:
 				dens = 0.0

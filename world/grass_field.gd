@@ -12,9 +12,9 @@ extends Node3D
 @export var area_size := 200.0
 @export var chunk_size := 16.0
 ## Tufts per square metre where the map is fully red (the main quality knob).
-@export_range(0.1, 10.0) var density := 6.0
-@export var min_height := 0.22
-@export var max_height := 1.05
+@export_range(0.1, 10.0) var density := 8.0
+@export var min_height := 0.25
+@export var max_height := 1.4
 ## Grass is drawn out to here (metres from the camera).
 @export var view_distance := 38.0
 @export var seed := 4023

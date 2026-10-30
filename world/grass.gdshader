@@ -27,7 +27,7 @@ uniform vec3 world_tint : source_color = vec3(1.0);
 group_uniforms push;
 // Set each frame by world/grass_field.gd: blades bend away from Gana.
 uniform vec3 player_pos = vec3(0.0, -1000.0, 0.0);
-uniform float push_radius = 1.1;
+uniform float push_radius = 1.3;
 
 group_uniforms distance;
 // Blades sink into the ground towards the edge of the grass's range.
