@@ -1,0 +1,21 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/redwood_foliage.gdshader" id="1_wbo28"]
+[ext_resource type="Texture2D" path="res://world/redwood_spray.res" id="2_w1eey"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_wbo28")
+shader_parameter/wind_direction = Vector2(1, 0.35)
+shader_parameter/sway = 0.4
+shader_parameter/sway_speed = 0.8
+shader_parameter/gust_strength = 0.7
+shader_parameter/gust_scale = 120.0
+shader_parameter/gust_speed = 6.0
+shader_parameter/trunk_sway = 0.35
+shader_parameter/tree_height = 64.0
+shader_parameter/spray = ExtResource("2_w1eey")
+shader_parameter/alpha_cut = 0.45
+shader_parameter/sun_tint = 0.3
+shader_parameter/translucency = 0.35
+shader_parameter/world_tint = Color(1, 1, 1, 1)

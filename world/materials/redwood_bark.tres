@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/redwood_bark.gdshader" id="1_4ry1a"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_4ry1a")
+shader_parameter/wind_direction = Vector2(1, 0.35)
+shader_parameter/sway = 0.4
+shader_parameter/sway_speed = 0.8
+shader_parameter/gust_strength = 0.7
+shader_parameter/gust_scale = 120.0
+shader_parameter/gust_speed = 6.0
+shader_parameter/trunk_sway = 0.35
+shader_parameter/tree_height = 64.0
+shader_parameter/streaks = 0.55
+shader_parameter/world_tint = Color(1, 1, 1, 1)

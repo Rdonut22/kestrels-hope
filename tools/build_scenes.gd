@@ -3395,14 +3395,14 @@ func _build_crash_site() -> void:
 	smoke.mesh = quad
 	_add(site, smoke, "Smoke")
 
-	# Forest: a dense ring of big pixel-art trees around an irregular clearing.
+	# The old pixel-art forest layout. Its trees have given way to the
+	# redwoods (_build_redwoods), but the layout still runs: its random draws
+	# keep the bushes, rocks and everything placed after it where they were.
 	var trunks := []
 	var cones := []
 	var blobs := []
 	var bushes := []
-	var bodies := _add(site, Node3D.new(), "TreeCollision")
 	var gx := -92.0
-	var tree_count := 0
 	while gx <= 92.0:
 		var gz := -92.0
 		while gz <= 92.0:
@@ -3456,22 +3456,11 @@ func _build_crash_site() -> void:
 					var bs := rng.randf_range(1.3, 2.0)
 					blobs.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bs, bs * 0.8, bs)),
 						base + Vector3(cos(a) * rad, h + rng.randf_range(-0.4, 1.0), sin(a) * rad)), tint])
-			if _clear_dist(p) < 45.0:
-				var body := StaticBody3D.new()
-				body.position = base + Vector3(0, h / 2.0, 0)
-				_add(bodies, body, "Tree%d" % tree_count)
-				var cs := CollisionShape3D.new()
-				var shape := CylinderShape3D.new()
-				shape.radius = r
-				shape.height = h
-				cs.shape = shape
-				_add(body, cs, "Shape")
 			for k in rng.randi_range(1, 3):
 				var bp := p + Vector2(rng.randf_range(-3.5, 3.5), rng.randf_range(-3.5, 3.5))
 				var bsz := rng.randf_range(0.8, 1.9)
 				bushes.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bsz * 1.4, bsz, bsz * 1.3)),
 					Vector3(bp.x, GROUND_Y + bsz * 0.3, bp.y)), tint])
-			tree_count += 1
 		gx += 6.0
 	# Extra undergrowth fringing the clearing.
 	for k in 260:
@@ -3483,27 +3472,13 @@ func _build_crash_site() -> void:
 		bushes.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bsz * 1.4, bsz, bsz * 1.3)),
 			Vector3(p.x, GROUND_Y + bsz * 0.3, p.y)), Color(1, 1, 1) * rng.randf_range(0.85, 1.15)])
 
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.75
-	trunk_mesh.bottom_radius = 1.0
-	trunk_mesh.height = 1.0
-	trunk_mesh.radial_segments = 8
-	trunk_mesh.rings = 1
-	var cone_mesh := CylinderMesh.new()
-	cone_mesh.top_radius = 0.0
-	cone_mesh.bottom_radius = 1.0
-	cone_mesh.height = 1.0
-	cone_mesh.radial_segments = 10
-	cone_mesh.rings = 3
 	var blob_mesh := SphereMesh.new()
 	blob_mesh.radius = 0.5
 	blob_mesh.height = 1.0
 	blob_mesh.radial_segments = 10
 	blob_mesh.rings = 6
-	_multimesh(site, "Trunks", trunk_mesh, trunks, "bark")
-	_multimesh(site, "Pines", cone_mesh, cones, "pine")
-	_multimesh(site, "Canopies", blob_mesh, blobs, "canopy")
 	_multimesh(site, "Bushes", blob_mesh, bushes, "bush")
+	var redwood_trunks := _build_redwoods(site, GROUND_Y)
 
 	# Rocks, some mossy, and a ring of stones and reeds around the pond.
 	var rocks := []
@@ -3537,7 +3512,13 @@ func _build_crash_site() -> void:
 	rock_mesh.rings = 4
 	_multimesh(site, "Rocks", rock_mesh, rocks, "rock")
 	_multimesh(site, "MossyRocks", rock_mesh, mossy, "moss_rock")
-	_multimesh(site, "Reeds", trunk_mesh, reeds, "reed")
+	var reed_mesh := CylinderMesh.new()
+	reed_mesh.top_radius = 0.75
+	reed_mesh.bottom_radius = 1.0
+	reed_mesh.height = 1.0
+	reed_mesh.radial_segments = 8
+	reed_mesh.rings = 1
+	_multimesh(site, "Reeds", reed_mesh, reeds, "reed")
 
 	# Pond.
 	var st := SurfaceTool.new()
@@ -3589,7 +3570,7 @@ func _build_crash_site() -> void:
 	# Flowing grass (world/grass_field.gd), lush through the forest, short
 	# and patchy in the clearing and the ruin vistas, none on the ship,
 	# trail, pond, rocks or trunks.
-	var grass_map := _grass_map(pond_c, rocks + mossy, trunks)
+	var grass_map := _grass_map(pond_c, rocks + mossy, redwood_trunks)
 	var field := Node3D.new()
 	field.set_script(load("res://world/grass_field.gd"))
 	field.set("density_map", grass_map)
@@ -3678,6 +3659,153 @@ func _build_crash_site() -> void:
 		_add(site, flies, "Fireflies%d" % k)
 
 	_save(R, "res://crash_site.tscn")
+
+
+## Redwood kinds for the forest (settings for world/redwood.gd), and how many
+## of each to try to place, biggest first.
+const REDWOOD_KINDS := [
+	{"count": 12, "height": 68.0, "trunk_radius": 2.8, "crown_width": 24.0, "crown_start": 0.2, "ancient": true, "tree_seed": 7},
+	{"count": 8, "height": 58.0, "trunk_radius": 3.3, "crown_width": 28.0, "crown_start": 0.24, "ancient": true, "tree_seed": 21, "irregularity": 0.8},
+	{"count": 14, "height": 72.0, "trunk_radius": 2.2, "crown_width": 16.0, "crown_start": 0.34, "ancient": false, "tree_seed": 33},
+	{"count": 10, "height": 50.0, "trunk_radius": 2.0, "crown_width": 21.0, "crown_start": 0.26, "ancient": true, "tree_seed": 48, "irregularity": 1.0},
+	{"count": 26, "height": 44.0, "trunk_radius": 1.5, "crown_width": 17.0, "crown_start": 0.2, "ancient": false, "tree_seed": 5},
+	{"count": 40, "height": 22.0, "trunk_radius": 0.65, "crown_width": 10.0, "crown_start": 0.1, "ancient": false, "tree_seed": 12, "foliage_density": 1.3},
+]
+const REDWOOD_CHUNK := 40.0
+## Beyond this the distant (lod 1) version takes over.
+const REDWOOD_LOD_DISTANCE := 80.0
+
+
+## The redwood forest round the meadows: each kind built once (full and
+## distant versions, saved under world/redwoods/), then instanced in 40 m
+## chunks so far chunks switch to the distant version. Spaced so the crowns
+## leave gaps for the sky, thicker deeper into the forest, kept off the
+## clearing, the trail, the vistas to the ruins and the glades. Returns the
+## trunks (as scaled transforms) for the grass map to grow round.
+func _build_redwoods(site: Node3D, ground_y: float) -> Array:
+	var script := load("res://world/redwood.gd") as GDScript
+	var rmats: Array = script.call("make_materials")
+	var spray: Texture2D = (rmats[1] as ShaderMaterial).get_shader_parameter("spray")
+	_save_resource(spray, "res://world/redwood_spray.res")
+	_save_resource(rmats[0], script.get("BARK_MATERIAL"))
+	_save_resource(rmats[1], script.get("LEAF_MATERIAL"))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://world/redwoods"))
+	var meshes := []  # [kind][lod] = [bark, foliage]
+	for k in REDWOOD_KINDS.size():
+		var per_lod := []
+		for lod in 2:
+			var tree: Node3D = script.new()
+			for key in REDWOOD_KINDS[k]:
+				if key != "count":
+					tree.set(key, REDWOOD_KINDS[k][key])
+			tree.set("lod", lod)
+			var built: Array = tree.call("build_meshes")
+			tree.free()
+			var pair := []
+			for part in 2:
+				var path := "res://world/redwoods/kind%d_lod%d_%s.res" % [k, lod, ["bark", "foliage"][part]]
+				_save_resource(built[part], path)
+				pair.append(built[part])
+			per_lod.append(pair)
+		meshes.append(per_lod)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2024
+	var glades := FastNoiseLite.new()
+	glades.seed = 41
+	glades.frequency = 0.022
+	var placed := []  # [Vector2, kind, scale]
+	for k in REDWOOD_KINDS.size():
+		var kind: Dictionary = REDWOOD_KINDS[k]
+		var young: bool = kind["height"] < 30.0
+		var want: int = kind["count"]
+		var tries := 0
+		while want > 0 and tries < 4000:
+			tries += 1
+			var p := Vector2(rng.randf_range(-91.0, 91.0), rng.randf_range(-91.0, 91.0))
+			var sc := rng.randf_range(0.85, 1.15)
+			var trunk_r: float = kind["trunk_radius"] * sc
+			var crown_r: float = kind["crown_width"] * 0.5 * sc
+			if _keep_clear(p, trunk_r * 2.0 + (1.5 if young else 4.0)):
+				continue
+			# Big crowns stay clear of the furrow the Kestrel skids along.
+			if absf(p.x + 0.8) < 6.0 + crown_r * 0.6 and p.y > -5.0 and p.y < 92.0:
+				continue
+			if glades.get_noise_2dv(p) * 0.5 + 0.5 > 0.63:
+				continue
+			# Sparse at the meadow's edge, thicker deeper in.
+			var depth := clampf(_clear_dist(p) / 35.0, 0.0, 1.0)
+			if not young and rng.randf() > 0.35 + 0.65 * depth:
+				continue
+			var ok := true
+			for q in placed:
+				var other: Dictionary = REDWOOD_KINDS[q[1]]
+				var d: float = p.distance_to(q[0])
+				var spacing: float = (crown_r + other["crown_width"] * 0.5 * float(q[2])) * (0.45 if young else 0.62)
+				spacing = maxf(spacing, (trunk_r + other["trunk_radius"] * float(q[2])) * 2.5 + 1.5)
+				if d < spacing:
+					ok = false
+					break
+			if not ok:
+				continue
+			placed.append([p, k, sc])
+			want -= 1
+
+	var root := _add(site, Node3D.new(), "Redwoods")
+	var bodies := _add(site, Node3D.new(), "TreeCollision")
+	var groups := {}  # Vector3i(chunk x, chunk z, kind) -> [Transform3D]
+	var trunks := []
+	for i in placed.size():
+		var p: Vector2 = placed[i][0]
+		var k: int = placed[i][1]
+		var sc: float = placed[i][2]
+		var kind: Dictionary = REDWOOD_KINDS[k]
+		var key := Vector3i(floori(p.x / REDWOOD_CHUNK), floori(p.y / REDWOOD_CHUNK), k)
+		if not groups.has(key):
+			groups[key] = []
+		(groups[key] as Array).append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(p.x, ground_y, p.y)))
+		var r: float = kind["trunk_radius"] * sc
+		trunks.append([Transform3D(Basis().scaled(Vector3.ONE * r * 1.6), Vector3(p.x, ground_y, p.y)), Color(1, 1, 1)])
+		var body := StaticBody3D.new()
+		body.position = Vector3(p.x, ground_y + 7.0, p.y)
+		_add(bodies, body, "Tree%d" % i)
+		var cs := CollisionShape3D.new()
+		var shape := CylinderShape3D.new()
+		shape.radius = r * 1.15
+		shape.height = 14.0
+		cs.shape = shape
+		_add(body, cs, "Shape")
+	for key: Vector3i in groups:
+		var centre := Vector3((key.x + 0.5) * REDWOOD_CHUNK, ground_y, (key.y + 0.5) * REDWOOD_CHUNK)
+		var xfs: Array = groups[key]
+		for lod in 2:
+			for part in 2:
+				var mm := MultiMesh.new()
+				mm.transform_format = MultiMesh.TRANSFORM_3D
+				mm.mesh = meshes[key.z][lod][part]
+				mm.instance_count = xfs.size()
+				for j in xfs.size():
+					var xf: Transform3D = xfs[j]
+					mm.set_instance_transform(j, Transform3D(xf.basis, xf.origin - centre))
+				var mmi := MultiMeshInstance3D.new()
+				mmi.multimesh = mm
+				mmi.position = centre
+				mmi.material_override = rmats[part]
+				if lod == 0:
+					mmi.visibility_range_end = REDWOOD_LOD_DISTANCE
+					mmi.visibility_range_end_margin = 8.0
+				else:
+					mmi.visibility_range_begin = REDWOOD_LOD_DISTANCE
+					mmi.visibility_range_begin_margin = 8.0
+					mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				_add(root, mmi, "C%d_%d_K%d_L%d_%s" % [key.x, key.y, key.z, lod, ["Bark", "Foliage"][part]])
+	print("redwoods: ", placed.size())
+	return trunks
+
+
+func _save_resource(res: Resource, path: String) -> void:
+	ResourceSaver.save(res, path)
+	res.take_over_path(path)
 
 
 func _multimesh(parent: Node, name: String, mesh: Mesh, items: Array, mat: String) -> MultiMeshInstance3D:

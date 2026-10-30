@@ -66,6 +66,14 @@ extends Node3D
 	set(v):
 		tree_seed = v
 		_queue_rebuild()
+## 0 = full detail; 1 = the distant version (same tree, far fewer triangles).
+@export_range(0, 1) var lod := 0:
+	set(v):
+		lod = v
+		_queue_rebuild()
+
+const BARK_MATERIAL := "res://world/materials/redwood_bark.tres"
+const LEAF_MATERIAL := "res://world/materials/redwood_foliage.tres"
 
 const BARK := [Color(0.55, 0.25, 0.14), Color(0.64, 0.33, 0.19), Color(0.45, 0.20, 0.12), Color(0.60, 0.30, 0.18)]
 const BARK_DARK := Color(0.20, 0.10, 0.07)
@@ -86,7 +94,8 @@ var _leaf_n := 0
 var _rng: RandomNumberGenerator
 var _noise: FastNoiseLite
 var _queued := false
-var _mi: MeshInstance3D
+var _bark_mi: MeshInstance3D
+var _leaf_mi: MeshInstance3D
 var _tris := 0
 # Per-tree shape, rolled from the seed.
 var _lean := Vector2.ZERO
@@ -101,6 +110,7 @@ var _droop := 0.0  # extra sag for the low, sweeping limbs
 
 func _ready() -> void:
 	_rebuild()
+	# Darken with the day-night cycle (it only collects materials at start).
 	if not Engine.is_editor_hint():
 		var clock := get_tree().get_first_node_in_group("day_night")
 		if clock and "_tinted" in clock:
@@ -122,6 +132,23 @@ func triangle_count() -> int:
 
 func _rebuild() -> void:
 	_queued = false
+	var meshes := build_meshes()
+	if not _bark_mi:
+		_bark_mi = MeshInstance3D.new()
+		_bark_mi.name = "Bark"
+		add_child(_bark_mi)
+		_leaf_mi = MeshInstance3D.new()
+		_leaf_mi.name = "Foliage"
+		add_child(_leaf_mi)
+	_bark_mi.mesh = meshes[0]
+	_bark_mi.material_override = _bark_mat
+	_leaf_mi.mesh = meshes[1]
+	_leaf_mi.material_override = _leaf_mat
+
+
+## Builds the tree from the current settings: [bark mesh, foliage mesh],
+## for the shared materials (redwood_material(), as used by the forest).
+func build_meshes() -> Array[ArrayMesh]:
 	_ensure_materials()
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = tree_seed
@@ -141,27 +168,36 @@ func _rebuild() -> void:
 	_build_roots()
 	_build_stubs()
 	_build_crown()
-	var mesh := ArrayMesh.new()
-	_bark.commit(mesh)
-	mesh.surface_set_material(0, _bark_mat)
-	if _leaf_n > 0:
-		_leaf.commit(mesh)
-		mesh.surface_set_material(1, _leaf_mat)
-	if not _mi:
-		_mi = MeshInstance3D.new()
-		_mi.name = "Mesh"
-		add_child(_mi)
-	_mi.mesh = mesh
+	return [_bark.commit(), _leaf.commit()]
 
 
-func _ensure_materials() -> void:
+## The shared bark (0) or foliage (1) material. tools/build_scenes.gd saves
+## them; without the saved files (e.g. before the first build) they are made
+## on the spot.
+static func redwood_material(which: int) -> ShaderMaterial:
+	_ensure_materials()
+	return _bark_mat if which == 0 else _leaf_mat
+
+
+static func make_materials() -> Array[ShaderMaterial]:
+	var bark := ShaderMaterial.new()
+	bark.shader = load("res://world/redwood_bark.gdshader")
+	var leaf := ShaderMaterial.new()
+	leaf.shader = load("res://world/redwood_foliage.gdshader")
+	leaf.set_shader_parameter("spray", _make_spray_texture())
+	return [bark, leaf]
+
+
+static func _ensure_materials() -> void:
 	if _bark_mat:
 		return
-	_bark_mat = ShaderMaterial.new()
-	_bark_mat.shader = load("res://world/redwood_bark.gdshader")
-	_leaf_mat = ShaderMaterial.new()
-	_leaf_mat.shader = load("res://world/redwood_foliage.gdshader")
-	_leaf_mat.set_shader_parameter("spray", _make_spray_texture())
+	if ResourceLoader.exists(BARK_MATERIAL) and ResourceLoader.exists(LEAF_MATERIAL):
+		_bark_mat = load(BARK_MATERIAL)
+		_leaf_mat = load(LEAF_MATERIAL)
+	else:
+		var m := make_materials()
+		_bark_mat = m[0]
+		_leaf_mat = m[1]
 
 
 func _roll_shape() -> void:
@@ -238,12 +274,13 @@ func _bark_color(a: float, h: float) -> Color:
 
 
 func _build_trunk() -> void:
-	var sides := 32
+	var sides := 32 if lod == 0 else 10
+	var step := 1.0 if lod == 0 else 3.0
 	var hs := PackedFloat32Array()
 	var h := -1.0
 	while h < height - 1.0:
 		hs.append(h)
-		h += 0.35 if h < 4.0 else (0.9 if h < 14.0 else 1.8)
+		h += (0.35 if h < 4.0 else (0.9 if h < 14.0 else 1.8)) * step
 	hs.append(height - 1.0)
 	hs.append(height)
 	var rows := []
@@ -289,14 +326,16 @@ func _build_roots() -> void:
 		var wig := _rng.randf_range(-0.35, 0.35) * length
 		var pts := PackedVector3Array()
 		var radii := PackedFloat32Array()
-		var n := 9
+		var n := 9 if lod == 0 else 4
 		for k in n:
 			var t := float(k) / (n - 1)
 			var p := start + dir * length * t + side * wig * t * t
 			p.y = lerpf(start.y, -0.35, pow(t, 0.7))
 			pts.append(p)
 			radii.append(lerpf(r0, 0.08, pow(t, 0.8)))
-		_tube(_bark, pts, radii, 8, 0.55, LIMB.lerp(BARK_DARK, 0.5).lerp(MOSS, _rng.randf() * 0.4), Vector2.ZERO)
+		if lod > 0 and s < 0.33:
+			continue
+		_tube(_bark, pts, radii, 8 if lod == 0 else 4, 0.55, LIMB.lerp(BARK_DARK, 0.5).lerp(MOSS, _rng.randf() * 0.4), Vector2.ZERO)
 
 
 ## Dead stubs and burls on the bare lower trunk.
@@ -309,6 +348,8 @@ func _build_stubs() -> void:
 		var length := _rng.randf_range(0.4, 1.3)
 		var r0 := _rng.randf_range(0.12, 0.25) * trunk_radius / 2.6
 		var pts := PackedVector3Array([p, p + dir * length * 0.5, p + dir * length])
+		if lod > 0:
+			continue
 		_tube(_bark, pts, PackedFloat32Array([r0, r0 * 0.75, r0 * 0.4]), 5, 1.0, DEADWOOD, Vector2.ZERO)
 
 
@@ -358,7 +399,7 @@ func _branch(start: Vector3, dir: Vector3, length: float, depth: int, dead: bool
 	var p1 := start + dir * length * 0.5 + Vector3(0, length * (dip - sag), 0)
 	var p2 := start + dir * length + Vector3(0, length * rise, 0)
 	var flex1 := minf(1.0, flex0 + length / 9.0)
-	var rings := clampi(int(length / 1.4) + 3, 4, 9)
+	var rings := clampi(int(length / 1.4) + 3, 4, 9) if lod == 0 else 3
 	var pts := PackedVector3Array()
 	var radii := PackedFloat32Array()
 	var r0 := clampf(0.03 * length + 0.08, 0.1, 0.55) * trunk_radius / 2.6 if depth == 0 else clampf(0.025 * length + 0.04, 0.05, 0.18)
@@ -369,7 +410,9 @@ func _branch(start: Vector3, dir: Vector3, length: float, depth: int, dead: bool
 		radii.append(lerpf(r0, r0 * 0.18, t))
 		flexes.append(lerpf(flex0, flex1, t * t))
 	var col := DEADWOOD if dead else LIMB.lerp(BARK[_rng.randi() % 4], 0.3)
-	_tube(_bark, pts, radii, 6 if depth == 0 else 4, 1.0, col, Vector2(0, phase), flexes)
+	# Far away the twigs vanish under their sprays.
+	if lod == 0 or depth == 0:
+		_tube(_bark, pts, radii, (6 if depth == 0 else 4) if lod == 0 else 3, 1.0, col, Vector2(0, phase), flexes)
 	if leader:
 		_leader(_bez(p0, p1, p2, 0.65), _rng.randf_range(8.0, 13.0), r0 * 0.7, lerpf(flex0, flex1, 0.42), phase)
 	if dead:
@@ -403,7 +446,7 @@ func _leader(start: Vector3, rise: float, r0: float, flex0: float, phase: float)
 		pts.append(_bez(start, p1, p2, t))
 		radii.append(lerpf(r0, 0.05, t))
 		flexes.append(lerpf(flex0, minf(1.0, flex0 + 0.4), t))
-	_tube(_bark, pts, radii, 6, 1.0, LIMB.lerp(BARK[1], 0.5), Vector2(0, phase), flexes)
+	_tube(_bark, pts, radii, 6 if lod == 0 else 3, 1.0, LIMB.lerp(BARK[1], 0.5), Vector2(0, phase), flexes)
 	for i in 7:
 		var t := _rng.randf_range(0.3, 0.95)
 		var a := _rng.randf() * TAU
@@ -462,7 +505,11 @@ func _cluster(p: Vector3, out: Vector3, size: float, flex: float, phase: float) 
 			c += Vector3.DOWN * s * 0.35
 		var col := green.lerp(GREENS[_rng.randi() % GREENS.size()], 0.4) * (shade * (0.85 if hang else 1.0) * _rng.randf_range(0.92, 1.08))
 		col.a = 1.0
-		_card(c, fwd * s * 0.62, side * s * 0.48, p, col, flex, phase)
+		# The distant version keeps two bigger sprays per clump.
+		if lod == 0:
+			_card(c, fwd * s * 0.62, side * s * 0.48, p, col, flex, phase)
+		elif k < 2:
+			_card(c, fwd * s * 0.8, side * s * 0.65, p, col, flex, phase)
 
 
 func _card(c: Vector3, u: Vector3, v: Vector3, cluster: Vector3, col: Color, flex: float, phase: float) -> void:

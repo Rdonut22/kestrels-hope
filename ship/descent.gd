@@ -349,10 +349,11 @@ func _attach_site() -> void:
 			_low_detail.append(node)
 	# The Kestrel is wider than the trail the crash site keeps clear; trees
 	# overhanging the furrow would cut through the cabin as she skids.
-	for n in ["Trunks", "Pines", "Canopies", "Bushes"]:
-		var mmi := _site.get_node_or_null(n) as MultiMeshInstance3D
-		if not mmi:
-			continue
+	var layers: Array[Node] = [_site.get_node_or_null("Bushes")]
+	var redwoods := _site.get_node_or_null("Redwoods")
+	if redwoods:
+		layers.append_array(redwoods.get_children())
+	for mmi: MultiMeshInstance3D in layers.filter(func(n: Node) -> bool: return n is MultiMeshInstance3D):
 		var mm := mmi.multimesh.duplicate() as MultiMesh
 		for i in mm.instance_count:
 			var xf := mm.get_instance_transform(i)
@@ -388,39 +389,19 @@ func _attach_site() -> void:
 	_site.visible = false
 
 
-## A pine standing where one of the trail's stumps is, built like the
-## crash site's own pines (tools/build_scenes.gd _tree) with its materials.
+## A young redwood standing where one of the trail's stumps is (the crash
+## site's smallest redwood kind, from tools/build_scenes.gd, scaled down).
 func _make_tree(at: Vector3) -> Node3D:
 	var tree := Node3D.new()
 	tree.position = at
 	tree.rotation.y = randf() * TAU
+	tree.scale = Vector3.ONE * randf_range(0.38, 0.5)
 	_site.add_child(tree)
-	var sc := randf_range(1.0, 1.4)
-	var trunk_h := 4.5 * sc
-	var trunk := MeshInstance3D.new()
-	var tm := CylinderMesh.new()
-	tm.top_radius = 0.11 * sc
-	tm.bottom_radius = 0.18 * sc
-	tm.height = trunk_h
-	tm.radial_segments = 6
-	tm.rings = 1
-	trunk.mesh = tm
-	trunk.material_override = load("res://world/materials/bark.tres")
-	trunk.position.y = trunk_h / 2.0
-	tree.add_child(trunk)
-	var leaf: Material = load("res://world/materials/leaf_%s.tres" % ["a", "b", "c"][randi() % 3])
-	for k in 3:
-		var cone := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.0
-		cm.bottom_radius = (1.6 - k * 0.4) * sc
-		cm.height = 1.9 * sc
-		cm.radial_segments = 7
-		cm.rings = 1
-		cone.mesh = cm
-		cone.material_override = leaf
-		cone.position.y = trunk_h * 0.45 + k * 1.1 * sc + 0.9 * sc
-		tree.add_child(cone)
+	for part in ["bark", "foliage"]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = load("res://world/redwoods/kind5_lod0_%s.res" % part)
+		mi.material_override = load("res://world/materials/redwood_%s.tres" % part)
+		tree.add_child(mi)
 	return tree
 
 
