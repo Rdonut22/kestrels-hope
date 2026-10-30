@@ -16,7 +16,6 @@ var _fade: ColorRect
 var _music: AudioStreamPlayer
 var _t := 0.0
 var _starting := false
-var _sky: ShaderMaterial
 
 
 func _ready() -> void:
@@ -45,10 +44,6 @@ func _set_dusk() -> void:
 	var env: Environment = world.get_node("WorldEnvironment").environment
 	env.fog_depth_begin = 100.0
 	env.fog_depth_end = 360.0
-	_sky = env.sky.sky_material
-	_sky.set_shader_parameter("moon_scale", 2.5)
-	_sky.set_shader_parameter("moon_b_scale", 1.1)
-	_sky.set_shader_parameter("prism", 1.0)
 	_boost_smoke()
 
 
@@ -186,8 +181,9 @@ func _setup_camera(seat: Transform3D) -> void:
 	_cam.make_current()
 	# One gigantic and one small moon in the sky of this shot.
 	var b := _cam_base.basis
-	_sky.set_shader_parameter("moon_a_dir", (-b.z + b.y * 0.47 - b.x * 0.12).normalized())
-	_sky.set_shader_parameter("moon_b_dir", (-b.z + b.y * 0.56 + b.x * 1.0).normalized())
+	var moons := world.get_node("SkyMoons")
+	moons.point_at("giant", (-b.z + b.y * 0.47 - b.x * 0.12).normalized())
+	moons.point_at("small", (-b.z + b.y * 0.56 + b.x * 1.0).normalized())
 
 
 func _process(delta: float) -> void:

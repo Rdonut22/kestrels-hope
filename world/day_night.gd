@@ -92,7 +92,6 @@ func _apply() -> void:
 		m.set_shader_parameter("world_tint", tint)
 		m.set_shader_parameter("haze", fog)
 
-	_sky.set_shader_parameter("prism", clampf(dusk + (1.0 - day) * 0.5, 0.0, 1.0))
 	_sky.set_shader_parameter("day", day)
 	_sky.set_shader_parameter("dusk", dusk)
 	_sky.set_shader_parameter("sun_dir", to_sun)

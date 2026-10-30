@@ -174,6 +174,11 @@ func _build_world() -> void:
 		_sky.set_shader_parameter("sun_dir", _to_sun)
 		_env.sky.sky_material = _sky
 		_env.sky.process_mode = Sky.PROCESS_MODE_REALTIME
+		# The two moons, fading in with the sky as the stars give way.
+		var moons := Node3D.new()
+		moons.name = "SkyMoons"
+		moons.set_script(load("res://world/sky_moons.gd"))
+		add_child(moons)
 		_env_start = {"amb": _env.ambient_light_color, "amb_e": _env.ambient_light_energy,
 			"fog": _env.fog_light_color, "density": _env.fog_density, "exp": _env.tonemap_exposure}
 

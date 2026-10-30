@@ -3208,6 +3208,11 @@ func _build_crash_site() -> void:
 	moon.transform = Transform3D(Basis.looking_at(-Vector3(-0.8, 0.5, 0.35).normalized(), Vector3.UP), Vector3.ZERO)
 	R.add_child(moon)
 	moon.owner = R
+	var moons := Node3D.new()
+	moons.name = "SkyMoons"
+	moons.set_script(load("res://world/sky_moons.gd"))
+	R.add_child(moons)
+	moons.owner = R
 	var music := Node.new()
 	music.name = "OutdoorMusic"
 	music.set_script(load("res://world/outdoor_music.gd"))
