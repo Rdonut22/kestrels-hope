@@ -1,27 +1,8 @@
 extends CharacterBody3D
 
+const SPEED = 5.0
+const JUMP_VELOCITY = 4.5
 const MOUSE_SENSITIVITY = 0.003
-
-@export_group("Movement")
-## Default pace (m/s). The Run animation lands its feet at about 2.5 m/s;
-## the model speeds the cycle up to match, so keep this under ~4.
-@export var jog_speed := 3.6
-## Pace while holding Shift (m/s). The Walk animation matches ~1.3 m/s.
-@export var walk_speed := 1.45
-## Hold Shift to jog instead (walking is the default).
-@export var walk_by_default := false
-## How quickly he gets up to speed (m/s per second).
-@export var acceleration := 9.0
-## How quickly he slows down when you let go (m/s per second).
-@export var deceleration := 12.0
-## Fastest he turns, standing / at a jog (degrees per second).
-@export var turn_speed_standing := 600.0
-@export var turn_speed_moving := 330.0
-## Fraction of ground control he keeps in the air.
-@export_range(0.0, 1.0) var air_control := 0.35
-@export var jump_velocity := 4.5
-## Jumping still works this long after stepping off a ledge (seconds).
-@export var coyote_time := 0.12
 
 var has_coffee := false:
 	set(value):
@@ -39,10 +20,6 @@ var _floor: Object
 var _seat: Node3D  # couch seat we're sitting on, if any
 var _sit_cam: Camera3D
 var _sit_look := Vector2.ZERO  # yaw, pitch offsets while seated
-var _air_time := 0.0
-var _jump_buffer := 0.0
-var _fall_speed := 0.0
-var _turn_rate := 0.0  # radians per second the body is turning
 
 @onready var pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -58,13 +35,6 @@ func _ready() -> void:
 	_add_key("interact", KEY_E)
 	_add_key("drink", KEY_F)
 	_add_key("read", KEY_R)
-	_add_key("walk", KEY_SHIFT)
-	# Grounded on slopes and small bumps: keep to the floor, same speed up
-	# and down hill, and don't slide when standing on a slope.
-	floor_snap_length = 0.35
-	floor_constant_speed = true
-	floor_stop_on_slope = true
-	floor_max_angle = deg_to_rad(46.0)
 	spring_arm.add_excluded_object(get_rid())
 	_setup_footsteps()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -114,59 +84,24 @@ func _physics_process(delta: float) -> void:
 		_update_seated_prompt()
 		return
 
-	var grounded := is_on_floor()
-	if not grounded:
+	if not is_on_floor():
 		velocity += get_gravity() * delta
-		_air_time += delta
-		_fall_speed = maxf(_fall_speed, -velocity.y)
-	# Jump: a little forgiving on both ends (pressed just before landing,
-	# or just after walking off an edge).
-	_jump_buffer = maxf(_jump_buffer - delta, 0.0)
-	if not busy and Input.is_action_just_pressed("jump"):
-		_jump_buffer = 0.12
-	if _jump_buffer > 0.0 and _air_time < coyote_time and velocity.y <= 0.5:
-		velocity.y = jump_velocity
-		_jump_buffer = 0.0
-		_air_time = coyote_time
-		if mesh.has_method("jumped"):
-			mesh.jumped()
+
+	if not busy and Input.is_action_just_pressed("jump") and is_on_floor():
+		velocity.y = JUMP_VELOCITY
 
 	var input_dir := Vector2.ZERO if busy else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := pivot.global_transform.basis * Vector3(input_dir.x, 0, input_dir.y)
 	direction.y = 0
-	direction = direction.normalized() * minf(input_dir.length(), 1.0)
-	var walking := Input.is_action_pressed("walk") != walk_by_default
-	var pace := walk_speed if walking else jog_speed
+	direction = direction.normalized()
 
-	# Turn the body toward where we're heading at a limited rate, so he
-	# swings round instead of snapping. A sharp reversal slows him first
-	# (a pivot) rather than moonwalking backwards.
-	var facing := -mesh.global_transform.basis.z
-	facing.y = 0
-	facing = facing.normalized()
-	var flat_speed := Vector2(velocity.x, velocity.z).length()
-	var align := 1.0
-	_turn_rate = 0.0
-	if direction.length() > 0.01:
-		var want := atan2(-direction.x, -direction.z)
-		var diff := wrapf(want - mesh.rotation.y, -PI, PI)
-		var max_turn := deg_to_rad(lerpf(turn_speed_standing, turn_speed_moving, clampf(flat_speed / jog_speed, 0.0, 1.0)))
-		var step := clampf(diff * 10.0 * delta, -max_turn * delta, max_turn * delta)
-		mesh.rotation.y = wrapf(mesh.rotation.y + step, -PI, PI)
-		_turn_rate = step / delta
-		align = clampf(facing.dot(direction.normalized()), 0.0, 1.0)
-
-	# Accelerate the velocity itself toward the target: a little momentum,
-	# smooth starts and stops, no ice-skating. Speed builds as he faces the
-	# way he's going.
-	var target := direction * pace * lerpf(0.25, 1.0, align * align)
-	var horizontal := Vector3(velocity.x, 0, velocity.z)
-	var rate := acceleration if target.length() > horizontal.length() * 0.95 else deceleration
-	if not grounded:
-		rate *= air_control
-	horizontal = horizontal.move_toward(target, rate * delta)
-	velocity.x = horizontal.x
-	velocity.z = horizontal.z
+	if direction:
+		velocity.x = direction.x * SPEED
+		velocity.z = direction.z * SPEED
+		mesh.rotation.y = lerp_angle(mesh.rotation.y, atan2(-direction.x, -direction.z), 10 * delta)
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+		velocity.z = move_toward(velocity.z, 0, SPEED)
 
 	move_and_slide()
 	# Floor snapping doesn't always report a collision, so keep the last
@@ -177,16 +112,7 @@ func _physics_process(delta: float) -> void:
 		var c := get_slide_collision(i)
 		if c.get_normal().y > 0.7:
 			_floor = c.get_collider()
-	if is_on_floor():
-		if _air_time > 0.25 and mesh.has_method("landed"):
-			mesh.landed(_fall_speed)
-		_air_time = 0.0
-		_fall_speed = 0.0
-	if mesh.has_method("set_locomotion"):
-		var accel := (Vector2(velocity.x, velocity.z).length() - flat_speed) / maxf(delta, 0.0001)
-		mesh.set_locomotion(Vector2(velocity.x, velocity.z).length(), walk_speed, jog_speed, is_on_floor() or _air_time < 0.15, _turn_rate, accel)
-	else:
-		mesh.set_move(Vector2(velocity.x, velocity.z).length() / jog_speed)
+	mesh.set_move(Vector2(velocity.x, velocity.z).length() / SPEED)
 	# Hide the body when a wall shoves the camera right up against it.
 	mesh.visible = spring_arm.get_hit_length() > 0.9
 	_update_target(busy)
@@ -234,7 +160,7 @@ func _setup_footsteps() -> void:
 
 func _on_footstep() -> void:
 	if _floor is Node and (_floor as Node).is_in_group("grass_surface"):
-		var running := Vector2(velocity.x, velocity.z).length() > (walk_speed + jog_speed) * 0.5
+		var running := Vector2(velocity.x, velocity.z).length() > SPEED * 0.55
 		_steps.volume_db = -6.0 if running else -11.0
 		_steps.play()
 
