@@ -77,12 +77,15 @@ func _boost_smoke() -> void:
 
 
 ## The redwoods' size on the title screen (they're 20-70 m tall in the
-## game): lower, and spread a little wider so the crowns close up.
-const MENU_TREE_SCALE := Vector3(0.7, 0.45, 0.7)
+## game): lower, and spread wider so the crowns close up.
+const MENU_TREE_SCALE := Vector3(0.85, 0.48, 0.85)
+## Extra trees fill the gaps between the game's (deliberately airy) redwoods
+## on this shot only: one per cell of this size, where there's room.
+const MENU_FILL_SPACING := 10.0
 
 
-# The crash-site forest only covers the play area; tile its tree layers
-# around it so the view from the ring is forest to the horizon.
+# The crash-site forest only covers the play area; thicken it for the title
+# shot and tile it around so the view from the ring is forest to the horizon.
 func _extend_forest() -> void:
 	var site := world.get_node("CrashSite")
 	var offsets := [Vector3(184, 0, 0), Vector3(0, 0, 184), Vector3(0, 0, -184),
@@ -101,6 +104,20 @@ func _extend_forest() -> void:
 			if not merged.has(mesh):
 				merged[mesh] = [part.material_override, []]
 			(merged[mesh][1] as Array).append(tree.transform)
+	var fill := _fill_trees(site, merged)
+	for mesh: Mesh in fill:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		var xfs: Array = fill[mesh][1]
+		mm.instance_count = xfs.size()
+		for i in xfs.size():
+			mm.set_instance_transform(i, xfs[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = fill[mesh][0]
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		site.add_child(mmi)
 	for mesh: Mesh in merged:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -116,6 +133,42 @@ func _extend_forest() -> void:
 			copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			copy.position = off
 			site.add_child(copy)
+
+
+## Distant-version redwoods (smaller kinds) in the gaps of the play area,
+## kept off the clearing, the wreck and its trail. Returns them as
+## mesh -> [material, transforms], and adds them to `merged` for the tiling.
+func _fill_trees(site: Node3D, merged: Dictionary) -> Dictionary:
+	var taken: Array[Vector2] = []
+	for tree: Node3D in site.get_node("Redwoods").get_children():
+		taken.append(Vector2(tree.position.x, tree.position.z))
+	var bark: Material = load("res://world/materials/redwood_bark.tres")
+	var leaf: Material = load("res://world/materials/redwood_foliage.tres")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var fill := {}
+	var x := -90.0
+	while x <= 90.0:
+		var z := -90.0
+		while z <= 90.0:
+			var p := Vector2(x, z) + Vector2(rng.randf_range(-3.5, 3.5), rng.randf_range(-3.5, 3.5))
+			var kind: int = [2, 3, 4, 4, 5][rng.randi() % 5]
+			var sc := rng.randf_range(0.8, 1.2)
+			var yaw := rng.randf() * TAU
+			z += MENU_FILL_SPACING
+			var clearing := Vector2((p.x - 4.0) / 31.0, p.y / 26.0).length() < 1.0
+			var trail := absf(p.x + 0.8) < 8.0 and p.y > 6.0 and p.y < 88.0
+			if clearing or trail or taken.any(func(q: Vector2) -> bool: return q.distance_to(p) < 7.0):
+				continue
+			var xf := Transform3D(Basis(Vector3.UP, yaw).scaled(MENU_TREE_SCALE * sc), Vector3(p.x, -0.5, p.y))
+			for part in 2:
+				var mesh: Mesh = load("res://world/redwoods/kind%d_lod1_%s.res" % [kind, ["bark", "foliage"][part]])
+				for d in [fill, merged]:
+					if not d.has(mesh):
+						d[mesh] = [[bark, leaf][part], []]
+					(d[mesh][1] as Array).append(xf)
+		x += MENU_FILL_SPACING
+	return fill
 
 
 func _place_pilot() -> Transform3D:
