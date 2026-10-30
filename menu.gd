@@ -87,10 +87,12 @@ func _extend_forest() -> void:
 	# every tree, then copied round.
 	var merged := {}  # mesh -> [material, transforms]
 	for tree: Node3D in site.get_node("Redwoods").get_children():
-		for part: MeshInstance3D in [tree.get_node("BarkFar"), tree.get_node("FoliageFar")]:
-			if not merged.has(part.mesh):
-				merged[part.mesh] = [part.material_override, []]
-			(merged[part.mesh][1] as Array).append(tree.transform)
+		for part: MeshInstance3D in [tree.get_node("BarkFar"), tree.get_node("Foliage")]:
+			# The far foliage: same kind, saved next to the full one.
+			var mesh: Mesh = part.mesh if part.name == "BarkFar" else load(part.mesh.resource_path.replace("_lod0_", "_lod1_"))
+			if not merged.has(mesh):
+				merged[mesh] = [part.material_override, []]
+			(merged[mesh][1] as Array).append(tree.transform)
 	for mesh: Mesh in merged:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

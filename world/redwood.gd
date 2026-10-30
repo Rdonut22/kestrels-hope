@@ -274,7 +274,7 @@ func _bark_color(a: float, h: float) -> Color:
 
 
 func _build_trunk() -> void:
-	var sides := 32 if lod == 0 else 10
+	var sides := 32 if lod == 0 else 16
 	var step := 1.0 if lod == 0 else 3.0
 	var hs := PackedFloat32Array()
 	var h := -1.0

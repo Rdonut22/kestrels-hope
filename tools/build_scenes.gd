@@ -3198,6 +3198,8 @@ func _build_crash_site() -> void:
 	sun.light_energy = 1.8
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 80.0
+	# Blend between shadow cascades so tree shadows don't jump as you move.
+	sun.directional_shadow_blend_splits = true
 	sun.transform = Transform3D(Basis.looking_at(Vector3(-0.65, -0.62, -0.25).normalized(), Vector3.UP), Vector3.ZERO)
 	R.add_child(sun)
 	sun.owner = R
@@ -3676,15 +3678,16 @@ const REDWOOD_KINDS := [
 	{"count": 26, "height": 44.0, "trunk_radius": 1.5, "crown_width": 17.0, "crown_start": 0.2, "ancient": false, "tree_seed": 5},
 	{"count": 40, "height": 22.0, "trunk_radius": 0.65, "crown_width": 10.0, "crown_start": 0.1, "ancient": false, "tree_seed": 12, "foliage_density": 1.3},
 ]
-## Beyond this (from each tree) the distant (lod 1) version takes over. The
-## scene fog is complete by 90 m, so the switch can't be seen.
+## Beyond this (from each tree) its trunk and limbs switch to the simpler
+## distant (lod 1) bark, deep in the fog and inside the crown.
 const REDWOOD_LOD_DISTANCE := 96.0
 
 
 ## The redwood forest round the meadows: each kind built once (full and
 ## distant versions, saved under world/redwoods/) and shared by every tree of
-## that kind; each tree switches to its distant version on its own, out in
-## the fog. Spaced so the crowns
+## that kind; each tree switches to its distant bark on its own, out in the
+## fog (the distant foliage is only for the title screen's far forest).
+## Spaced so the crowns
 ## leave gaps for the sky, thicker deeper into the forest, kept off the
 ## clearing, the trail, the vistas to the ruins and the glades. Returns the
 ## trunks (as scaled transforms) for the grass map to grow round.
@@ -3768,15 +3771,17 @@ func _build_redwoods(site: Node3D, ground_y: float) -> Array:
 		var tree := Node3D.new()
 		tree.transform = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(p.x, ground_y, p.y))
 		_add(root, tree, "Tree%d" % i)
+		# Only the bark has a distant version: the foliage (the silhouette)
+		# stays the same at every distance so nothing pops.
 		for lod in 2:
-			for part in 2:
+			for part in (2 if lod == 0 else 1):
 				var mi := MeshInstance3D.new()
 				mi.mesh = meshes[k][lod][part]
 				mi.material_override = rmats[part]
-				if lod == 0:
+				if lod == 0 and part == 0:
 					mi.visibility_range_end = REDWOOD_LOD_DISTANCE
 					mi.visibility_range_end_margin = 6.0
-				else:
+				elif lod == 1:
 					mi.visibility_range_begin = REDWOOD_LOD_DISTANCE
 					mi.visibility_range_begin_margin = 6.0
 					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
