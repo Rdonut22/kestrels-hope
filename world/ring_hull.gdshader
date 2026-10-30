@@ -14,7 +14,7 @@ uniform sampler2D iron_normal : hint_normal, filter_linear_mipmap, repeat_enable
 uniform sampler2D iron_roughness : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D iron_metallic : hint_default_black, filter_linear_mipmap, repeat_enable;
 // Metres one repeat of the iron texture covers.
-uniform float tile = 3.0;
+uniform float tile = 7.0;
 uniform vec3 paint : source_color = vec3(0.7, 0.32, 0.1);
 
 uniform vec3 world_tint : source_color = vec3(1.0);
@@ -68,11 +68,15 @@ void fragment() {
 	vec2 r = UV2;
 	vec2 size = COLOR.rg * 10.0;            // plate size in metres
 	vec2 m = UV * size;                     // metres across the plate
-	vec2 t = m / tile + r * 7.0;
-	vec3 iron = texture(iron_albedo, t).rgb;
-	vec3 nmap = texture(iron_normal, t).rgb;
-	float rough = texture(iron_roughness, t).r;
-	float bare = texture(iron_metallic, t).r;  // 1 = bare iron, 0 = rust
+	// Two samples of the iron at different scales, offsets and angles,
+	// blended by soft noise, so the texture's repeats don't show as a grid.
+	vec2 t1 = m / tile + r * 7.0;
+	vec2 t2 = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * m / (tile * 1.37) + r.yx * 5.0 + 0.5;
+	float k = smoothstep(0.35, 0.65, fbm(vec3(m * 0.18, r.x * 9.0)));
+	vec3 iron = mix(texture(iron_albedo, t1).rgb, texture(iron_albedo, t2).rgb, k);
+	vec3 nmap = mix(texture(iron_normal, t1).rgb, texture(iron_normal, t2).rgb, k);
+	float rough = mix(texture(iron_roughness, t1).r, texture(iron_roughness, t2).r, k);
+	float bare = mix(texture(iron_metallic, t1).r, texture(iron_metallic, t2).r, k);  // 1 = bare iron, 0 = rust
 
 	// Edges (metres from the plate's border): grime and a row of bolts.
 	float ex = min(m.x, size.x - m.x);
