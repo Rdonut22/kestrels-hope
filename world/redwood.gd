@@ -36,7 +36,7 @@ extends Node3D
 		crown_width = v
 		_queue_rebuild()
 ## Where the living crown starts, as a fraction of the height.
-@export_range(0.15, 0.85) var crown_start := 0.42:
+@export_range(0.15, 0.85) var crown_start := 0.2:
 	set(v):
 		crown_start = v
 		_queue_rebuild()
@@ -96,6 +96,7 @@ var _buttress := []  # [angle, strength]
 var _scar_a := 0.0
 var _scar_h := 0.0
 var _crown_top := 0.0
+var _droop := 0.0  # extra sag for the low, sweeping limbs
 
 
 func _ready() -> void:
@@ -301,11 +302,11 @@ func _build_roots() -> void:
 ## Dead stubs and burls on the bare lower trunk.
 func _build_stubs() -> void:
 	for i in 9:
-		var h := _rng.randf_range(height * 0.12, height * crown_start)
+		var h := _rng.randf_range(height * 0.06, height * crown_start * 0.9)
 		var a := _rng.randf() * TAU
 		var dir := Vector3(cos(a), _rng.randf_range(-0.3, 0.1), sin(a)).normalized()
 		var p := _spine(h) + Vector3(cos(a), 0, sin(a)) * _trunk_radius_at(a, h) * 0.85
-		var length := _rng.randf_range(0.6, 2.4)
+		var length := _rng.randf_range(0.4, 1.3)
 		var r0 := _rng.randf_range(0.12, 0.25) * trunk_radius / 2.6
 		var pts := PackedVector3Array([p, p + dir * length * 0.5, p + dir * length])
 		_tube(_bark, pts, PackedFloat32Array([r0, r0 * 0.75, r0 * 0.4]), 5, 1.0, DEADWOOD, Vector2.ZERO)
@@ -321,7 +322,7 @@ func _build_crown() -> void:
 	var clumps := PackedFloat32Array()
 	for i in 9 + _rng.randi() % 4:
 		clumps.append(_rng.randf())
-	var count := int(90 * branch_density)
+	var count := int(125 * branch_density)
 	var reiterations := 2 if ancient else 0
 	for i in count:
 		var u := clampf(clumps[_rng.randi() % clumps.size()] + _rng.randf_range(-0.035, 0.035) * (1.0 + irregularity), 0.0, 1.0)
@@ -330,11 +331,13 @@ func _build_crown() -> void:
 		var h := base + u * span
 		var a := i * 2.39996 + _rng.randf_range(-0.6, 0.6)
 		var dir := Vector3(cos(a), 0, sin(a))
-		var prof := (0.5 + 0.5 * smoothstep(0.0, 0.25, u)) * pow(1.0 - u * 0.9, 0.85)
+		# Widest low down: a lush skirt sweeping out and down, narrowing upwards.
+		var prof := (0.8 + 0.2 * smoothstep(0.0, 0.1, u)) * pow(1.0 - u * 0.88, 0.75)
 		var length := crown_r * prof * _rng.randf_range(0.7, 1.15) * branch_length
 		length *= 1.0 + 0.35 * irregularity * dir.dot(_bias)
 		length = maxf(length, 1.5)
-		var dead := u < 0.1 and _rng.randf() < 0.5
+		var dead := u < 0.06 and _rng.randf() < 0.25
+		_droop = (1.0 - u) * (1.0 - u) * 0.3
 		var start := _spine(h) + dir * _trunk_radius_at(a, h) * 0.8
 		var leader := reiterations > 0 and u > 0.25 and u < 0.6 and length > crown_r * 0.6 and not dead
 		if leader:
@@ -349,7 +352,7 @@ func _build_crown() -> void:
 ## already moves (twigs inherit their limb's motion and phase).
 func _branch(start: Vector3, dir: Vector3, length: float, depth: int, dead: bool, leader: bool, flex0: float, phase: float) -> void:
 	var sag := _rng.randf_range(0.04, 0.14)
-	var rise := _rng.randf_range(-0.12, 0.28) if depth == 0 else _rng.randf_range(-0.35, 0.05)
+	var rise := _rng.randf_range(-0.12, 0.28) - _droop if depth == 0 else _rng.randf_range(-0.35, 0.05) - _droop * 0.5
 	var dip := _rng.randf_range(-0.12, 0.0) if depth == 0 else -0.05
 	var p0 := start
 	var p1 := start + dir * length * 0.5 + Vector3(0, length * (dip - sag), 0)
