@@ -3,11 +3,13 @@ render_mode fog_disabled, cull_disabled;
 
 // Large hull plates for the Great Ring: tiling pitted rusted iron
 // (world/textures/rusted_iron) under a coat of orange paint that has
-// chipped and flaked away where the iron rusted. UV = metres across the
-// plate; UV2 = two random numbers per plate setting how much paint is left,
-// from nearly fully painted to almost bare corroded iron. Edges get grime,
-// extra rust and a row of bolts; COLOR.rg holds the plate size in tens of
-// metres so bolts and textures keep a fixed scale.
+// chipped and flaked away where the iron rusted. The texture and the
+// corrosion are laid over the whole ring (CUSTOM0 = metres round the ring
+// and round its cross-section; corrosion from a broad noise field), so rust
+// patches run on across neighbouring plates. UV = 0..1 over each plate and
+// UV2 = two random numbers per plate, for a little variation. Edges get grime,
+// extra rust and a row of bolts; COLOR.rg holds the plate size in units of
+// 30 m so the bolts keep a fixed spacing.
 
 uniform sampler2D iron_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D iron_normal : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -32,6 +34,7 @@ uniform float metal_strength : hint_range(0.0, 1.0) = 0.0;
 varying vec3 v_obj;
 varying vec3 v_wpos;
 varying vec3 v_wnrm;
+varying vec2 v_g;
 
 float hash(vec3 p) {
 	p = fract(p * 0.3183099 + 0.1);
@@ -60,19 +63,21 @@ float fbm(vec3 p) {
 
 void vertex() {
 	v_obj = VERTEX;
+	v_g = CUSTOM0.xy;
 	v_wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 void fragment() {
 	vec2 r = UV2;
-	vec2 size = COLOR.rg * 10.0;            // plate size in metres
+	vec2 size = COLOR.rg * 30.0;            // plate size in metres
 	vec2 m = UV * size;                     // metres across the plate
 	// Two samples of the iron at different scales, offsets and angles,
 	// blended by soft noise, so the texture's repeats don't show as a grid.
-	vec2 t1 = m / tile + r * 7.0;
-	vec2 t2 = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * m / (tile * 1.37) + r.yx * 5.0 + 0.5;
-	float k = smoothstep(0.35, 0.65, fbm(vec3(m * 0.18, r.x * 9.0)));
+	vec2 g = v_g;
+	vec2 t1 = g / tile;
+	vec2 t2 = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * g / (tile * 1.37) + 0.5;
+	float k = smoothstep(0.35, 0.65, fbm(vec3(g * 0.18, 2.0)));
 	vec3 iron = mix(texture(iron_albedo, t1).rgb, texture(iron_albedo, t2).rgb, k);
 	vec3 nmap = mix(texture(iron_normal, t1).rgb, texture(iron_normal, t2).rgb, k);
 	float rough = mix(texture(iron_roughness, t1).r, texture(iron_roughness, t2).r, k);
@@ -87,9 +92,11 @@ void fragment() {
 	float bolt = 1.0 - smoothstep(0.08, 0.13, min(bx, by));
 
 	// How rusty this plate is, and so how much paint is left.
-	float rustiness = rust_override >= 0.0 ? rust_override : smoothstep(clean_share, 1.0, fract(r.x * 5.3 + r.y * 2.1));
+	// Broad patches of corrosion spreading over several plates, worse low down.
+	float field = fbm(v_obj * 0.035 + 3.0) + (1.0 - smoothstep(0.0, 30.0, v_wpos.y)) * 0.15;
+	float rustiness = rust_override >= 0.0 ? rust_override : clamp(smoothstep(0.22, 0.62, field) * (1.0 - clean_share * 0.3) + (r.x - 0.5) * 0.12, 0.0, 1.0);
 	vec3 p = v_obj;
-	float wear = fbm(p * 0.25 + r.x * 40.0) * 0.5 + (1.0 - bare) * 0.5;
+	float wear = fbm(p * 0.25) * 0.5 + (1.0 - bare) * 0.5;
 	wear += edge * 0.3 + bolt * 0.4;
 	float cut = 0.72 - rustiness * 0.5;
 	float paint_gone = smoothstep(cut, cut + 0.04, wear);
