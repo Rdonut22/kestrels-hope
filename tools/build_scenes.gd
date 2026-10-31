@@ -3269,8 +3269,11 @@ func _build_crash_site() -> void:
 	ground.add_to_group("grass_surface", true)
 	_add(site, ground, "Ground")
 	var gm := MeshInstance3D.new()
+	# Flat ground west of x = 96; the rolling ground east of it is
+	# _build_east_terrain's.
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(600, 600)
+	plane.size = Vector2(396, 600)
+	plane.center_offset = Vector3(-102, 0, 0)
 	gm.mesh = plane
 	gm.material_override = mats["ground"]
 	_add(ground, gm, "Mesh")
@@ -3281,8 +3284,13 @@ func _build_crash_site() -> void:
 	gcs.position.y = -1.0
 	_add(ground, gcs, "Collision")
 	# Invisible walls so you can't wander off the map.
+	# The crash site's square, opening east into the forest beyond the
+	# Great Ring, which runs to the valley at x = 925. Tall, for the hills.
 	for b in [[Vector3(0, 5, -95), Vector3(200, 12, 2)], [Vector3(0, 5, 95), Vector3(200, 12, 2)],
-			[Vector3(-95, 5, 0), Vector3(2, 12, 200)], [Vector3(95, 5, 0), Vector3(2, 12, 200)]]:
+			[Vector3(-95, 5, 0), Vector3(2, 12, 200)],
+			[Vector3(95, 100, -172.5), Vector3(2, 300, 155)], [Vector3(95, 100, 157.5), Vector3(2, 300, 125)],
+			[Vector3(510, 100, -250), Vector3(832, 300, 2)], [Vector3(510, 100, 220), Vector3(832, 300, 2)],
+			[Vector3(925, 100, -15), Vector3(2, 300, 472)]]:
 		var wall := StaticBody3D.new()
 		wall.position = b[0]
 		_add(site, wall, "Boundary")
@@ -3790,8 +3798,9 @@ func _build_redwoods(site: Node3D, ground_y: float) -> Array:
 		cs.shape = shape
 		_add(body, cs, "Shape")
 	print("redwoods: ", placed.size())
-	_build_far_forest(site, meshes, rmats, ground_y)
-	_build_far_mountains(site)
+	_build_east_terrain(site, ground_y)
+	_build_east_forest(site, meshes, rmats, ground_y)
+	_build_far_mountains(site, ground_y)
 	return trunks
 
 
@@ -3882,48 +3891,180 @@ func _butterfly_model() -> Array:
 	return [mesh, surface_mats]
 
 
-## The forest beyond the Great Ring: the east quarter of the map, from the
-## play area's edge out to the end of the ground, with a clearing round the
-## ring and the vista to it kept open. Not walkable yet (the play area stops
-## at 95 m), so it's drawn cheaply: the distant redwood versions, one
-## multimesh per kind and part, under "FarForest".
-func _build_far_forest(site: Node3D, meshes: Array, rmats: Array, ground_y: float) -> void:
+## The rolling ground east of the crash site (heights from
+## world/east_terrain.gd): one mesh on a 4 m grid from x = 94 out past the
+## valley, in the meadow ground material, with height-map collision.
+func _build_east_terrain(site: Node3D, ground_y: float) -> void:
+	var T := load("res://world/east_terrain.gd")
+	const STEP := 4.0
+	const X0 := 94.0
+	const Z0 := -330.0
+	var cols := 268
+	var rows := 161
+	var hts := PackedFloat32Array()
+	for j in rows:
+		for i in cols:
+			hts.append(T.call("height", X0 + i * STEP, Z0 + j * STEP))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for j in rows:
+		for i in cols:
+			st.add_vertex(Vector3(X0 + i * STEP, hts[j * cols + i], Z0 + j * STEP))
+	for j in rows - 1:
+		for i in cols - 1:
+			var a := j * cols + i
+			# Wound clockwise seen from above (Godot's front faces).
+			for idx in [a, a + 1, a + cols, a + 1, a + cols + 1, a + cols]:
+				st.add_index(idx)
+	st.generate_normals()
+	var body := StaticBody3D.new()
+	body.position.y = ground_y
+	body.add_to_group("grass_surface", true)
+	_add(site, body, "EastGround")
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mats["ground"]
+	_add(body, mi, "Mesh")
+	var shape := HeightMapShape3D.new()
+	shape.map_width = cols
+	shape.map_depth = rows
+	var scaled := PackedFloat32Array()
+	for h in hts:
+		scaled.append(h / STEP)
+	shape.map_data = scaled
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	cs.scale = Vector3.ONE * STEP
+	cs.position = Vector3(X0 + (cols - 1) * STEP * 0.5, 0.0, Z0 + (rows - 1) * STEP * 0.5)
+	_add(body, cs, "Collision")
+
+
+## The walkable forest beyond the Great Ring, from the ring's clearing to the
+## valley (about 800 m), in three stretches: edge forest with glades, the deep
+## old-growth forest (with a clearing kept for a future tree village), and the
+## thinning climb towards the valley. A faint winding trail is kept free of
+## trunks. Each tree is its own node like the crash site's redwoods (full
+## detail near, the distant version far off); beyond the walls a band of
+## cheap distant-version trees fills the view. Grass grows on the forest
+## floor (GrassEast).
+func _build_east_forest(site: Node3D, meshes: Array, rmats: Array, ground_y: float) -> void:
+	var T := load("res://world/east_terrain.gd")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5150
-	var placed := []  # [Vector2, kind, scale]
-	var weights := [3, 2, 3, 2, 5, 4]
-	var tries := 0
-	while tries < 30000 and placed.size() < 420:
-		tries += 1
-		var p := Vector2(rng.randf_range(98.0, 292.0), rng.randf_range(-260.0, 260.0))
-		# The east quarter: a wedge widening away from the crash site.
-		if absf(p.y + 16.0) > (p.x - 60.0) * 1.3:
+	var glades := FastNoiseLite.new()
+	glades.seed = 63
+	glades.frequency = 0.012
+	var village := Vector2(560.0, _trail_z(560.0))
+	var inside := []   # [Vector2, kind, scale]
+	var outside := []
+	var feet := {}     # 16 m cell -> [[Vector2, base radius]]
+	var x := 98.0
+	while x < 1120.0:
+		var deep := smoothstep(330.0, 420.0, x) * (1.0 - smoothstep(640.0, 720.0, x))
+		var climb := smoothstep(660.0, 820.0, x)
+		var step := lerpf(16.0, 13.0, deep) + climb * 9.0
+		var z := -300.0
+		while z < 296.0:
+			var p := Vector2(x, z) + Vector2(rng.randf_range(-0.45, 0.45), rng.randf_range(-0.45, 0.45)) * step
+			var roll := rng.randf()
+			var sc := rng.randf_range(0.85, 1.2)
+			z += step
+			var walled := p.x > 97.0 and p.x < 923.0 and p.y > -248.0 and p.y < 218.0
+			if p.distance_to(Vector2(RING_POS.x, RING_POS.z)) < 48.0 or (p.x < 140.0 and _in_vista(p)):
+				continue
+			if walled and deep < 0.5 and glades.get_noise_2dv(p) > 0.45:
+				continue
+			# Kinds by stretch: mixed at the edge, giants deep in, young and
+			# crooked trees on the climb.
+			var k: int
+			if climb > 0.5:
+				k = 5 if roll < 0.45 else (3 if roll < 0.7 else 4)
+				sc *= 0.9
+			elif deep > 0.5:
+				k = 0 if roll < 0.3 else (1 if roll < 0.5 else (2 if roll < 0.68 else (5 if roll < 0.85 else 4)))
+				sc *= 1.08
+			else:
+				k = 4 if roll < 0.32 else (2 if roll < 0.5 else (5 if roll < 0.68 else (3 if roll < 0.82 else 0)))
+			# Room for the trunk's flared base: off the trail, out of the
+			# village clearing, apart from its neighbours.
+			var foot: float = REDWOOD_KINDS[k]["trunk_radius"] * sc * 3.0
+			if absf(p.y - _trail_z(p.x)) < 3.5 + foot or p.distance_to(village) < 20.0 + foot * 0.5:
+				continue
+			var cell := Vector2i(floori(p.x / 16.0), floori(p.y / 16.0))
+			var crowded := false
+			for cx in range(cell.x - 1, cell.x + 2):
+				for cz in range(cell.y - 1, cell.y + 2):
+					for q in feet.get(Vector2i(cx, cz), []):
+						if p.distance_to(q[0]) < foot + float(q[1]) + 1.5:
+							crowded = true
+			if crowded:
+				continue
+			if not feet.has(cell):
+				feet[cell] = []
+			(feet[cell] as Array).append([p, foot])
+			(inside if walled else outside).append([p, k, sc])
+		x += step
+	# Old giants standing round the village clearing.
+	for i in 7:
+		var a := TAU * i / 7.0 + rng.randf_range(-0.2, 0.2)
+		var gp := village + Vector2(cos(a), sin(a)) * rng.randf_range(26.0, 32.0)
+		var gk := 0 if i % 2 == 0 else 1
+		var gs := rng.randf_range(1.2, 1.4)
+		# Leave the trail through the clearing open.
+		if absf(gp.y - _trail_z(gp.x)) < 4.0 + REDWOOD_KINDS[gk]["trunk_radius"] * gs * 3.0:
 			continue
-		if p.distance_to(Vector2(RING_POS.x, RING_POS.z)) < 46.0 or _in_vista(p):
-			continue
-		var pick := rng.randi() % 19
-		var k := 0
-		while pick >= weights[k]:
-			pick -= weights[k]
-			k += 1
-		var kind: Dictionary = REDWOOD_KINDS[k]
-		var sc := rng.randf_range(0.85, 1.2)
-		var crown_r: float = kind["crown_width"] * 0.5 * sc
-		var ok := true
-		for q in placed:
-			var other: Dictionary = REDWOOD_KINDS[q[1]]
-			if p.distance_to(q[0]) < (crown_r + other["crown_width"] * 0.5 * float(q[2])) * 0.55:
-				ok = false
-				break
-		if ok:
-			placed.append([p, k, sc])
-	var root := _add(site, Node3D.new(), "FarForest")
+		inside.append([gp, gk, gs])
+
+	var root := _add(site, Node3D.new(), "EastForest")
+	var bodies: Node = site.get_node("TreeCollision")
+	var trunks := []
+	for i in inside.size():
+		var p: Vector2 = inside[i][0]
+		var k: int = inside[i][1]
+		var sc: float = inside[i][2]
+		var y: float = ground_y + float(T.call("height", p.x, p.y)) - 0.4 * sc
+		var tree := Node3D.new()
+		tree.transform = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(p.x, y, p.y))
+		_add(root, tree, "E%d" % i)
+		for lod in 2:
+			for part in 2:
+				var mi := MeshInstance3D.new()
+				mi.mesh = meshes[k][lod][part]
+				mi.material_override = rmats[part]
+				# Bark switches at REDWOOD_LOD_DISTANCE; the foliage past the
+				# fog's end (90 m), where trees are flat silhouettes against
+				# each other. Past EAST_DRAW_DISTANCE trees aren't drawn.
+				var at := REDWOOD_LOD_DISTANCE if part == 0 else EAST_FOLIAGE_LOD
+				if lod == 0:
+					mi.visibility_range_end = at
+					mi.visibility_range_end_margin = 6.0
+				else:
+					mi.visibility_range_begin = at
+					mi.visibility_range_begin_margin = 6.0
+					mi.visibility_range_end = EAST_DRAW_DISTANCE
+					mi.visibility_range_end_margin = 20.0
+					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				_add(tree, mi, ["Bark", "Foliage"][part] + ("" if lod == 0 else "Far"))
+		var r: float = REDWOOD_KINDS[k]["trunk_radius"] * sc
+		trunks.append([p, r * 1.6])
+		var body := StaticBody3D.new()
+		body.position = Vector3(p.x, y + 7.0, p.y)
+		_add(bodies, body, "East%d" % i)
+		var cs := CollisionShape3D.new()
+		var shape := CylinderShape3D.new()
+		shape.radius = r * 1.15
+		shape.height = 14.0
+		cs.shape = shape
+		_add(body, cs, "Shape")
+	# Beyond the walls: the distant versions, a multimesh per kind and part.
+	var band := _add(site, Node3D.new(), "FarForest")
 	for k in REDWOOD_KINDS.size():
 		var xfs := []
-		for q in placed:
+		for q in outside:
 			if q[1] == k:
 				var p: Vector2 = q[0]
-				xfs.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * float(q[2])), Vector3(p.x, ground_y, p.y)))
+				xfs.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * float(q[2])),
+					Vector3(p.x, ground_y + float(T.call("height", p.x, p.y)) - 0.4, p.y)))
 		if xfs.is_empty():
 			continue
 		for part in 2:
@@ -3937,34 +4078,102 @@ func _build_far_forest(site: Node3D, meshes: Array, rmats: Array, ground_y: floa
 			mmi.multimesh = mm
 			mmi.material_override = rmats[part]
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			_add(root, mmi, "K%d_%s" % [k, ["Bark", "Foliage"][part]])
-	print("far forest: ", placed.size())
+			_add(band, mmi, "K%d_%s" % [k, ["Bark", "Foliage"][part]])
+	var marker := Marker3D.new()
+	marker.position = Vector3(village.x, ground_y + float(T.call("height", village.x, village.y)), village.y)
+	_add(site, marker, "VillageSite")
+	# Grass on the forest floor.
+	var field := Node3D.new()
+	field.set_script(load("res://world/grass_field.gd"))
+	field.set("density_map", _grass_map_east(trunks, glades, village))
+	field.set("area_size", EAST_GRASS_AREA)
+	field.set("follow_terrain", true)
+	field.set("seed", 9011)
+	field.position = Vector3(EAST_GRASS_CENTRE.x, ground_y, EAST_GRASS_CENTRE.y)
+	_add(site, field, "GrassEast")
+	print("east forest: ", inside.size(), " walkable, ", outside.size(), " beyond the walls")
 
 
-## Mountains on the eastern horizon, beyond the far forest: the terrain in
+## Detail distances for the east forest's trees (tune these for speed).
+const EAST_FOLIAGE_LOD := 125.0
+const EAST_DRAW_DISTANCE := 420.0
+const EAST_GRASS_AREA := 1000.0
+const EAST_GRASS_CENTRE := Vector2(510.0, -15.0)
+
+
+## The winding trail through the east forest: its z at a given x.
+static func _trail_z(x: float) -> float:
+	return -16.0 + 42.0 * sin(x * 0.0085) + 16.0 * sin(x * 0.023 + 1.0)
+
+
+## Where grass grows east of the crash site: patchy and mid-height on the
+## forest floor, fuller in the glades and the village clearing, short and
+## worn along the trail, thinning on the climb, none west of the original
+## field or round trunks. Saved for GrassEast.
+func _grass_map_east(trunks: Array, glades: FastNoiseLite, village: Vector2) -> ImageTexture:
+	const SIZE := 256
+	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGB8)
+	var patches := FastNoiseLite.new()
+	patches.seed = 12
+	patches.frequency = 0.04
+	for py in SIZE:
+		for px in SIZE:
+			var p := EAST_GRASS_CENTRE + Vector2((px + 0.5) / SIZE - 0.5, (py + 0.5) / SIZE - 0.5) * EAST_GRASS_AREA
+			if p.x < 99.0 or p.x > 926.0 or p.y < -251.0 or p.y > 221.0:
+				img.set_pixel(px, py, Color(0, 0, 0))
+				continue
+			var patch := patches.get_noise_2dv(p) * 0.5 + 0.5
+			var dens := lerpf(0.35, 0.85, smoothstep(0.35, 0.7, patch))
+			var tall := lerpf(0.45, 0.85, patch)
+			var open := maxf(smoothstep(0.35, 0.55, glades.get_noise_2dv(p)), 1.0 - smoothstep(16.0, 24.0, p.distance_to(village)))
+			open = maxf(open, 1.0 - smoothstep(40.0, 60.0, p.distance_to(Vector2(RING_POS.x, RING_POS.z))))
+			dens = lerpf(dens, 0.95, open)
+			tall = lerpf(tall, 1.0, open * 0.6)
+			var trail := 1.0 - smoothstep(1.2, 3.0, absf(p.y - _trail_z(p.x)))
+			dens *= 1.0 - trail * 0.75
+			tall = lerpf(tall, 0.1, trail)
+			var climb := smoothstep(700.0, 925.0, p.x)
+			dens *= 1.0 - climb * 0.5
+			tall *= 1.0 - climb * 0.4
+			img.set_pixel(px, py, Color(dens, clampf(tall, 0.0, 1.0), 0.0))
+	for t in trunks:
+		var c: Vector2 = t[0]
+		var r: float = t[1]
+		var lo := Vector2i(((c - Vector2.ONE * r - EAST_GRASS_CENTRE) / EAST_GRASS_AREA + Vector2.ONE * 0.5) * SIZE)
+		var hi := Vector2i(((c + Vector2.ONE * r - EAST_GRASS_CENTRE) / EAST_GRASS_AREA + Vector2.ONE * 0.5) * SIZE) + Vector2i.ONE
+		for py in range(maxi(lo.y, 0), mini(hi.y + 1, SIZE)):
+			for px in range(maxi(lo.x, 0), mini(hi.x + 1, SIZE)):
+				var col := img.get_pixel(px, py)
+				col.r *= 0.3
+				img.set_pixel(px, py, col)
+	var tex := ImageTexture.create_from_image(img)
+	_save_resource(tex, "res://world/grass_density_east.res")
+	return tex
+
+
+## Mountains beyond the east forest: the terrain in
 ## world/models/source/mountain.dae (a real hill, Blender GIS export, Z up,
-## metres) read straight from the file, then placed as two ranges with a
-## valley between them. Scenery only, shaded and hazed by
+## metres) read straight from the file, placed as two ranges with the valley
+## between them and a farther range behind. Scenery only, shaded and hazed by
 ## world/far_mountain.gdshader.
-func _build_far_mountains(site: Node3D) -> void:
+func _build_far_mountains(site: Node3D, ground_y: float) -> void:
 	var mesh := _dae_terrain("res://world/models/source/mountain.dae")
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://world/far_mountain.gdshader")
 	_save_resource(mat, "res://world/materials/far_mountain.tres")
 	_save_resource(mesh, "res://world/models/mountain.res")
 	var root := _add(site, Node3D.new(), "FarMountains")
-	# [direction from the crash site (degrees from north, clockwise),
-	#  distance, yaw, horizontal scale, vertical scale]
-	var ranges := [[58.0, 2300.0, 0.4, 0.55, 1.5], [118.0, 2500.0, 2.6, 0.6, 1.6], [88.0, 3300.0, 1.5, 0.7, 1.3]]
+	# Two ranges either side of the valley at the end of the east forest
+	# (long axis east-west), and a farther one seen through the valley.
+	# [centre x, z, base height, yaw, horizontal scale, vertical scale]
+	var ranges := [[1900.0, -600.0, 10.0, 0.0, 0.4, 0.9], [1900.0, 570.0, 10.0, PI, 0.4, 1.0], [3400.0, -40.0, -60.0, 1.5, 0.7, 1.3]]
 	for i in ranges.size():
 		var r: Array = ranges[i]
-		var az := deg_to_rad(r[0])
-		var at := Vector3(sin(az), 0, -cos(az)) * float(r[1])
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.transform = Transform3D(Basis(Vector3.UP, r[2]).scaled(Vector3(r[3], r[4], r[3])), at + Vector3(0, -150.0, 0))
+		mi.transform = Transform3D(Basis(Vector3.UP, r[3]).scaled(Vector3(r[4], r[5], r[4])), Vector3(r[0], ground_y + float(r[2]), r[1]))
 		_add(root, mi, "Range%d" % i)
 
 
@@ -4657,6 +4866,12 @@ func _ring_hull(ring: Node3D, R: float, T: float, W: float, layout: Dictionary, 
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_add(ring, mi, "Hull")
+	# Now it's walkable round, Gana can't pass through it.
+	var body := StaticBody3D.new()
+	_add(ring, body, "Collision")
+	var cs := CollisionShape3D.new()
+	cs.shape = mi.mesh.create_trimesh_shape()
+	_add(body, cs, "Shape")
 
 
 ## One hull plate over angles a0..a1 and cross coordinates s0..s1 (metres)

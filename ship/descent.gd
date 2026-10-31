@@ -348,7 +348,7 @@ func _attach_site() -> void:
 	for n in _site.find_children("*", "", true, false):
 		if n.is_in_group("night_only"):
 			n.visible = false
-	for n in ["Grass", "Flowers", "Reeds"]:
+	for n in ["Grass", "GrassEast", "Flowers", "Reeds"]:
 		var node := _site.get_node_or_null(n) as Node3D
 		if node:
 			_low_detail.append(node)

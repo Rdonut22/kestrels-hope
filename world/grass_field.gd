@@ -18,6 +18,9 @@ extends Node3D
 ## Grass is drawn out to here (metres from the camera).
 @export var view_distance := 38.0
 @export var seed := 4023
+## Grow on the rolling ground east of the crash site (world/east_terrain.gd)
+## instead of flat ground.
+@export var follow_terrain := false
 
 @export_group("Wind")
 @export var wind_direction := Vector2(1.0, 0.35):
@@ -50,6 +53,7 @@ extends Node3D
 		_set_param("flutter", v)
 
 const Tuft := preload("res://world/grass_tuft.gd")
+const Terrain := preload("res://world/east_terrain.gd")
 ## Tuft shapes: [seed, short]. Short ones go where the map says low grass.
 const SHAPES := [[7, false], [21, false], [33, false], [5, true], [12, true]]
 
@@ -60,6 +64,7 @@ var _map_w := 1
 var _map_h := 1
 var _meshes := []
 var _pending: Array[Vector2i] = []
+var _sorted_at := Vector2(INF, INF)
 
 
 func _ready() -> void:
@@ -111,8 +116,12 @@ func _stream(budget: int, reach := INF) -> void:
 	var half := area_size / 2.0
 	var centre := func(c: Vector2i) -> Vector2:
 		return Vector2(-half + (c.x + 0.5) * chunk_size, -half + (c.y + 0.5) * chunk_size)
-	_pending.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return centre.call(a).distance_squared_to(Vector2(eye.x, eye.z)) < centre.call(b).distance_squared_to(Vector2(eye.x, eye.z)))
+	# Re-sort only once the camera has moved a little (big fields have
+	# thousands of chunks).
+	if _sorted_at.distance_to(Vector2(eye.x, eye.z)) > 6.0:
+		_sorted_at = Vector2(eye.x, eye.z)
+		_pending.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+			return centre.call(a).distance_squared_to(Vector2(eye.x, eye.z)) < centre.call(b).distance_squared_to(Vector2(eye.x, eye.z)))
 	while budget > 0 and not _pending.is_empty():
 		var c: Vector2i = _pending[0]
 		if (centre.call(c) as Vector2).distance_to(Vector2(eye.x, eye.z)) > reach:
@@ -142,9 +151,12 @@ func _build_chunk(c: Vector2i) -> void:
 		var shape := (3 + rng.randi() % 2) if short else rng.randi() % 3
 		var size := h / (0.55 if short else 1.0)
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(size * rng.randf_range(0.85, 1.25), size, size * rng.randf_range(0.85, 1.25)))
+		var y := 0.0
+		if follow_terrain:
+			y = Terrain.height(position.x + x, position.z + z)
 		var tint := Color(1, 1, 1).lerp(Color(1.12, 1.08, 0.8), rng.randf() * 0.5).lerp(Color(0.8, 0.9, 0.8), rng.randf() * 0.3)
 		# MultiMesh buffer layout: 3x4 transform rows, then the colour.
-		(bufs[shape] as Array).append_array([b.x.x, b.y.x, b.z.x, x, b.x.y, b.y.y, b.z.y, 0.0,
+		(bufs[shape] as Array).append_array([b.x.x, b.y.x, b.z.x, x, b.x.y, b.y.y, b.z.y, y,
 			b.x.z, b.y.z, b.z.z, z, tint.r, tint.g, tint.b, 1.0])
 	for i in SHAPES.size():
 		if (bufs[i] as Array).is_empty():
