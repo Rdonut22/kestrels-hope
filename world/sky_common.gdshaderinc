@@ -57,8 +57,8 @@ vec2 skyline(float az, float cell, float seed, float min_h, float max_h) {
 
 // Elevation (radians) of the mountain tops at a snapped azimuth, as drawn by
 // the skies: the far range (0.55, 3.0) and the near range (0.8, 11.0).
-float skyline_top(float saz, float mountains) {
-	return max(skyline(saz, 0.55, 3.0, 0.16, 0.42).x, skyline(saz, 0.8, 11.0, 0.12, 0.5).x) * mountains;
+float skyline_top(float saz, float height_scale) {
+	return max(skyline(saz, 0.55, 3.0, 0.16, 0.42).x, skyline(saz, 0.8, 11.0, 0.12, 0.5).x) * height_scale;
 }
 
 // The skies' cloud cover (0..1) at a snapped direction.

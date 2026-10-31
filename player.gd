@@ -42,6 +42,28 @@ func _ready() -> void:
 	if get_tree().root.has_meta("spawn_cockpit"):
 		get_tree().root.remove_meta("spawn_cockpit")
 		_start_in_pilot_seat.call_deferred()
+	# Continuing a saved game: back where we were (GameState.load_game).
+	elif get_tree().root.has_meta("load_spawn"):
+		var spawn: Dictionary = get_tree().root.get_meta("load_spawn")
+		get_tree().root.remove_meta("load_spawn")
+		_apply_save.call_deferred(spawn)
+
+
+func _apply_save(spawn: Dictionary) -> void:
+	var clock := get_tree().get_first_node_in_group("day_night")
+	if clock and spawn.has("hour"):
+		clock.skip_to(float(spawn["hour"]))
+	if spawn.get("pilot_seat", false):
+		var seat := get_tree().get_first_node_in_group("pilot_seat")
+		if seat:
+			sit(seat)
+			return
+	var p: Array = spawn.get("position", [])
+	if p.size() == 3:
+		global_position = Vector3(p[0], p[1], p[2])
+	velocity = Vector3.ZERO
+	pivot.rotation = Vector3(float(spawn.get("pitch", pivot.rotation.x)), float(spawn.get("yaw", pivot.rotation.y)), 0.0)
+	mesh.rotation.y = float(spawn.get("model_yaw", mesh.rotation.y))
 
 func _start_in_pilot_seat() -> void:
 	var seat := get_tree().get_first_node_in_group("pilot_seat")

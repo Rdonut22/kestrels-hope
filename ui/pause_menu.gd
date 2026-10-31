@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 ## Global pause menu (autoload). Esc pauses the game and shows Resume /
-## Quit to Menu / Quit Game. Ignored on the title screen. Open terminal
+## Save Game / Quit to Menu / Quit Game (quitting to the menu saves first). Ignored on the title screen. Open terminal
 ## screens consume Esc first (see hud.gd), so Esc closes those instead.
 
 const MENU_SCENE := "res://menu.tscn"
@@ -10,6 +10,8 @@ const NO_PAUSE := ["res://menu.tscn", "res://intro.tscn"]
 var _root: Control
 var _backdrop: TextureRect
 var _resume: Button
+var _save: Button
+var _hint: Label
 
 
 func _ready() -> void:
@@ -40,6 +42,8 @@ func pause() -> void:
 	await RenderingServer.frame_post_draw
 	_backdrop.texture = ImageTexture.create_from_image(get_viewport().get_texture().get_image())
 	get_viewport().disable_3d = true
+	_save.disabled = not Game.state().can_save()
+	_hint.text = "Esc to resume"
 	_root.show()
 
 
@@ -51,7 +55,12 @@ func resume() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
+func _save_game() -> void:
+	_hint.text = "Game saved" if Game.state().save_game() else "Can't save right now"
+
+
 func _quit_to_menu() -> void:
+	Game.state().save_game()
 	get_viewport().disable_3d = false
 	_backdrop.texture = null
 	_root.hide()
@@ -94,7 +103,7 @@ func _build() -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 18)
 	box.add_child(gap)
-	for item in [["Resume", resume], ["Quit to Menu", _quit_to_menu], ["Quit Game", get_tree().quit]]:
+	for item in [["Resume", resume], ["Save Game", _save_game], ["Quit to Menu", _quit_to_menu], ["Quit Game", get_tree().quit]]:
 		var b := Button.new()
 		b.text = item[0]
 		b.flat = true
@@ -104,13 +113,17 @@ func _build() -> void:
 		b.add_theme_color_override("font_color", Color(1.0, 0.93, 0.86))
 		b.add_theme_color_override("font_hover_color", Color(1.0, 0.62, 0.82))
 		b.add_theme_color_override("font_pressed_color", Color(0.78, 0.58, 1.0))
+		b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.32))
 		b.add_theme_color_override("font_outline_color", shadow)
 		b.add_theme_constant_override("outline_size", 6)
 		b.pressed.connect(item[1])
 		box.add_child(b)
 		if _resume == null:
 			_resume = b
+		if item[0] == "Save Game":
+			_save = b
 	var hint := Label.new()
+	_hint = hint
 	hint.text = "Esc to resume"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_override("font", font)

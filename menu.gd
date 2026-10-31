@@ -283,7 +283,7 @@ func _build_ui() -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 34)
 	box.add_child(gap)
-	for item in [["New Game", _on_new_game, true], ["Continue", Callable(), false],
+	for item in [["Continue", _on_continue, Game.state().has_save()], ["New Game", _on_new_game, true],
 			["Crash Site (preview)", _on_crash_site, true], ["Quit", _on_quit, true]]:
 		var b := Button.new()
 		b.text = item[0]
@@ -325,7 +325,7 @@ func _start_music() -> void:
 			return
 
 
-func _go(scene: String) -> void:
+func _go(scene: String, load_save := false) -> void:
 	if _starting:
 		return
 	_starting = true
@@ -334,15 +334,27 @@ func _go(scene: String) -> void:
 	if _music:
 		tw.tween_property(_music, "volume_db", -40.0, 1.5)
 	await tw.finished
+	if load_save and Game.state().load_game():
+		return
+	if load_save:
+		Game.state().reset()
 	get_tree().change_scene_to_file(scene)
 
 
 func _on_new_game() -> void:
+	get_tree().root.remove_meta("preview")
 	Game.state().reset()
 	_go("res://intro.tscn")
 
 
+func _on_continue() -> void:
+	get_tree().root.remove_meta("preview")
+	_go("res://intro.tscn", true)
+
+
 func _on_crash_site() -> void:
+	# Just a look around: don't let it overwrite the saved game.
+	get_tree().root.set_meta("preview", true)
 	_go("res://crash_site.tscn")
 
 
