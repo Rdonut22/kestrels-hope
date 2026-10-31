@@ -3790,6 +3790,8 @@ func _build_redwoods(site: Node3D, ground_y: float) -> Array:
 		cs.shape = shape
 		_add(body, cs, "Shape")
 	print("redwoods: ", placed.size())
+	_build_far_forest(site, meshes, rmats, ground_y)
+	_build_far_mountains(site)
 	return trunks
 
 
@@ -3878,6 +3880,153 @@ func _butterfly_model() -> Array:
 	_save_resource(mesh, "res://world/models/butterfly.res")
 	scene.free()
 	return [mesh, surface_mats]
+
+
+## The forest beyond the Great Ring: the east quarter of the map, from the
+## play area's edge out to the end of the ground, with a clearing round the
+## ring and the vista to it kept open. Not walkable yet (the play area stops
+## at 95 m), so it's drawn cheaply: the distant redwood versions, one
+## multimesh per kind and part, under "FarForest".
+func _build_far_forest(site: Node3D, meshes: Array, rmats: Array, ground_y: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5150
+	var placed := []  # [Vector2, kind, scale]
+	var weights := [3, 2, 3, 2, 5, 4]
+	var tries := 0
+	while tries < 30000 and placed.size() < 420:
+		tries += 1
+		var p := Vector2(rng.randf_range(98.0, 292.0), rng.randf_range(-260.0, 260.0))
+		# The east quarter: a wedge widening away from the crash site.
+		if absf(p.y + 16.0) > (p.x - 60.0) * 1.3:
+			continue
+		if p.distance_to(Vector2(RING_POS.x, RING_POS.z)) < 46.0 or _in_vista(p):
+			continue
+		var pick := rng.randi() % 19
+		var k := 0
+		while pick >= weights[k]:
+			pick -= weights[k]
+			k += 1
+		var kind: Dictionary = REDWOOD_KINDS[k]
+		var sc := rng.randf_range(0.85, 1.2)
+		var crown_r: float = kind["crown_width"] * 0.5 * sc
+		var ok := true
+		for q in placed:
+			var other: Dictionary = REDWOOD_KINDS[q[1]]
+			if p.distance_to(q[0]) < (crown_r + other["crown_width"] * 0.5 * float(q[2])) * 0.55:
+				ok = false
+				break
+		if ok:
+			placed.append([p, k, sc])
+	var root := _add(site, Node3D.new(), "FarForest")
+	for k in REDWOOD_KINDS.size():
+		var xfs := []
+		for q in placed:
+			if q[1] == k:
+				var p: Vector2 = q[0]
+				xfs.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * float(q[2])), Vector3(p.x, ground_y, p.y)))
+		if xfs.is_empty():
+			continue
+		for part in 2:
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = meshes[k][1][part]
+			mm.instance_count = xfs.size()
+			for i in xfs.size():
+				mm.set_instance_transform(i, xfs[i])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			mmi.material_override = rmats[part]
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			_add(root, mmi, "K%d_%s" % [k, ["Bark", "Foliage"][part]])
+	print("far forest: ", placed.size())
+
+
+## Mountains on the eastern horizon, beyond the far forest: the terrain in
+## world/models/source/mountain.dae (a real hill, Blender GIS export, Z up,
+## metres) read straight from the file, then placed as two ranges with a
+## valley between them. Scenery only, shaded and hazed by
+## world/far_mountain.gdshader.
+func _build_far_mountains(site: Node3D) -> void:
+	var mesh := _dae_terrain("res://world/models/source/mountain.dae")
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://world/far_mountain.gdshader")
+	_save_resource(mat, "res://world/materials/far_mountain.tres")
+	_save_resource(mesh, "res://world/models/mountain.res")
+	var root := _add(site, Node3D.new(), "FarMountains")
+	# [direction from the crash site (degrees from north, clockwise),
+	#  distance, yaw, horizontal scale, vertical scale]
+	var ranges := [[58.0, 2300.0, 0.4, 0.55, 1.5], [118.0, 2500.0, 2.6, 0.6, 1.6], [88.0, 3300.0, 1.5, 0.7, 1.3]]
+	for i in ranges.size():
+		var r: Array = ranges[i]
+		var az := deg_to_rad(r[0])
+		var at := Vector3(sin(az), 0, -cos(az)) * float(r[1])
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.transform = Transform3D(Basis(Vector3.UP, r[2]).scaled(Vector3(r[3], r[4], r[3])), at + Vector3(0, -150.0, 0))
+		_add(root, mi, "Range%d" % i)
+
+
+## The terrain mesh in a Collada file: its first geometry's positions and
+## triangles, converted from Z-up to Y-up, centred, base at y = 0, with
+## smooth normals.
+func _dae_terrain(path: String) -> ArrayMesh:
+	var xml := XMLParser.new()
+	xml.open(path)
+	var positions := PackedFloat32Array()
+	var indices := PackedInt32Array()
+	var stride := 0
+	var vofs := 0
+	var in_pos := false
+	var in_p := false
+	var done := false
+	while not done and xml.read() == OK:
+		if xml.get_node_type() == XMLParser.NODE_ELEMENT:
+			var name := xml.get_node_name()
+			if name == "float_array" and positions.is_empty() and xml.get_named_attribute_value_safe("id").ends_with("-positions-array"):
+				in_pos = true
+			elif name == "input" and positions.size() > 0 and indices.is_empty():
+				stride = maxi(stride, int(xml.get_named_attribute_value_safe("offset")) + 1)
+				if xml.get_named_attribute_value_safe("semantic") == "VERTEX":
+					vofs = int(xml.get_named_attribute_value_safe("offset"))
+			elif name == "p" and indices.is_empty():
+				in_p = true
+		elif xml.get_node_type() == XMLParser.NODE_TEXT:
+			if in_pos:
+				positions = PackedFloat32Array(Array(xml.get_node_data().split(" ", false)).map(func(t: String) -> float: return t.to_float()))
+				in_pos = false
+			elif in_p:
+				var all := xml.get_node_data().split(" ", false)
+				for i in range(vofs, all.size(), stride):
+					indices.append(all[i].to_int())
+				in_p = false
+				done = true
+	var lo := Vector3(INF, INF, INF)
+	var hi := -lo
+	var pts := PackedVector3Array()
+	for i in positions.size() / 3:
+		var v := Vector3(positions[i * 3], positions[i * 3 + 2], -positions[i * 3 + 1])
+		pts.append(v)
+		lo = lo.min(v)
+		hi = hi.max(v)
+	var centre := Vector3((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(0, indices.size() - 2, 3):
+		var a := pts[indices[i]] - centre
+		var b := pts[indices[i + 1]] - centre
+		var c := pts[indices[i + 2]] - centre
+		# Godot's front faces wind clockwise seen from outside (above).
+		if (b - a).cross(c - a).y > 0.0:
+			var t := b
+			b = c
+			c = t
+		for v in [a, b, c]:
+			st.add_vertex(v)
+	st.index()
+	st.generate_normals()
+	return st.commit()
 
 
 func _save_resource(res: Resource, path: String) -> void:

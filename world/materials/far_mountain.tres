@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/far_mountain.gdshader" id="1_kskpq"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_kskpq")
+shader_parameter/forest = Color(0.16, 0.27, 0.15, 1)
+shader_parameter/rock = Color(0.46, 0.44, 0.45, 1)
+shader_parameter/scree = Color(0.62, 0.6, 0.56, 1)
+shader_parameter/haze = Color(0.52, 0.7, 0.66, 1)
+shader_parameter/world_tint = Color(1, 1, 1, 1)
+shader_parameter/haze_start = 600.0
+shader_parameter/haze_end = 4200.0
+shader_parameter/haze_max = 0.55
+shader_parameter/sky_haze = Color(0.6, 0.72, 0.84, 1)
+shader_parameter/tree_line = 380.0
