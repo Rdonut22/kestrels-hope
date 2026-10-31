@@ -4512,8 +4512,8 @@ func _ring_hull(ring: Node3D, R: float, T: float, W: float, layout: Dictionary, 
 
 ## One hull plate over angles a0..a1 and cross coordinates s0..s1 (metres)
 ## of a face of the ring's rounded cross-section, given as surf(a, s, h)
-## (h = height above the face) and nrm(a, s). Raised HULL_THICK with edges
-## that round over (bevel normals blend from the top into the side). UV runs
+## (h = height above the face) and nrm(a, s). Raised HULL_THICK with
+## chamfered edges. UV runs
 ## 0..1 over the plate, COLOR.rg holds its size in units of 30 m, UV2 two
 ## random numbers for the plate and CUSTOM0 its place on the ring (metres
 ## round the ring, metres round the cross-section via pmap) so the texture
@@ -4576,10 +4576,10 @@ func _hull_plate(st: SurfaceTool, a0: float, a1: float, s0: float, s1: float, su
 			for c in [[i, true], [i + 1, true], [i + 1, false], [i, false]]:
 				var top: bool = c[1]
 				var a: float = ta.call(c[0]) if top else ba_.call(c[0])
-				var n: Vector3 = nrm.call(a, st_)
-				if not top:
-					var outward: Vector3 = ((surf.call(a, sb, 0.0) as Vector3) - surf.call(a, sb - dir * 0.05, 0.0)).normalized()
-					n = (n * 0.3 + outward).normalized()
+				# One normal across the edge: a crisp chamfer (a fully rounded
+				# one made the plates look padded, like leather cushions).
+				var outward: Vector3 = ((surf.call(a, sb, 0.0) as Vector3) - surf.call(a, sb - dir * 0.05, 0.0)).normalized()
+				var n: Vector3 = ((nrm.call(a, st_) as Vector3) + outward).normalized()
 				q.append(vert.call(a, st_ if top else sb, th if top else 0.0, n,
 					Vector2(tu.call(c[0]) if top else float(c[0]) / na, tv.call(j) if top else float(e[2]))))
 			var mid: Vector3 = (nrm.call(ta.call(i), st_) as Vector3) + ((surf.call(ta.call(i), sb, 0.0) as Vector3) - surf.call(ta.call(i), sb - dir * 0.05, 0.0)).normalized()
@@ -4595,10 +4595,8 @@ func _hull_plate(st: SurfaceTool, a0: float, a1: float, s0: float, s1: float, su
 			for c in [[j, true], [j + 1, true], [j + 1, false], [j, false]]:
 				var top: bool = c[1]
 				var s: float = ts.call(c[0]) if top else bs.call(c[0])
-				var n: Vector3 = nrm.call(at, s)
-				if not top:
-					var outward: Vector3 = ((surf.call(ab, s, 0.0) as Vector3) - surf.call(ab - dir * 0.01, s, 0.0)).normalized()
-					n = (n * 0.3 + outward).normalized()
+				var outward: Vector3 = ((surf.call(ab, s, 0.0) as Vector3) - surf.call(ab - dir * 0.01, s, 0.0)).normalized()
+				var n: Vector3 = ((nrm.call(at, s) as Vector3) + outward).normalized()
 				q.append(vert.call(at if top else ab, s, th if top else 0.0, n,
 					Vector2(tu.call(i) if top else float(e[2]), tv.call(c[0]) if top else float(c[0]) / ns)))
 			var mid: Vector3 = (nrm.call(at, ts.call(j)) as Vector3) + ((surf.call(ab, ts.call(j), 0.0) as Vector3) - surf.call(ab - dir * 0.01, ts.call(j), 0.0)).normalized()

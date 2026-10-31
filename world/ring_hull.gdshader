@@ -8,8 +8,7 @@ render_mode fog_disabled, cull_disabled;
 // and round its cross-section; corrosion from a broad noise field), so rust
 // patches run on across neighbouring plates. UV = 0..1 over each plate and
 // UV2 = two random numbers per plate, for a little variation. Edges get grime,
-// extra rust and a row of bolts; COLOR.rg holds the plate size in units of
-// 30 m so the bolts keep a fixed spacing.
+// extra rust; COLOR.rg holds the plate size in units of 30 m.
 
 uniform sampler2D iron_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D iron_normal : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -17,7 +16,7 @@ uniform sampler2D iron_roughness : hint_default_white, filter_linear_mipmap, rep
 uniform sampler2D iron_metallic : hint_default_black, filter_linear_mipmap, repeat_enable;
 // Metres one repeat of the iron texture covers.
 uniform float tile = 7.0;
-uniform vec3 paint : source_color = vec3(0.7, 0.32, 0.1);
+uniform vec3 paint : source_color = vec3(0.74, 0.36, 0.1);
 
 uniform vec3 world_tint : source_color = vec3(1.0);
 uniform vec3 haze : source_color = vec3(0.52, 0.7, 0.66);
@@ -83,13 +82,10 @@ void fragment() {
 	float rough = mix(texture(iron_roughness, t1).r, texture(iron_roughness, t2).r, k);
 	float bare = mix(texture(iron_metallic, t1).r, texture(iron_metallic, t2).r, k);  // 1 = bare iron, 0 = rust
 
-	// Edges (metres from the plate's border): grime and a row of bolts.
+	// Edges (metres from the plate's border) gather grime.
 	float ex = min(m.x, size.x - m.x);
 	float ey = min(m.y, size.y - m.y);
 	float edge = 1.0 - smoothstep(0.0, 0.35, min(ex, ey));
-	float bx = length(vec2(fract(m.x / 0.6) - 0.5, (ey - 0.32) / 0.6));
-	float by = length(vec2(fract(m.y / 0.6) - 0.5, (ex - 0.32) / 0.6));
-	float bolt = 1.0 - smoothstep(0.08, 0.13, min(bx, by));
 
 	// How rusty this plate is, and so how much paint is left.
 	// Broad patches of corrosion spreading over several plates, worse low down.
@@ -97,28 +93,34 @@ void fragment() {
 	float rustiness = rust_override >= 0.0 ? rust_override : clamp(smoothstep(0.22, 0.62, field) * (1.0 - clean_share * 0.3) + (r.x - 0.5) * 0.12, 0.0, 1.0);
 	vec3 p = v_obj;
 	float wear = fbm(p * 0.25) * 0.5 + (1.0 - bare) * 0.5;
-	wear += edge * 0.3 + bolt * 0.4;
+	wear += edge * 0.3;
 	float cut = 0.72 - rustiness * 0.5;
 	float paint_gone = smoothstep(cut, cut + 0.04, wear);
 	// Paint: faded in patches, a dark rim where it has chipped.
 	// The paint keeps the metal's grain and stains showing through.
-	float grain = dot(iron, vec3(0.33));
-	vec3 pc = paint * (0.8 + 0.3 * fbm(p * 0.12 + 5.0)) * (0.7 + 0.6 * grain);
-	pc = mix(pc, pc * vec3(0.8, 0.7, 0.6), smoothstep(cut - 0.25, cut, wear) * 0.6);
-	float rim = smoothstep(cut - 0.05, cut, wear) * (1.0 - paint_gone);
-	pc *= 1.0 - rim * 0.45;
-	vec3 col = mix(pc, iron, paint_gone);
-	rough = mix(0.6, rough, paint_gone);
-	nmap = mix(mix(vec3(0.5, 0.5, 1.0), nmap, 0.35), nmap, paint_gone);
+	// Flat, chalky paint (no grain of its own: that read as leather), mottled
+	// with faded and stained patches, rust bleeding through as dark spots.
+	vec3 pc = paint * (0.82 + 0.25 * fbm(p * 0.09 + 5.0));
+	pc = mix(pc, pc * vec3(1.08, 1.0, 0.85) + vec3(0.05, 0.04, 0.02), smoothstep(0.55, 0.8, fbm(p * 0.05 + 9.0)) * 0.5);
+	float stain = smoothstep(0.62, 0.78, fbm(p * 0.6 + 17.0)) * (0.3 + rustiness);
+	pc = mix(pc, rust * 0.9, stain * 0.6);
+	pc = mix(pc, pc * vec3(0.75, 0.6, 0.5), smoothstep(cut - 0.2, cut, wear) * 0.7);
+	float rim = smoothstep(cut - 0.04, cut, wear) * (1.0 - paint_gone);
+	pc *= 1.0 - rim * 0.5;
+	// Where the paint is gone: the iron's own rust, darkened, the bare grey
+	// steel showing only in small worn spots.
+	vec3 bared = mix(iron * vec3(0.72, 0.6, 0.52), iron, bare * 0.4);
+	vec3 col = mix(pc, bared, paint_gone);
+	rough = mix(0.9, rough, paint_gone);
+	nmap = mix(vec3(0.5, 0.5, 1.0), nmap, paint_gone);
 	col *= 1.0 - edge * 0.3;
-	col = mix(col, col * 0.4, bolt);
 
 	// Rust streaks running down from the rusty spots.
 	vec3 w = v_wpos;
 	vec3 n = normalize(v_wnrm);
 	float streak = noise(vec3(w.x * 1.7, w.y * 0.07, w.z * 1.7)) * 0.6 + noise(vec3(w.x * 5.0, w.y * 0.2, w.z * 5.0)) * 0.4;
-	float drip = smoothstep(0.66 - rustiness * 0.2, 0.88, streak) * (1.0 - abs(n.y)) * (1.0 - paint_gone * 0.5);
-	col = mix(col, mix(rust, grime, 0.4), drip * (0.15 + rustiness * 0.5));
+	float drip = smoothstep(0.58 - rustiness * 0.2, 0.85, streak) * (1.0 - abs(n.y)) * (1.0 - paint_gone * 0.5);
+	col = mix(col, mix(rust, grime, 0.5), drip * (0.3 + rustiness * 0.5));
 
 	float dist = distance(v_wpos, CAMERA_POSITION_WORLD);
 	float h = haze_amount * smoothstep(haze_near, haze_far, dist);
@@ -126,5 +128,5 @@ void fragment() {
 	NORMAL_MAP = nmap;
 	ROUGHNESS = clamp(rough, 0.3, 1.0);
 	METALLIC = bare * paint_gone * metal_strength;
-	SPECULAR = 0.4;
+	SPECULAR = 0.15;
 }
