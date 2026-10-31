@@ -16,7 +16,7 @@ uniform sampler2D iron_roughness : hint_default_white, filter_linear_mipmap, rep
 uniform sampler2D iron_metallic : hint_default_black, filter_linear_mipmap, repeat_enable;
 // Metres one repeat of the iron texture covers.
 uniform float tile = 7.0;
-uniform vec3 paint : source_color = vec3(0.74, 0.36, 0.1);
+uniform vec3 paint : source_color = vec3(0.33, 0.15, 0.09);
 
 uniform vec3 world_tint : source_color = vec3(1.0);
 uniform vec3 haze : source_color = vec3(0.52, 0.7, 0.66);
