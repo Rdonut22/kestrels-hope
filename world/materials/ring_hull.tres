@@ -1,0 +1,27 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/ring_hull.gdshader" id="1_5rude"]
+[ext_resource type="Texture2D" path="res://world/textures/rusted_iron/base_color.webp" id="2_cl6rg"]
+[ext_resource type="Texture2D" path="res://world/textures/rusted_iron/metallic.webp" id="3_ycoey"]
+[ext_resource type="Texture2D" path="res://world/textures/rusted_iron/normal.webp" id="4_6654f"]
+[ext_resource type="Texture2D" path="res://world/textures/rusted_iron/roughness.webp" id="5_3srkx"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_5rude")
+shader_parameter/iron_albedo = ExtResource("2_cl6rg")
+shader_parameter/iron_normal = ExtResource("4_6654f")
+shader_parameter/iron_roughness = ExtResource("5_3srkx")
+shader_parameter/iron_metallic = ExtResource("3_ycoey")
+shader_parameter/tile = 7.0
+shader_parameter/paint = Color(0.7, 0.32, 0.1, 1)
+shader_parameter/world_tint = Color(1, 1, 1, 1)
+shader_parameter/haze = Color(0.52, 0.7, 0.66, 1)
+shader_parameter/haze_amount = 0.25
+shader_parameter/haze_near = 40.0
+shader_parameter/haze_far = 260.0
+shader_parameter/rust = Color(0.36, 0.16, 0.07, 1)
+shader_parameter/grime = Color(0.14, 0.12, 0.1, 1)
+shader_parameter/rust_override = -1.0
+shader_parameter/clean_share = 0.35
+shader_parameter/metal_strength = 0.0

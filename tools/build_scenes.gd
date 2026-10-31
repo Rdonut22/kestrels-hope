@@ -4099,28 +4099,7 @@ func _ring_dressing(st: SurfaceTool, R: float, T: float, W: float, gap_from: flo
 		var aa := fposmod(a, TAU)
 		return sin(aa) > -0.42 and not (aa > gap_from - 0.05 and aa < gap_to + 0.05)
 	var face := func(a: float, side: float, radial: float, out := 0.0) -> Vector3:
-		return Vector3(cos(a), sin(a), 0) * radial + Vector3(0, 0, side * (W * 0.5 + out))
-
-	# Open bays: the plating is gone and the ribs, pipes and tanks show.
-	for k in 7:
-		var a := rng.randf() * TAU
-		if not visible.call(a):
-			continue
-		var side := -1.0 if rng.randf() < 0.5 else 1.0
-		var span := rng.randf_range(0.08, 0.16)
-		var rd := Vector3(cos(a), sin(a), 0)
-		var b := Basis(Vector3(-sin(a), cos(a), 0), rd, Vector3.BACK)
-		var len := R * span
-		_rbox(st, Transform3D(b, face.call(a, side, R, 0.25)), Vector3(len, T * 0.85, 0.5), RUIN_DARK)
-		for r in int(len / 1.4):
-			var off := -len * 0.5 + 0.7 + r * 1.4
-			_rbox(st, Transform3D(b, face.call(a, side, R, 0.75) + b.x * off), Vector3(0.3, T * 0.9, 0.5), RUIN_FRAME)
-		for pz in 3:
-			var radial := R - T * 0.3 + pz * T * 0.3
-			_rbox(st, Transform3D(b, face.call(a, side, radial, 0.9 + pz * 0.2)), Vector3(len * 0.95, 0.45, 0.45), RUIN_STEEL if pz != 1 else RUIN_RUST)
-		for t in rng.randi_range(1, 2):
-			var tp: Vector3 = face.call(a, side, R + rng.randf_range(-T * 0.25, T * 0.25), 1.3) + b.x * rng.randf_range(-len * 0.3, len * 0.3)
-			_rcyl(st, Transform3D(b, tp), rng.randf_range(0.7, 1.1), T * 0.5, RUIN_PLATE, 10)
+		return Vector3(cos(a), sin(a), 0) * radial + Vector3(0, 0, side * (W * 0.5 + HULL_THICK + 0.05 + out))
 
 	# Cantilevered platforms on the faces and rim, with struts, railings,
 	# crates and a little antenna or lamp.
@@ -4268,6 +4247,249 @@ func _restyle_great_ring(ring: MeshInstance3D) -> void:
 		mi.material_override = mat
 
 
+const HULL_SEG := 8.0      # metres of arc per plate at the ring's mid radius
+const HULL_DEPTH := 1.8    # how far openings go into the hull
+const HULL_THICK := 0.25   # plate thickness
+const HULL_BEVEL := 0.12
+const HULL_SEAM := 0.06    # half the gap between neighbouring plates
+
+
+## The Great Ring's plate layout: n segments of da radians, and which of
+## them are left open (two segments at a time, on the faces or the rim) to
+## show the machinery inside. open = {"side|segment": true} with side -1/+1
+## for the faces and 0 for the rim; openings = [[side, first segment]].
+func _hull_layout(R: float, gap_from: float, gap_to: float) -> Dictionary:
+	var n := int(round(TAU * R / HULL_SEG))
+	var da := TAU / n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 777
+	var open := {}
+	var openings := []
+	for side in [-1, 1, 0]:
+		var k := 0
+		while k < n - 1:
+			var a0 := k * da
+			var a2 := a0 + 2.0 * da
+			var ok := (a2 <= gap_from or a0 >= gap_to) and sin(a0) > -0.3 and sin(a2) > -0.3
+			ok = ok and absf(angle_difference(a0 + da, PI / 2)) > 0.4
+			if ok and rng.randf() < (0.25 if side != 0 else 0.12):
+				open["%d|%d" % [side, k]] = true
+				open["%d|%d" % [side, k + 1]] = true
+				openings.append([side, k])
+				k += 5
+			else:
+				k += 1
+	return {"n": n, "da": da, "open": open, "openings": openings}
+
+
+## Angles covered by hull segment k, cut short at the gap; x < 0 if none
+## (in the gap or buried).
+static func _hull_span(k: int, da: float, gap_from: float, gap_to: float) -> Vector2:
+	var a0 := k * da
+	var a1 := a0 + da
+	if a1 > gap_from and a0 < gap_to:
+		if a0 < gap_from:
+			a1 = gap_from
+		elif a1 > gap_to:
+			a0 = gap_to
+		else:
+			return Vector2(-1, -1)
+	if sin(a0) < -0.62 and sin(a1) < -0.62:
+		return Vector2(-1, -1)
+	return Vector2(a0, a1)
+
+
+## The dark structural core under the Great Ring's plating, in short
+## straight lengths, recessed where the layout leaves openings; pipes and
+## frames inside the openings; torn beams sticking out of the broken ends.
+func _ring_core(st: SurfaceTool, R: float, T: float, W: float, layout: Dictionary, gap_from: float, gap_to: float) -> void:
+	var hda: float = layout["da"]
+	var open: Dictionary = layout["open"]
+	var steps := int(TAU * R / 1.5)
+	var da := TAU / steps
+	for i in steps:
+		var a0 := i * da
+		var a1 := a0 + da
+		if a1 > gap_from and a0 < gap_to:
+			if a0 < gap_from:
+				a1 = gap_from
+			elif a1 > gap_to:
+				a0 = gap_to
+			else:
+				continue
+		var a := (a0 + a1) * 0.5
+		if sin(a) < -0.68:
+			continue
+		var k := int(a / hda)
+		var r0 := R - T * 0.5
+		var r1 := R + T * 0.5
+		var z0 := -W * 0.5
+		var z1 := W * 0.5
+		if open.has("0|%d" % k):
+			r1 -= HULL_DEPTH
+		if open.has("1|%d" % k):
+			z1 -= HULL_DEPTH
+		if open.has("-1|%d" % k):
+			z0 += HULL_DEPTH
+		var rd := Vector3(cos(a), sin(a), 0)
+		var tg := Vector3(-sin(a), cos(a), 0)
+		_rbox(st, Transform3D(Basis(tg, rd, Vector3.BACK), rd * (r0 + r1) * 0.5 + Vector3(0, 0, (z0 + z1) * 0.5)),
+			Vector3(r1 * (a1 - a0) * 1.03, r1 - r0, z1 - z0), RUIN_DARK)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 991
+	for o in layout["openings"]:
+		var side: int = o[0]
+		var a_start := int(o[1]) * hda
+		var a_end := a_start + 2.0 * hda
+		var pipes := [[R - T * 0.33, side * (W * 0.5 - 1.35)], [R + T * 0.33, side * (W * 0.5 - 1.35)]] if side != 0 \
+			else [[R + T * 0.5 - 1.3, -W * 0.33], [R + T * 0.5 - 1.3, W * 0.33]]
+		for pp in pipes:
+			var rr: float = pp[0]
+			var col := RUIN_STEEL if rng.randf() < 0.6 else RUIN_RUST
+			var th := rng.randf_range(0.35, 0.6)
+			var m := int((a_end - a_start) * rr / 1.2)
+			for j in m:
+				var a := a_start + (j + 0.5) * (a_end - a_start) / m
+				var rd := Vector3(cos(a), sin(a), 0)
+				var b := Basis(Vector3(-sin(a), cos(a), 0), rd, Vector3.BACK)
+				var at := rd * rr + Vector3(0, 0, pp[1])
+				_rbox(st, Transform3D(b, at), Vector3(rr * (a_end - a_start) / m * 1.04, th, th), col)
+				if j % 4 == 0:
+					_rbox(st, Transform3D(b, at), Vector3(0.25, th + 0.3, th + 0.3), RUIN_DARK)
+		for j in 7:
+			var a := a_start + (j + 0.5) * (a_end - a_start) / 7.0
+			var rd := Vector3(cos(a), sin(a), 0)
+			var b := Basis(Vector3(-sin(a), cos(a), 0), rd, Vector3.BACK)
+			if side != 0:
+				for rr in [R - T * 0.44, R + T * 0.44]:
+					_rbox(st, Transform3D(b, rd * rr + Vector3(0, 0, side * (W * 0.5 - HULL_DEPTH * 0.5))), Vector3(0.3, 0.6, HULL_DEPTH), RUIN_FRAME)
+			else:
+				_rbox(st, Transform3D(b, rd * (R + T * 0.5 - HULL_DEPTH + 0.2)), Vector3(0.3, 0.35, W * 0.9), RUIN_FRAME)
+	for end in [[gap_from, 1.0], [gap_to, -1.0]]:
+		var a: float = end[0]
+		var dir: float = end[1]
+		var rd := Vector3(cos(a), sin(a), 0)
+		var tg := Vector3(-sin(a), cos(a), 0)
+		for j in 9:
+			var rr := R + rng.randf_range(-T * 0.45, T * 0.45)
+			var z := rng.randf_range(-W * 0.45, W * 0.45)
+			var length := rng.randf_range(0.8, 4.5)
+			var th := rng.randf_range(0.2, 0.55)
+			var b := Basis(Vector3.BACK, rng.randf_range(-0.35, 0.35)) * Basis(rd, rng.randf_range(-0.25, 0.25)) * Basis(tg, rd, Vector3.BACK)
+			_rbox(st, Transform3D(b, rd * rr + Vector3(0, 0, z) + b.x * dir * length * 0.5), Vector3(length, th, th), RUIN_FRAME if j % 2 else RUIN_STEEL)
+
+
+## The Great Ring's hull: large bevelled plates over the core on the rim,
+## both faces and the inside, in rusted iron under chipped orange paint
+## (world/ring_hull.gdshader), each plate weathered differently. Openings in
+## the layout are left bare.
+func _ring_hull(ring: Node3D, R: float, T: float, W: float, layout: Dictionary, gap_from: float, gap_to: float) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var da: float = layout["da"]
+	var open: Dictionary = layout["open"]
+	for k in int(layout["n"]):
+		var span := _hull_span(k, da, gap_from, gap_to)
+		if span.x < 0.0:
+			continue
+		if not open.has("0|%d" % k):
+			for c in [[-W * 0.5, 0.0], [0.0, W * 0.5]]:
+				_hull_plate(st, 0, span.x, span.y, c[0], c[1], R, T, W)
+		for side in [-1, 1]:
+			if not open.has("%d|%d" % [side, k]):
+				for c in [[R - T * 0.5, R], [R, R + T * 0.5]]:
+					_hull_plate(st, side, span.x, span.y, c[0], c[1], R, T, W)
+		for c in [[-W * 0.5, 0.0], [0.0, W * 0.5]]:
+			_hull_plate(st, 2, span.x, span.y, c[0], c[1], R, T, W)
+	st.generate_tangents()
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://world/ring_hull.gdshader")
+	const IRON := "res://world/textures/rusted_iron/"
+	for pair in [["iron_albedo", "base_color"], ["iron_normal", "normal"], ["iron_roughness", "roughness"], ["iron_metallic", "metallic"]]:
+		mat.set_shader_parameter(pair[0], load(IRON + pair[1] + ".webp"))
+	_save_resource(mat, "res://world/materials/ring_hull.tres")
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_add(ring, mi, "Hull")
+
+
+## One hull plate between angles a0..a1 and cross coordinates c0..c1 on a
+## face of the ring: 0 = rim (c across the width), 2 = inside (same), -1/+1
+## = the faces (c = radius). Raised HULL_THICK with bevelled edges, curved
+## along the ring. UV runs 0..1 over the plate, COLOR.rg holds its size in
+## tens of metres, UV2 two random numbers for the plate.
+func _hull_plate(st: SurfaceTool, face: int, a0: float, a1: float, c0: float, c1: float, R: float, T: float, W: float) -> void:
+	var surf := R + T * 0.5 if face == 0 else R - T * 0.5
+	var rmid := surf if face == 0 or face == 2 else (c0 + c1) * 0.5
+	var pos := func(a: float, c: float, h: float) -> Vector3:
+		var rd := Vector3(cos(a), sin(a), 0)
+		if face == 0:
+			return rd * (surf + h) + Vector3(0, 0, c)
+		if face == 2:
+			return rd * (surf - h) + Vector3(0, 0, c)
+		return rd * c + Vector3(0, 0, face * (W * 0.5 + h))
+	var nrm := func(a: float) -> Vector3:
+		var rd := Vector3(cos(a), sin(a), 0)
+		return rd if face == 0 else (-rd if face == 2 else Vector3(0, 0, face))
+	var cdir := func(a: float) -> Vector3:
+		return Vector3.BACK if face == 0 or face == 2 else Vector3(cos(a), sin(a), 0)
+	var tdir := func(a: float) -> Vector3:
+		return Vector3(-sin(a), cos(a), 0)
+	a0 += HULL_SEAM / rmid
+	a1 -= HULL_SEAM / rmid
+	c0 += HULL_SEAM
+	c1 -= HULL_SEAM
+	var w := (a1 - a0) * rmid
+	var h := c1 - c0
+	if w < 0.5 or h < 0.5:
+		return
+	var col := Color(w / 10.0, h / 10.0, 0.0, 1.0)
+	var seed := _rhash(pos.call((a0 + a1) * 0.5, (c0 + c1) * 0.5, 0.0))
+	var bv := HULL_BEVEL
+	var ba := bv / rmid
+	var th := HULL_THICK
+	var vb := bv / h
+	var steps := maxi(1, ceili(w / 1.5))
+	for i in steps:
+		var t0 := float(i) / steps
+		var t1 := float(i + 1) / steps
+		var at0 := lerpf(a0 + ba, a1 - ba, t0)
+		var at1 := lerpf(a0 + ba, a1 - ba, t1)
+		var ab0 := lerpf(a0, a1, t0)
+		var ab1 := lerpf(a0, a1, t1)
+		var u0 := lerpf(bv / w, 1.0 - bv / w, t0)
+		var u1 := lerpf(bv / w, 1.0 - bv / w, t1)
+		var n0: Vector3 = nrm.call(at0)
+		var n1: Vector3 = nrm.call(at1)
+		_hquad(st, [pos.call(at0, c0 + bv, th), pos.call(at1, c0 + bv, th), pos.call(at1, c1 - bv, th), pos.call(at0, c1 - bv, th)],
+			[n0, n1, n1, n0], [Vector2(u0, vb), Vector2(u1, vb), Vector2(u1, 1.0 - vb), Vector2(u0, 1.0 - vb)], n0, col, seed)
+		var nlo: Vector3 = (n0 - cdir.call(at0) as Vector3).normalized()
+		_hquad(st, [pos.call(at0, c0 + bv, th), pos.call(at1, c0 + bv, th), pos.call(ab1, c0, 0.0), pos.call(ab0, c0, 0.0)],
+			[nlo, nlo, nlo, nlo], [Vector2(u0, vb), Vector2(u1, vb), Vector2(u1, 0.0), Vector2(u0, 0.0)], nlo, col, seed)
+		var nhi: Vector3 = (n0 + cdir.call(at0) as Vector3).normalized()
+		_hquad(st, [pos.call(at0, c1 - bv, th), pos.call(at1, c1 - bv, th), pos.call(ab1, c1, 0.0), pos.call(ab0, c1, 0.0)],
+			[nhi, nhi, nhi, nhi], [Vector2(u0, 1.0 - vb), Vector2(u1, 1.0 - vb), Vector2(u1, 1.0), Vector2(u0, 1.0)], nhi, col, seed)
+	for e in [[a0, a0 + ba, -1.0, 0.0, bv / w], [a1, a1 - ba, 1.0, 1.0, 1.0 - bv / w]]:
+		var ne: Vector3 = (nrm.call(e[0]) + tdir.call(e[0]) * float(e[2]) as Vector3).normalized()
+		_hquad(st, [pos.call(e[1], c0 + bv, th), pos.call(e[1], c1 - bv, th), pos.call(e[0], c1, 0.0), pos.call(e[0], c0, 0.0)],
+			[ne, ne, ne, ne], [Vector2(e[4], vb), Vector2(e[4], 1.0 - vb), Vector2(e[3], 1.0), Vector2(e[3], 0.0)], ne, col, seed)
+
+
+## A quad, wound so its front faces `out` (Godot fronts wind clockwise).
+func _hquad(st: SurfaceTool, p: Array, n: Array, uv: Array, out: Vector3, col: Color, seed: Vector2) -> void:
+	var idx := [0, 1, 2, 0, 2, 3]
+	if ((p[1] as Vector3) - p[0]).cross((p[2] as Vector3) - p[0]).dot(out) > 0.0:
+		idx = [0, 2, 1, 0, 3, 2]
+	for k in idx:
+		st.set_color(col)
+		st.set_normal(n[k])
+		st.set_uv(uv[k])
+		st.set_uv2(seed)
+		st.add_vertex(p[k])
+
+
 ## A model's scene from an FBX file, read directly (source models sit in
 ## world/models/source, which Godot doesn't import).
 func _fbx_scene(path: String) -> Node:
@@ -4352,13 +4574,12 @@ func _kit_models() -> Dictionary:
 ## of the rim, one broken length dangling from the gap, and four towers
 ## bolted radially onto the rim, one in each paint scheme, kept clear of the
 ## lookout.
-func _ring_kit(ring: Node3D, R: float, T: float, W: float, gap_from: float, gap_to: float) -> void:
-	var kit := _kit_models()
+func _ring_kit(ring: Node3D, kit: Dictionary, layout: Dictionary, R: float, T: float, W: float, gap_from: float, gap_to: float) -> void:
 	var root := _add(ring, Node3D.new(), "Kit")
 	const TRUSS_SCALE := 1.5
 	var length := 9.0 * TRUSS_SCALE
 	# [first angle, last angle, side (-1/+1 across the width, 0 = rim top), radius]
-	var runs := [[-0.55, 1.25, 1.0, R - 1.2], [0.25, 1.9, -1.0, R + 1.6], [2.5, 3.6, -1.0, R - 0.8], [2.55, 3.35, 0.0, R + T * 0.5 + 1.6]]
+	var runs := [[2.5, 3.6, -1.0, R - 0.8], [2.55, 3.35, 0.0, R + T * 0.5 + 1.6]]
 	var n := 0
 	for run in runs:
 		var rr: float = run[3]
@@ -4377,6 +4598,19 @@ func _ring_kit(ring: Node3D, R: float, T: float, W: float, gap_from: float, gap_
 			_add(root, mi, "Truss%d" % n)
 			n += 1
 			a += da
+	# A truss running through each opening in the hull plating.
+	for o in layout["openings"]:
+		var oside: int = o[0]
+		var ac := (int(o[1]) + 1) * float(layout["da"])
+		var ord := Vector3(cos(ac), sin(ac), 0)
+		var otg := Vector3(-sin(ac), cos(ac), 0)
+		var at := ord * R + Vector3(0, 0, oside * (W * 0.5 - 0.9)) if oside != 0 else ord * (R + T * 0.5 - 0.9)
+		var tm := MeshInstance3D.new()
+		tm.mesh = kit["truss"]
+		tm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		tm.transform = Transform3D(Basis(otg, ord, Vector3.BACK).scaled(Vector3.ONE * TRUSS_SCALE), at)
+		_add(root, tm, "Truss%d" % n)
+		n += 1
 	# A broken length hanging from the far edge of the gap.
 	var edge := Vector3(cos(gap_to), sin(gap_to), 0) * (R + T * 0.5) + Vector3(0, 0, W * 0.2)
 	var hang := Vector3(-0.35, -1.0, 0.25).normalized()
@@ -4638,14 +4872,21 @@ func _build_ruins(site: Node) -> void:
 	# clearing, half-buried and tilted, with a broken gap at the top left.
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_ring_ruin(st, rng, 40.0, 7.5, 12.0, 0.0, TAU, 1.95, 2.45)
+	# The ring's old box-built shell is no longer drawn, but still generated so
+	# the random numbers the other ruins draw after it stay the same.
+	var scratch := SurfaceTool.new()
+	scratch.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_ring_ruin(scratch, rng, 40.0, 7.5, 12.0, 0.0, TAU, 1.95, 2.45)
+	var layout := _hull_layout(40.0, 1.95, 2.45)
+	_ring_core(st, 40.0, 7.5, 12.0, layout, 1.95, 2.45)
 	_ring_dressing(st, 40.0, 7.5, 12.0, 1.95, 2.45)
 	var face_clearing := Basis(Vector3.UP, -PI / 2 + 0.25)
 	var tilt := Basis(Vector3.RIGHT, 0.12) * Basis(Vector3.BACK, 0.18)
 	_ruin_instance(ruins, "GreatRing", st, Transform3D(face_clearing * tilt, RING_POS + Vector3(0, 22.0, 0)))
 	_lookout(ruins.get_node("GreatRing"))
 	_restyle_great_ring(ruins.get_node("GreatRing"))
-	_ring_kit(ruins.get_node("GreatRing"), 40.0, 7.5, 12.0, 1.95, 2.45)
+	_ring_hull(ruins.get_node("GreatRing"), 40.0, 7.5, 12.0, layout, 1.95, 2.45)
+	_ring_kit(ruins.get_node("GreatRing"), _kit_models(), layout, 40.0, 7.5, 12.0, 1.95, 2.45)
 
 	# A broken arc of another ring jutting out of the ground to the north.
 	st = SurfaceTool.new()
