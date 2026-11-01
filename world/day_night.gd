@@ -37,8 +37,24 @@ func _ready() -> void:
 
 ## Jump to the given hour, rolling over to the next day if it's already past.
 func skip_to(target_hour: float) -> void:
+	if target_hour < hour:
+		_next_day()
 	hour = target_hour
 	_apply()
+
+
+## Sets the clock without counting a new day (restoring a saved game).
+func set_hour(h: float) -> void:
+	hour = fposmod(h, 24.0)
+	_apply()
+
+
+## Counts the day in GameState (only in the game itself, not on the title
+## screen's view of the crash site).
+func _next_day() -> void:
+	var scene := get_tree().current_scene
+	if scene and scene.scene_file_path == "res://crash_site.tscn":
+		Game.state().day += 1
 
 
 func is_night() -> bool:
@@ -52,13 +68,18 @@ func clock_text() -> String:
 
 
 func _process(delta: float) -> void:
-	hour = fmod(hour + delta * 24.0 / day_length, 24.0)
+	var next := hour + delta * 24.0 / day_length
+	if next >= 24.0:
+		_next_day()
+	hour = fmod(next, 24.0)
 	_apply()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	# T skips an hour ahead (handy for testing).
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_T:
+		if hour + 1.0 >= 24.0:
+			_next_day()
 		hour = fmod(hour + 1.0, 24.0)
 		_apply()
 

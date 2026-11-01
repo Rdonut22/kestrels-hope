@@ -11,6 +11,8 @@ signal meki_online_changed(online: bool)
 signal power_restored_changed(on: bool)
 signal flag_set(flag: String)
 signal inventory_changed
+signal day_changed(day: int)
+signal vines_changed
 
 ## Everything that can be carried. Tools aren't used up by repairs.
 const ITEMS := {
@@ -48,6 +50,15 @@ const HALE_FILE_CAP := 97.0
 const HALE_FILE_RATE := 0.25  # percent per second
 ## One-off story flags ("seen_tab_nav", "thought_bunk", ...).
 var flags := {}
+## Days since the crash, counted by the crash site's day-night cycle (1 on
+## the day Gana wakes up). Drives the vines reclaiming the wreck.
+var day := 1:
+	set(value):
+		if value != day:
+			day = value
+			day_changed.emit(value)
+## Vine and plant groups cut back from the wreck (world/vine_growth.gd ids).
+var cut_vines: Array[String] = []
 
 const SAVE_PATH := "user://savegame.json"
 const SAVE_VERSION := 1
@@ -61,7 +72,7 @@ var _loading := false
 
 
 func _ready() -> void:
-	for sig in [flag_set, inventory_changed, meki_online_changed, power_restored_changed]:
+	for sig in [flag_set, inventory_changed, meki_online_changed, power_restored_changed, day_changed, vines_changed]:
 		sig.connect(func(_a = null) -> void: _queue_autosave())
 
 
@@ -72,6 +83,8 @@ func reset() -> void:
 	items.clear()
 	flags.clear()
 	hale_file = 0.0
+	day = 1
+	cut_vines.clear()
 	inventory_changed.emit()
 
 
@@ -138,6 +151,8 @@ func save_game() -> bool:
 		"power_restored": power_restored,
 		"items": Array(items),
 		"hale_file": hale_file,
+		"day": day,
+		"cut_vines": Array(cut_vines),
 		"flags": flags.keys().filter(func(f: String) -> bool: return not f in TRANSIENT_FLAGS),
 		"player": {
 			"position": [player.global_position.x, player.global_position.y, player.global_position.z],
@@ -179,6 +194,9 @@ func load_game() -> bool:
 	for id in data.get("items", []):
 		items.append(String(id))
 	hale_file = data.get("hale_file", 0.0)
+	day = int(data.get("day", 1))
+	for id in data.get("cut_vines", []):
+		cut_vines.append(String(id))
 	for f in data.get("flags", []):
 		flags[String(f)] = true
 	inventory_changed.emit()

@@ -52,7 +52,7 @@ func _ready() -> void:
 func _apply_save(spawn: Dictionary) -> void:
 	var clock := get_tree().get_first_node_in_group("day_night")
 	if clock and spawn.has("hour"):
-		clock.skip_to(float(spawn["hour"]))
+		clock.set_hour(float(spawn["hour"]))
 	if spawn.get("pilot_seat", false):
 		var seat := get_tree().get_first_node_in_group("pilot_seat")
 		if seat:

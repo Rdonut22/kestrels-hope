@@ -3221,6 +3221,12 @@ func _build_crash_site() -> void:
 	clock.set_script(load("res://world/day_night.gd"))
 	R.add_child(clock)
 	clock.owner = R
+	# Ivy and plants slowly reclaiming the wreck, day by day.
+	var vines := Node3D.new()
+	vines.name = "VineGrowth"
+	vines.set_script(load("res://world/vine_growth.gd"))
+	R.add_child(vines)
+	vines.owner = R
 	# Coming round after the landing (only when arriving from it).
 	var wake := Node.new()
 	wake.name = "WakeUp"
