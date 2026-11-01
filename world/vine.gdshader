@@ -15,8 +15,11 @@ render_mode cull_disabled;
 uniform sampler2D leaf_texture : source_color, filter_linear_mipmap;
 uniform sampler2D stem_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform float age = 0.0;
-uniform vec3 leaf_tint : source_color = vec3(0.78, 0.9, 0.7);
-uniform vec3 stem_tint : source_color = vec3(0.8, 0.72, 0.62);
+uniform vec3 leaf_tint : source_color = vec3(0.86, 0.92, 0.8);
+// How much of the photo's colour to keep (it's a saturated variegated ivy).
+uniform float leaf_saturation : hint_range(0.0, 1.0) = 0.78;
+uniform float translucency : hint_range(0.0, 1.0) = 0.45;
+uniform vec3 stem_tint : source_color = vec3(1.1, 1.0, 0.85);
 uniform float unfurl = 0.35;     // metres of growth over which a leaf opens
 uniform float sway = 0.04;
 // Set by day_night.gd so the plants darken at night.
@@ -40,15 +43,22 @@ void fragment() {
 	float a = 1.0;
 	if (v_leaf > 0.5) {
 		vec4 t = texture(leaf_texture, UV);
-		col = t.rgb * leaf_tint;
+		col = t.rgb;
+		// Calm the pale variegated rim and the saturation a little.
+		float l = dot(col, vec3(0.3, 0.55, 0.15));
+		col = mix(vec3(l), col, leaf_saturation);
+		col = mix(col, col * vec3(0.86, 0.92, 0.78), smoothstep(0.35, 0.6, l) * 0.6);
+		col *= leaf_tint;
 		a = t.a;
-		BACKLIGHT = col * 0.3;
+		// Light through the leaf from behind, warmer and softer.
+		BACKLIGHT = col * vec3(1.05, 1.0, 0.7) * translucency;
 	} else {
 		col = texture(stem_texture, UV).rgb * stem_tint;
 	}
 	ALPHA = a;
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
 	ALBEDO = col * COLOR.rgb * world_tint;
-	ROUGHNESS = 0.85;
-	SPECULAR = 0.2;
+	// Ivy is a little waxy: a soft sheen, never glossy.
+	ROUGHNESS = v_leaf > 0.5 ? 0.62 : 0.9;
+	SPECULAR = v_leaf > 0.5 ? 0.3 : 0.15;
 }

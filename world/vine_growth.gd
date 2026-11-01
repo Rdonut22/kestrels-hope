@@ -201,44 +201,88 @@ func _plant(i: int) -> Dictionary:
 	return {}
 
 
-## Traces a vine over the hull: main strand plus a few branches.
+## Traces a vine over the hull: a main strand with a few branches, young
+## sprigs standing off the surface, and a shoot lifting from each tip.
 func _vine(start: Vector3, normal: Vector3, dir: Vector3, length: float, sprout: float, rate: float, branchiness: float) -> Dictionary:
-	var main := _crawl(start, normal, dir, length, 0.0)
+	var main := _crawl(start, normal, dir, length, 0.0, 1.0)
 	var strands := [main]
 	var mp: PackedVector3Array = main["points"]
+	var mn: PackedVector3Array = main["normals"]
 	var k := 6
 	while k < mp.size() - 6:
 		if _rng.randf() < branchiness * 0.12:
-			var mn: PackedVector3Array = main["normals"]
 			var side := (mp[k + 1] - mp[k]).cross(mn[k]).normalized() * (1.0 if _rng.randf() < 0.5 else -1.0)
-			strands.append(_crawl(mp[k], mn[k], (side + Vector3(0, _rng.randf_range(-0.6, 0.5), 0)).normalized(), length * _rng.randf_range(0.2, 0.45), k * step))
+			strands.append(_crawl(mp[k], mn[k], (side + Vector3(0, _rng.randf_range(-0.6, 0.5), 0)).normalized(), length * _rng.randf_range(0.2, 0.45), k * step, 0.6))
 			k += 8
 		k += 1
+	for si in strands.size():
+		var s: Dictionary = strands[si]
+		var pts: PackedVector3Array = s["points"]
+		if pts.size() < 4:
+			continue
+		var nrm: PackedVector3Array = s["normals"]
+		var hang: PackedFloat32Array = s["hang"]
+		var start_d: float = s["start"]
+		# Sprigs: short young stems leaning out from the surface.
+		var d := _rng.randf_range(0.5, 1.0)
+		while d < (pts.size() - 3) * step:
+			var i := int(d / step)
+			if hang[i] < 0.5:
+				var t := (pts[i + 1] - pts[i]).normalized()
+				var side := t.cross(nrm[i]).normalized() * (1.0 if _rng.randf() < 0.5 else -1.0)
+				strands.append(_sprig(pts[i], nrm[i], (side * 0.7 + nrm[i] * 0.6 + t * 0.3).normalized(), _rng.randf_range(0.15, 0.35), start_d + i * step))
+			d += _rng.randf_range(0.7, 1.4)
+		# The growing tip lifts away from the surface, reaching.
+		var e := pts.size() - 1
+		if hang[e] < 0.5:
+			var tdir := (pts[e] - pts[e - 1]).normalized()
+			strands.append(_sprig(pts[e], nrm[e], (tdir + nrm[e] * 0.5).normalized(), _rng.randf_range(0.12, 0.25), start_d + e * step))
 	return {"strands": strands, "sprout": sprout, "rate": rate}
 
 
+## A short free-standing stem from p heading along dir, drooping a little
+## under its own weight.
+func _sprig(p: Vector3, n: Vector3, dir: Vector3, length: float, start: float) -> Dictionary:
+	var pts := PackedVector3Array([p])
+	var nrm := PackedVector3Array([n])
+	var hang := PackedFloat32Array([0.0])
+	var q := p
+	var dd := dir
+	var seg := 0.05
+	for i in int(length / seg):
+		dd = (dd + Vector3(0, -0.12, 0) + Vector3(_rng.randf_range(-0.15, 0.15), _rng.randf_range(-0.1, 0.1), _rng.randf_range(-0.15, 0.15))).normalized()
+		q += dd * seg
+		pts.append(q)
+		nrm.append(n)
+		hang.append(0.6)
+	return {"points": pts, "normals": nrm, "start": start, "hang": hang, "free": true, "seg": seg, "width": 0.35}
+
+
 ## Walks a strand across the ship's surface from p (with surface normal n),
-## heading roughly along dir and wandering. Over an edge it wraps round onto
-## the next face, or, if there's nothing there, hangs straight down.
+## heading roughly along dir and winding: the turn rate itself drifts, so the
+## path curves and recurves instead of zig-zagging. Over an edge it wraps
+## round onto the next face, or, if there's nothing there, hangs straight
+## down. Points are on the surface; the mesh lifts the stem onto it.
 ## `start` is how far along the vine the strand begins (for branches).
-func _crawl(p: Vector3, n: Vector3, dir: Vector3, length: float, start: float) -> Dictionary:
-	var pts := PackedVector3Array([p + n * 0.03])
+func _crawl(p: Vector3, n: Vector3, dir: Vector3, length: float, start: float, width: float) -> Dictionary:
+	var pts := PackedVector3Array([p])
 	var nrm := PackedVector3Array([n])
 	var hang := PackedFloat32Array([0.0])
 	var bias := dir.normalized()
 	var hanging := false
+	var turn := 0.0
 	var steps := int(length / step)
 	for i in steps:
 		if hanging:
-			p += Vector3(_rng.randf_range(-0.02, 0.02), -step, _rng.randf_range(-0.02, 0.02))
+			p += Vector3(_rng.randf_range(-0.015, 0.015), -step, _rng.randf_range(-0.015, 0.015))
 			if p.y < _ground_y + 0.15:
 				break
 			pts.append(p)
 			nrm.append(n)
 			hang.append(minf(1.0, hang[hang.size() - 1] + 0.08))
 			continue
-		var wander := Basis(n, _rng.randf_range(-0.5, 0.5))
-		bias = (wander * bias).normalized()
+		turn = clampf(turn * 0.85 + _rng.randf_range(-0.12, 0.12), -0.35, 0.35)
+		bias = (Basis(n, turn) * bias).normalized()
 		var t := bias - n * bias.dot(n)
 		if t.length() < 0.05:
 			t = n.cross(Vector3.RIGHT)
@@ -257,14 +301,29 @@ func _crawl(p: Vector3, n: Vector3, dir: Vector3, length: float, start: float) -
 				hanging = true
 				continue
 		var hp: Vector3 = hit["position"]
-		if hp.distance_to(p) > step * 4.0 or hp.y > _hi.y + 0.5:
+		# A jump across a gap would leave a stem bridging thin air: stop.
+		if hp.distance_to(p) > step * 1.8 or hp.y > _hi.y + 0.5:
 			break
 		n = hit["normal"]
 		p = hp
-		pts.append(p + n * 0.03)
+		pts.append(p)
 		nrm.append(n)
 		hang.append(0.0)
-	return {"points": pts, "normals": nrm, "start": start, "hang": hang}
+	_smooth(pts, nrm, hang)
+	return {"points": pts, "normals": nrm, "start": start, "hang": hang, "width": width}
+
+
+## Rounds off the strand's kinks, but only where neighbouring points lie on
+## the same face (smoothing across an edge would cut into the hull).
+static func _smooth(pts: PackedVector3Array, nrm: PackedVector3Array, hang: PackedFloat32Array) -> void:
+	for pass_i in 2:
+		var src := pts.duplicate()
+		for i in range(1, pts.size() - 1):
+			if hang[i] > 0.0 or nrm[i - 1].dot(nrm[i]) < 0.95 or nrm[i + 1].dot(nrm[i]) < 0.95:
+				continue
+			var avg := (src[i - 1] + src[i] * 2.0 + src[i + 1]) * 0.25
+			# Keep it on the face: drop what moved along the normal.
+			pts[i] = avg - nrm[i] * (avg - src[i]).dot(nrm[i])
 
 
 ## True if a hull point is inside the ship: roofed over and walled in.
@@ -309,9 +368,11 @@ func _add_group(id: String, g: Dictionary, cut: Array) -> void:
 	var sprout: float = g["sprout"]
 	var rate: float = g["rate"]
 	var all := PackedVector3Array()
+	var normals := PackedVector3Array()
 	for s in g["strands"]:
 		_strand_mesh(st, s, sprout, rate)
 		all.append_array(s["points"])
+		normals.append_array(s["normals"])
 	if g.has("rosette"):
 		_rosette(st, g["rosette"], g["size"], sprout, rate)
 	var mesh := st.commit()
@@ -321,16 +382,20 @@ func _add_group(id: String, g: Dictionary, cut: Array) -> void:
 	mi.name = id
 	mi.mesh = mesh
 	mi.material_override = material
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Leaves shadow the hull and each other: the ivy sits on the ship.
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	# The shader moves vertices; keep it from being culled while growing.
 	mi.extra_cull_margin = 1.0
 	add_child(mi)
 	var local := PackedVector3Array()
 	for p in all:
 		local.append(to_local(p))
-	_groups[id] = {"mesh": mi, "points": local, "sprout": sprout, "rate": rate}
+	_groups[id] = {"mesh": mi, "points": local, "normals": normals, "sprout": sprout, "rate": rate}
 
 
+## A strand's stem (a tapering tube resting on the surface, greener towards
+## the young tip) and its leaves, alternating at irregular intervals, larger
+## and darker where the stem is old, small and fresh near the tip.
 func _strand_mesh(st: SurfaceTool, s: Dictionary, sprout: float, rate: float) -> void:
 	var pts: PackedVector3Array = s["points"]
 	var nrm: PackedVector3Array = s["normals"]
@@ -338,19 +403,37 @@ func _strand_mesh(st: SurfaceTool, s: Dictionary, sprout: float, rate: float) ->
 	if pts.size() < 2:
 		return
 	var start: float = s["start"]
-	var sides := 4
-	var leaf_side := 1.0
+	var seg: float = s.get("seg", step)
+	var width: float = s.get("width", 1.0)
+	var free: bool = s.get("free", false)
+	var total := (pts.size() - 1) * seg
+	var sides := 5
+	var radius := func(i: int) -> float:
+		var left := total - i * seg
+		var r := lerpf(0.005, 0.022 * width, clampf(left / 2.5, 0.0, 1.0))
+		# Hanging shoots are young and thin.
+		return minf(r, 0.01) if hang[i] > 0.0 else r
+	var centre := func(i: int) -> Vector3:
+		# Lift onto the surface by the stem's radius; free stems as they are.
+		var c := pts[i] if free or hang[i] > 0.0 else pts[i] + nrm[i] * (float(radius.call(i)) * 0.9 + 0.004)
+		return to_local(c)
+	var next_leaf := _rng.randf_range(0.04, 0.12)
+	var leaf_side := 1.0 if _rng.randf() < 0.5 else -1.0
 	for i in pts.size() - 1:
-		var a := to_local(pts[i])
-		var b := to_local(pts[i + 1])
-		var d0 := start + i * step
-		var d1 := d0 + step
+		var a: Vector3 = centre.call(i)
+		var b: Vector3 = centre.call(i + 1)
+		var d0 := start + i * seg
+		var d1 := d0 + seg
 		var axis := (b - a).normalized()
-		var na := to_local(pts[i] + nrm[i]) - to_local(pts[i])
+		var na := (to_local(pts[i] + nrm[i]) - to_local(pts[i])).normalized()
 		var side := axis.cross(na).normalized()
+		if side.length() < 0.5:
+			side = axis.cross(Vector3.FORWARD).normalized()
 		var up := side.cross(axis).normalized()
-		var r0 := lerpf(0.032, 0.012, clampf(float(i) / pts.size(), 0.0, 1.0))
-		var r1 := lerpf(0.032, 0.012, clampf(float(i + 1) / pts.size(), 0.0, 1.0))
+		var r0: float = radius.call(i)
+		var r1: float = radius.call(i + 1)
+		var young0 := 1.0 - clampf((total - i * seg) / 1.2, 0.0, 1.0)
+		var young1 := 1.0 - clampf((total - (i + 1) * seg) / 1.2, 0.0, 1.0)
 		for k in sides:
 			var t0 := TAU * k / sides
 			var t1 := TAU * (k + 1) / sides
@@ -358,49 +441,108 @@ func _strand_mesh(st: SurfaceTool, s: Dictionary, sprout: float, rate: float) ->
 			var o01 := (side * cos(t1) + up * sin(t1)) * r0
 			var o10 := (side * cos(t0) + up * sin(t0)) * r1
 			var o11 := (side * cos(t1) + up * sin(t1)) * r1
-			for v in [[a + o00, a, d0, 0], [b + o10, b, d1, 0], [b + o11, b, d1, 1], [a + o00, a, d0, 0], [b + o11, b, d1, 1], [a + o01, a, d0, 1]]:
+			for v in [[a + o00, a, d0, 0, young0], [b + o10, b, d1, 0, young1], [b + o11, b, d1, 1, young1],
+					[a + o00, a, d0, 0, young0], [b + o11, b, d1, 1, young1], [a + o01, a, d0, 1, young0]]:
 				var vp: Vector3 = v[0]
 				var cen: Vector3 = v[1]
-				st.set_color(Color(1, 1, 1))
+				st.set_color(Color(1.0, 1.0, 1.0).lerp(Color(0.75, 1.15, 0.6), float(v[4])))
 				st.set_normal((vp - cen).normalized())
-				st.set_uv(Vector2(float(v[3]) * 0.25 + k * 0.25, float(v[2]) * 0.5))
+				st.set_uv(Vector2((float(v[3]) + k) / sides, float(v[2]) * 0.6))
 				st.set_custom(0, Color(v[2], sprout, rate, 0.0))
 				st.set_custom(1, Color(cen.x, cen.y, cen.z, hang[mini(i, hang.size() - 1)]))
 				st.add_vertex(vp)
-		# Leaves along the stem, alternating sides, lying against the hull
-		# (or turned outward where the vine hangs free).
-		for extra in (2 if _rng.randf() < 0.55 else 1):
+		# Leaves at irregular spacing.
+		var along := i * seg
+		while next_leaf <= along + seg:
+			var f := (next_leaf - along) / seg
+			var at := a.lerp(b, f)
+			var age := clampf((total - next_leaf) / 1.5, 0.0, 1.0)  # 0 at the tip
 			leaf_side = -leaf_side
-			var size := _rng.randf_range(0.2, 0.36) * (1.0 - 0.35 * float(i) / pts.size())
-			var lean := na.normalized() * 0.4 + side * leaf_side + axis * _rng.randf_range(-0.2, 0.5)
-			_leaf(st, a, lean.normalized(), na.normalized(), size, d0, sprout, rate, hang[mini(i, hang.size() - 1)])
+			var size := lerpf(0.09, 0.27, age) * _rng.randf_range(0.8, 1.15) * (0.75 if free else 1.0)
+			# Held out to the side on a stalk, blade roughly along the surface,
+			# tipped up a little and turned at random.
+			var world_up := to_local(pts[i] + Vector3.UP) - to_local(pts[i])
+			var lateral := side * leaf_side
+			var outward := (lateral + axis * _rng.randf_range(-0.3, 0.6) + (world_up - na * world_up.dot(na)) * 0.35).normalized()
+			outward = Basis(na, _rng.randf_range(-0.5, 0.5)) * outward
+			var face := (na + world_up * 0.25 + Vector3(_rng.randf_range(-0.25, 0.25), _rng.randf_range(-0.1, 0.25), _rng.randf_range(-0.25, 0.25))).normalized()
+			if hang[mini(i, hang.size() - 1)] > 0.0:
+				face = (lateral * 0.6 + Vector3(0, 0.4, 0) + axis * 0.2).normalized()
+			_leaf(st, at, outward, face, size, start + next_leaf, sprout, rate, hang[mini(i, hang.size() - 1)], age)
+			next_leaf += _rng.randf_range(0.11, 0.2) * lerpf(0.75, 1.0, age)
 
 
-## One ivy leaf card growing out of `at`, pointing along `out`, facing `face`.
-func _leaf(st: SurfaceTool, at: Vector3, out: Vector3, face: Vector3, size: float, dist: float, sprout: float, rate: float, sway: float) -> void:
-	var w := out.cross(face).normalized() * size * 0.5
-	var stalk := at + out * size * 0.15 + face * 0.015
-	var tip := stalk + out * size
-	var quad := [stalk - w, stalk + w, tip + w, tip - w]
-	var uvs := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
-	var shade := Color(1, 1, 1) * _rng.randf_range(0.8, 1.1)
-	shade.a = 1.0
-	var n := (face + out * 0.2).normalized()
-	for k in [0, 1, 2, 0, 2, 3]:
-		st.set_color(shade)
-		st.set_normal(n)
-		st.set_uv(uvs[k])
+## One ivy leaf: a short stalk from the stem, then a blade of 3 x 4 vertices
+## that folds along its midrib, cups slightly, droops towards its tip and
+## twists, so no two read alike. Tinted by age (fresh yellow-green to deep
+## green, the odd bronzed one) and a little at random.
+func _leaf(st: SurfaceTool, at: Vector3, out: Vector3, face: Vector3, size: float, dist: float, sprout: float, rate: float, sway: float, age: float) -> void:
+	var f := (out - face * out.dot(face)).normalized()
+	var w := f.cross(face).normalized()
+	var u := w.cross(f).normalized()
+	var stalk_len := size * _rng.randf_range(0.18, 0.4)
+	var base := at + f * stalk_len + u * (size * _rng.randf_range(0.12, 0.3))
+	var length := size
+	var width := size * _rng.randf_range(0.9, 1.1)
+	var fold := _rng.randf_range(0.12, 0.3)
+	var droop := _rng.randf_range(0.05, 0.25)
+	var twist := _rng.randf_range(-0.25, 0.25)
+	var tone := Color(0.84, 0.9, 0.84).lerp(Color(1.08, 1.1, 0.82), 1.0 - age)
+	if _rng.randf() < 0.03 and age > 0.6:
+		tone = Color(0.96, 0.88, 0.7)
+	tone = tone * _rng.randf_range(0.88, 1.08)
+	tone.a = 1.0
+	var grid := []
+	for vi in 4:
+		var v := vi / 3.0
+		var row := []
+		for si in 3:
+			var s := si - 1.0
+			# The blade is widest a third of the way up; the tip narrows.
+			var half := width * 0.5 * (0.85 + 0.6 * v - 0.9 * v * v)
+			var p := base + f * (v * length) + w * (s * half)
+			p += u * (absf(s) * half * fold - v * v * length * droop + s * v * length * twist)
+			row.append(p)
+		grid.append(row)
+	var norm := func(vi: int, si: int) -> Vector3:
+		var dv: Vector3 = grid[mini(vi + 1, 3)][si] - grid[maxi(vi - 1, 0)][si]
+		var ds: Vector3 = grid[vi][mini(si + 1, 2)] - grid[vi][maxi(si - 1, 0)]
+		var n := ds.cross(dv).normalized()
+		return n if n.dot(u) > 0.0 else -n
+	var uv := func(vi: int, si: int) -> Vector2:
+		return Vector2(si * 0.5, 0.97 - vi / 3.0 * 0.97)
+	for vi in 3:
+		for si in 2:
+			var quad := [[vi, si], [vi, si + 1], [vi + 1, si + 1], [vi + 1, si]]
+			for q in [0, 1, 2, 0, 2, 3]:
+				var c: Array = quad[q]
+				st.set_color(tone)
+				st.set_normal(norm.call(c[0], c[1]))
+				st.set_uv(uv.call(c[0], c[1]))
+				st.set_custom(0, Color(dist, sprout, rate, 1.0))
+				st.set_custom(1, Color(at.x, at.y, at.z, sway + 0.3))
+				st.add_vertex(grid[c[0]][c[1]])
+	# The stalk: a thin green strip from the stem to the blade (drawn with
+	# the leaf texture's green midrib).
+	var sw := w * 0.005
+	var stalk := [at - sw, at + sw, base + sw, base - sw]
+	for q in [0, 1, 2, 0, 2, 3]:
+		st.set_color(tone * 0.8)
+		st.set_normal(u)
+		st.set_uv(Vector2(0.5, 0.62))
 		st.set_custom(0, Color(dist, sprout, rate, 1.0))
 		st.set_custom(1, Color(at.x, at.y, at.z, sway + 0.3))
-		st.add_vertex(quad[k])
+		st.add_vertex(stalk[q])
 
 
-## A rosette of leaves rising from the ground (a small plant).
+## A small ground plant: a rosette of ivy-type leaves on short stalks rising
+## from the ground, fresh in the middle, older and lower round the outside.
 func _rosette(st: SurfaceTool, base_w: Vector3, size: float, sprout: float, rate: float) -> void:
 	var base := to_local(base_w)
 	var count := 5 + _rng.randi() % 4
 	for k in count:
 		var a := TAU * k / count + _rng.randf_range(-0.3, 0.3)
-		var out := Vector3(cos(a), _rng.randf_range(0.5, 1.2), sin(a)).normalized()
-		var face := (Vector3.UP - out * out.y).normalized().lerp(Vector3.UP, 0.5).normalized()
-		_leaf(st, base, out, face, _rng.randf_range(0.22, 0.36) * size, 0.0, sprout, rate, 0.2)
+		var inner := float(k % 3 == 0)
+		var out := Vector3(cos(a), lerpf(0.45, 1.3, inner) + _rng.randf_range(-0.1, 0.1), sin(a)).normalized()
+		var face := (Vector3.UP * 1.2 + Vector3(cos(a), 0, sin(a)) * lerpf(0.5, 0.1, inner)).normalized()
+		_leaf(st, base, out, face, _rng.randf_range(0.2, 0.32) * size * lerpf(1.0, 0.7, inner), 0.0, sprout, rate, 0.2, 1.0 - inner * 0.8)
