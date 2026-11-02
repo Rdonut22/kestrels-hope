@@ -49,7 +49,8 @@ extends Node3D
 @export_range(-1.0, 1.0) var light_fullness := -0.3
 
 ## Copied from the sky material each frame when it has them.
-const SKY_PARAMS := ["day", "dusk", "sky_rot", "mountains", "space", "pixel"]
+const SKY_PARAMS := ["day", "dusk", "sky_rot", "mountains", "space", "pixel",
+		"cloud_tex", "clouds_on", "cloud_pixelate"]
 
 var _giant: ShaderMaterial
 var _small: ShaderMaterial

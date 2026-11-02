@@ -204,6 +204,7 @@ void fragment() {
 	// Soft edge where the shadowed limb meets the sky.
 	a *= mix(smoothstep(0.0, 0.3, ndv), 1.0, lit_a);
 	a *= 1.0 - haze;
-	a *= 1.0 - sky_cloud(saz, sel) * 0.85;
+	// Clouds pass in front: the towering cumulus fully, the old soft ones mostly.
+	a *= 1.0 - (clouds_on > 0.5 ? sky_clouds_at(az, el, saz, sel).a : sky_cloud(saz, sel) * 0.85);
 	ALPHA = clamp(a * (1.0 - space), 0.0, 1.0);
 }

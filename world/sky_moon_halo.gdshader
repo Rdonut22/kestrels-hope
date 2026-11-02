@@ -56,5 +56,6 @@ void fragment() {
 	float side = smoothstep(-0.2, 0.7, dot(v_q / max(r, 0.001), v_light));
 	float haze = smoothstep(haze_top, haze_bottom, el);
 	float amount = strength * mix(0.6, 0.35, day) * (1.0 - haze) * (1.0 - space);
+	amount *= 1.0 - sky_clouds_at(az, el, saz, sel).a;
 	ALBEDO = vec3(0.72, 0.9, 1.0) * g * side * amount;
 }

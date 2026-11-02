@@ -59,12 +59,19 @@ void sky() {
 	if (day < 0.7 && hash(vec2(floor(saz / pixel), floor(sel / pixel))) > 0.996) {
 		col += vec3(0.9, 0.92, 1.0) * (1.0 - day / 0.7) * hash(vec2(floor(saz / pixel) + 3.0, floor(sel / pixel)));
 	}
-	vec2 cl = vec2(saz * 1.2, sel * 3.0);
-	vec3 cloud = mix(vec3(1.0), vec3(1.0, 0.68, 0.58), dusk) * mix(0.12, 1.0, day);
-	col = mix(col, cloud, smoothstep(0.55, 0.8, fbm(cl * 2.5 + vec2(TIME * 0.003, 0.0))) * 0.8 * step(0.05, sel));
 	float sun = distance(d, normalize(sun_dir));
 	vec3 sun_col = mix(vec3(1.0, 0.55, 0.3), vec3(1.0, 0.95, 0.85), smoothstep(0.0, 0.4, sun_dir.y));
-	col += sun_col * (smoothstep(0.045, 0.035, sun) * 4.0 + smoothstep(0.6, 0.0, sun) * (0.2 + dusk * 0.3)) * step(-0.05, sun_dir.y);
+	if (clouds_on > 0.5) {
+		// Towering cumulus (world/clouds/sky_clouds.gd) in front of the sun.
+		col += sun_col * (smoothstep(0.045, 0.035, sun) * 4.0 + smoothstep(0.6, 0.0, sun) * (0.2 + dusk * 0.3)) * step(-0.05, sun_dir.y);
+		vec4 cu = sky_clouds_at(az, el, saz, sel);
+		col = col * (1.0 - cu.a) + cu.rgb;
+	} else {
+		vec2 cl = vec2(saz * 1.2, sel * 3.0);
+		vec3 cloud = mix(vec3(1.0), vec3(1.0, 0.68, 0.58), dusk) * mix(0.12, 1.0, day);
+		col = mix(col, cloud, smoothstep(0.55, 0.8, fbm(cl * 2.5 + vec2(TIME * 0.003, 0.0))) * 0.8 * step(0.05, sel));
+		col += sun_col * (smoothstep(0.045, 0.035, sun) * 4.0 + smoothstep(0.6, 0.0, sun) * (0.2 + dusk * 0.3)) * step(-0.05, sun_dir.y);
+	}
 
 	vec2 far = skyline(saz, 0.55, 3.0, 0.16, 0.42);
 	vec2 near = skyline(saz, 0.8, 11.0, 0.12, 0.5);

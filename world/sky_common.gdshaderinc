@@ -61,8 +61,35 @@ float skyline_top(float saz, float height_scale) {
 	return max(skyline(saz, 0.55, 3.0, 0.16, 0.42).x, skyline(saz, 0.8, 11.0, 0.12, 0.5).x) * height_scale;
 }
 
+// Towering cumulus panorama from world/clouds/sky_clouds.gd (when present):
+// rgb = cloud light * 0.5 (premultiplied), a = opacity. Azimuth across,
+// elevation from -0.03 rad (bottom row) to straight up (top row).
+uniform sampler2D cloud_tex : filter_linear, repeat_enable;
+uniform float clouds_on = 0.0;
+uniform float cloud_pixelate = 1.0;
+
+// Cumulus at a direction (azimuth atan(x, -z), elevation), or 0 if none.
+vec4 sky_clouds(float az, float el) {
+	if (clouds_on < 0.5 || el < -0.03) {
+		return vec4(0.0);
+	}
+	vec2 size = vec2(textureSize(cloud_tex, 0));
+	float v = (1.5707963 - el) / (1.5707963 + 0.03);
+	v = clamp(v, 0.5 / size.y, 1.0 - 0.5 / size.y);
+	vec4 c = textureLod(cloud_tex, vec2(az / 6.2831853 + 0.5, v), 0.0);
+	return vec4(c.rgb * 2.0, c.a);
+}
+
+// Same, on the sky's pixel grid when cloud_pixelate is on.
+vec4 sky_clouds_at(float az, float el, float saz, float sel) {
+	return cloud_pixelate > 0.5 ? sky_clouds(saz, sel) : sky_clouds(az, el);
+}
+
 // The skies' cloud cover (0..1) at a snapped direction.
 float sky_cloud(float saz, float sel) {
+	if (clouds_on > 0.5) {
+		return sky_clouds(saz, sel).a;
+	}
 	vec2 cl = vec2(saz * 1.2, sel * 3.0);
 	return smoothstep(0.55, 0.8, fbm(cl * 2.5 + vec2(TIME * 0.003, 0.0))) * 0.8 * step(0.05, sel);
 }
