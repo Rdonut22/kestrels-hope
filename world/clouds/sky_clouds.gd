@@ -130,6 +130,7 @@ var _full_redraw := 0
 var _row := 0
 var _row_accum := 0.0
 var _wind := Vector2.ZERO
+var _wind_dir := Vector2.RIGHT
 var _time := 0.0
 var _weather: ImageTexture
 var _shape: ImageTexture3D
@@ -235,9 +236,9 @@ func _process(delta: float) -> void:
 		return
 
 	_time += delta * time_scale
-	var wd := wind_direction.normalized() if wind_direction.length() > 0.001 else Vector2.RIGHT
+	_wind_dir = wind_direction.normalized() if wind_direction.length() > 0.001 else Vector2.RIGHT
 	# Shader adds the offset to positions, so subtract to drift downwind.
-	_wind -= wd * wind_speed / 3600.0 * delta * time_scale
+	_wind -= _wind_dir * wind_speed / 3600.0 * delta * time_scale
 	_push_params()
 
 	var size := _vp.size
@@ -290,7 +291,7 @@ func _push_params() -> void:
 		m.set_shader_parameter("sun_dir", sun_direction_override.normalized())
 	m.set_shader_parameter("time_s", _time)
 	m.set_shader_parameter("wind", _wind)
-	m.set_shader_parameter("wind_dir_n", wd)
+	m.set_shader_parameter("wind_dir_n", _wind_dir)
 	m.set_shader_parameter("anvil_chance", anvil_chance)
 	m.set_shader_parameter("coverage", coverage)
 	m.set_shader_parameter("bottom_km", cloud_height)
