@@ -71,16 +71,16 @@ enum Quality { LOW, MEDIUM, HIGH, ULTRA }
 @export_group("Lighting")
 ## Override the sun direction (direction TO the sun). Zero = follow the day sky.
 @export var sun_direction_override := Vector3.ZERO
-@export_range(0.0, 3.0) var sun_strength := 1.5
-@export_range(0.0, 3.0) var ambient_strength := 1.2
+@export_range(0.0, 3.0) var sun_strength := 1.9
+@export_range(0.0, 3.0) var ambient_strength := 1.1
 @export_range(0.0, 3.0) var brightness := 1.0
 ## Light absorbed per km of cloud: higher = more solid, sharper-shaded lobes.
 @export_range(5.0, 120.0) var extinction := 30.0
 @export var lit_tint := Color(1.0, 0.97, 0.91)
 ## Shadows high up the towers (pale cyan / blue).
-@export var shadow_tint := Color(0.58, 0.76, 0.86)
+@export var shadow_tint := Color(0.42, 0.76, 0.96)
 ## Shadows under the bases (cool grey).
-@export var base_tint := Color(0.7, 0.77, 0.86)
+@export var base_tint := Color(0.52, 0.66, 0.88)
 ## Keeps shadows luminous instead of storm-grey.
 @export_range(0.0, 1.0) var shadow_lift := 0.75
 @export_range(0.0, 2.0) var silver_lining := 0.5

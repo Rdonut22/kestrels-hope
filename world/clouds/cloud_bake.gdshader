@@ -120,8 +120,8 @@ float smax_k(float a, float b, float k) {
 // centre of its flat base. A wide mound, then a stack of rising, shrinking,
 // slightly leaning billow-spheres: the towering cauliflower silhouette.
 float cumulus(vec3 q, float r, float tiers, vec2 lean) {
-	vec3 e = q / vec3(r, r * 0.62, r);
-	float f = (1.0 - length(e)) * r * 0.62;
+	vec3 e = q / vec3(r * 0.9, r * 0.7, r * 0.9);
+	float f = (1.0 - length(e)) * r * 0.65;
 	float rk = r * 0.8;
 	float y = r * 0.38;
 	for (int k = 1; k <= 5; k++) {
@@ -211,8 +211,8 @@ float cloud_field(vec3 p, float h01, bool detail) {
 		float dn = texture(detail_noise, (q + vec3(time_s * 0.0002, 0.0, 0.0)) / (detail_tile_km * scale)).r;
 		f += (dn - 0.5) * 0.6 * detail_strength * scale;
 	}
-	// Flat-ish bases, lightly rippled.
-	return min(f, z * 2.0 - 0.05 + (sn - 0.5) * 0.25);
+	// Flat-ish bases, broken into soft lobes rather than one flat lid.
+	return min(f, z * 1.6 - 0.05 + (sn - 0.5) * 0.7 * billow_strength * scale);
 }
 
 float cloud_density(vec3 p, float h01, bool detail) {
@@ -333,13 +333,17 @@ void fragment() {
 			float wrap = smoothstep(-0.45, 0.7, ndl);
 			float direct = wrap * mix(sh, 1.0, 0.15) * phase;
 			direct = clamp(direct, 0.0, 1.6);
-			// Ambient: cool grey under the bases, pale cyan up the towers,
-			// sky-blue on lobes facing up, warm bounce on lobes facing down.
+			// Ambient: cool grey-blue under the bases, pale cyan up the towers,
+			// sky-blue on lobes facing up. Kept light: the shadows of a sunny
+			// cumulus are luminous blues, never storm grey.
 			float hh = smoothstep(0.0, 0.85, h01);
 			vec3 shadow = mix(base_tint, shadow_tint, hh);
-			shadow = mix(shadow, mix(shadow, top * 1.8 + 0.25, 0.35), clamp(n.y, 0.0, 1.0));
-			shadow *= mix(0.82, 1.0, 0.5 + 0.5 * n.y);
+			shadow = mix(shadow, top * 1.5 + 0.3, 0.3 * clamp(n.y, 0.0, 1.0));
+			shadow *= mix(0.9, 1.05, 0.5 + 0.5 * n.y);
 			vec3 amb = shadow * amb_level * mix(shadow_lift, 1.0, 0.5 + 0.5 * sh);
+			// Painterly turn: a band of clear cyan where light gives way to shadow.
+			float turn = wrap * (1.0 - wrap) * 4.0 * mix(sh, 1.0, 0.4);
+			amb += shadow_tint * vec3(0.55, 0.95, 1.1) * turn * 0.25 * amb_level;
 			vec3 s = (amb + sun_col * direct) * brightness;
 
 			float sig = d * extinction;
