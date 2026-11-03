@@ -19,6 +19,11 @@ uniform float grime : hint_range(0.0, 1.0) = 0.4;
 uniform vec2 mullion_spacing = vec2(0.0);
 uniform float mullion_width = 0.08;
 uniform vec3 frame_color : source_color = vec3(0.16, 0.16, 0.17);
+// Frame bars painted like the hull: a hull colour tile (object-space
+// repeat every frame_tex_size units).
+uniform sampler2D frame_tex : source_color, filter_linear_mipmap, repeat_enable, hint_default_white;
+uniform bool use_frame_tex = false;
+uniform float frame_tex_size = 0.25;
 
 varying vec3 v_obj;
 varying vec3 v_world_n;
@@ -65,10 +70,19 @@ void fragment() {
 		bar = max(bar, 1.0 - smoothstep(mullion_width * 0.5, mullion_width * 0.5 + 0.02, min(fz, 1.0 - fz)));
 	}
 
-	ALBEDO = mix(col * 0.3, frame_color, bar);
+	vec3 fc = frame_color;
+	if (use_frame_tex) {
+		vec3 an = abs(v_world_n);
+		vec2 fuv = an.x > an.z ? v_obj.zy : v_obj.xy;
+		if (an.y > max(an.x, an.z)) {
+			fuv = v_obj.xz;
+		}
+		fc = texture(frame_tex, fuv / frame_tex_size).rgb;
+	}
+	ALBEDO = mix(col * 0.3, fc, bar);
 	EMISSION = mix(col * 0.6 + refl, vec3(0.0), bar);
 	ROUGHNESS = mix(0.08 + grime * dirt * 0.4, 0.6, bar);
-	METALLIC = mix(0.0, 0.5, bar);
+	METALLIC = mix(0.0, use_frame_tex ? 0.1 : 0.5, bar);
 	SPECULAR = mix(0.9, 0.4, bar);
 #ifdef CLEAR
 	// See-through: mostly clear head-on, more reflective at grazing angles.

@@ -410,8 +410,7 @@ func _porthole(at: Vector3, glass: Material) -> void:
 	var w := 1.3
 	var h := 0.8
 	var t := 0.14
-	var frame_mat := _dark_metal()
-	frame_mat.albedo_color = Color(0.3, 0.31, 0.32)
+	var frame_mat := _mat()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
@@ -539,6 +538,9 @@ func _two_tone(mi: MeshInstance3D) -> void:
 		var canopy := _clear_glass()
 		canopy.set_shader_parameter("mullion_spacing", Vector2(0.045, 0.055))
 		canopy.set_shader_parameter("mullion_width", 0.18)
+		# Frame bars in the hull's colour.
+		canopy.set_shader_parameter("use_frame_tex", true)
+		canopy.set_shader_parameter("frame_tex", _colors[0])
 		canopy.set_shader_parameter("interior_glow", 0.15)
 		mi.set_surface_override_material(2, canopy)
 
