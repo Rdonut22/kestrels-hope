@@ -7,6 +7,9 @@ extends Node
 ## Real seconds for one full 24-hour day (1440 = 1 game hour per minute).
 @export var day_length := 1440.0
 @export_range(0.0, 24.0) var hour := 9.0
+## How much soft moonlit sky light the trees and foliage get at night, so
+## they keep a dim blue-grey shape instead of going black.
+@export_range(0.0, 1.0) var tree_moonlight := 0.4
 
 var _sun: DirectionalLight3D
 var _moon: DirectionalLight3D
@@ -111,6 +114,7 @@ func _apply() -> void:
 	var fog := _env.fog_light_color
 	for m in _tinted:
 		m.set_shader_parameter("world_tint", tint)
+		m.set_shader_parameter("night_fill", (1.0 - day) * tree_moonlight)
 		m.set_shader_parameter("haze", fog)
 
 	_sky.set_shader_parameter("day", day)

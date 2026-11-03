@@ -10,6 +10,9 @@ render_mode cull_back, specular_disabled;
 uniform float streaks : hint_range(0.0, 1.0) = 0.55;
 // Set by day_night.gd so the trees darken at night.
 uniform vec3 world_tint : source_color = vec3(1.0);
+// Set by day_night.gd: soft moonlit sky light all round at night, so the
+// trees keep a dim blue-grey shape instead of going black (0 by day).
+uniform float night_fill = 0.0;
 
 void vertex() {
 	VERTEX += (inverse(MODEL_MATRIX) * vec4(rw_wind(VERTEX, UV2, MODEL_MATRIX, TIME), 0.0)).xyz;
@@ -22,5 +25,9 @@ void fragment() {
 	vec3 col = COLOR.rgb * mix(1.0, 0.75 + f * 0.5, streaks);
 	col *= 1.0 - crease * 0.35 * streaks;
 	ALBEDO = col * world_tint;
+	// Moonlight drains colour: mostly a cool blue-grey of the surface.
+	vec3 base_c = col;
+	vec3 moon_c = mix(base_c, vec3(dot(base_c, vec3(0.3, 0.59, 0.11))) * vec3(0.55, 0.7, 1.0), 0.6);
+	EMISSION = (moon_c + vec3(0.035, 0.05, 0.1)) * night_fill;
 	ROUGHNESS = 1.0;
 }

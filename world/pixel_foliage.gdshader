@@ -16,6 +16,9 @@ uniform float bands = 1.0;
 
 // Set by day_night.gd so these materials darken at night.
 uniform vec3 world_tint : source_color = vec3(1.0);
+// Set by day_night.gd: soft moonlit sky light all round at night, so the
+// trees keep a dim blue-grey shape instead of going black (0 by day).
+uniform float night_fill = 0.0;
 
 varying vec3 wpos;
 varying vec3 wnrm;
@@ -58,6 +61,10 @@ void fragment() {
 	t += (bands - 1.0) * 0.2 * sin(cell.y * 1.7);
 	vec3 col = t < 0.3 ? c_dark : (t < 0.55 ? c_mid : (t < 0.8 ? c_light : c_high));
 	ALBEDO = col * tint * world_tint;
+	// Moonlight drains colour: mostly a cool blue-grey of the surface.
+	vec3 base_c = col * tint;
+	vec3 moon_c = mix(base_c, vec3(dot(base_c, vec3(0.3, 0.59, 0.11))) * vec3(0.55, 0.7, 1.0), 0.6);
+	EMISSION = (moon_c + vec3(0.035, 0.05, 0.1)) * night_fill;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }
