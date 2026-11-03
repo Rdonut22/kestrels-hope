@@ -29,8 +29,11 @@ func _initialize() -> void:
 
 func _run(cam: Camera3D, out: String) -> void:
 	var c := Vector3(0.5, 1.8, 1)
-	var views := {"1_back": Vector3(0, 3.0, 38), "2_iso_front": Vector3(24, 16, -26), "3_side_starboard": Vector3(36, 2.5, 1), "4_top": Vector3(0, 46, 1.01)}
+	var views := {"1_back": Vector3(0, 3.0, 38), "2_iso_front": Vector3(24, 16, -26), "3_side_starboard": Vector3(36, 2.5, 1), "4_top": Vector3(0, 46, 1.01), "5_port_front": Vector3(-24, 7, -16), "6_port_close": Vector3(-17, 1.5, -1)}
+	var only := OS.get_environment("VIEWS")
 	for nm in views:
+		if only != "" and not only.contains(nm.substr(0, 1)):
+			continue
 		cam.position = c + views[nm]
 		cam.look_at(c)
 		for i in 3:

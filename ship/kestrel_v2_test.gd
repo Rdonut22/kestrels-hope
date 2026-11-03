@@ -4,8 +4,10 @@ extends Node3D
 ## Blockout test for the reworked Kestrel exterior (the user's sketches):
 ## the stripped marauder fuselage around the cockpit, kitchen and lounge on
 ## the starboard (+X) side, the existing hull to port (front-left corner
-## rounded), two big fan turbines mirrored at the back, a tilted A-shaped top
-## wing on struts and a low swept wing to starboard. Every part wears the same
+## rounded) clad in a plated skin (ship/hull_skin.gd), two big fan turbines
+## mirrored at the back, a tilted A-shaped top wing on struts and a low swept
+## wing to starboard, both built like the user's wing reference (thick
+## chamfered slabs with a raised inner plate). Every part wears the same
 ## procedural worn paint (ship/marauder_paint.gdshader).
 ## The current interior (ship/ship_interior.tscn) is placed inside so the fit
 ## can be checked. Kestrel frame: forward is -Z, floor at y = 0.
@@ -44,7 +46,11 @@ func _ready() -> void:
 		if hull:
 			var outer := hull.get_node_or_null("Outer") as CSGShape3D
 			if outer:
-				outer.material = _mat()
+				# Dark hull underneath: shows through the grooves of the skin.
+				var dark := StandardMaterial3D.new()
+				dark.albedo_color = Color(0.2, 0.21, 0.23)
+				dark.roughness = 0.8
+				outer.material = dark
 				# The ceiling panels' top is level with the roof and showed
 				# through outside: lift the roof 0.15 m above them.
 				var box := outer as CSGBox3D
@@ -52,6 +58,20 @@ func _ready() -> void:
 					box.size.y += 0.15
 					box.position.y += 0.075
 			_round_corner(hull)
+
+	# Plated skin over the port hull, in the fuselage's style.
+	var r := corner_radius
+	var path := PackedVector2Array([Vector2(2.0, HULL_MAX.z), Vector2(HULL_MIN.x, HULL_MAX.z)])
+	for i in 13:
+		var a := PI * 0.5 * float(i) / 12.0
+		# From the port side (facing -x) round to the front (facing -z).
+		path.append(Vector2(HULL_MIN.x + r - r * cos(a), HULL_MIN.z + r - r * sin(a)))
+	path.append(Vector2(2.0, HULL_MIN.z))
+	var skin := HullSkin.new().build(path, Vector2(-2.8, 0.0),
+		[[-0.15, 0.6], [0.68, 2.42], [2.5, 3.32]],
+		Rect2(HULL_MIN.x + 0.1, HULL_MIN.z + 0.1, 2.0 - HULL_MIN.x - 0.2, HULL_MAX.z - HULL_MIN.z - 0.2), 3.35,
+		Vector2(HULL_MIN.x + r, HULL_MIN.z + r), r)
+	_mesh("HullSkin", skin, Transform3D.IDENTITY)
 
 	# The model's nose is +Z; turn it to face -Z (forward) and scale to metres.
 	var s := fuselage_scale
@@ -81,7 +101,7 @@ func _ready() -> void:
 	# the fuselage and overhanging the port side.
 	var tilt := deg_to_rad(7.0)
 	var wing_xf := Transform3D(Basis(Vector3.BACK, tilt), Vector3(-4.6, 4.75, 1.0))
-	_mesh("TopWing", _slab(_a_shape(14.5, 19.0, 0.42), 0.5), wing_xf)
+	_mesh("TopWing", _wing(_a_shape(14.5, 19.0, 0.42), 0.7, 0.45, 0), wing_xf)
 	for p in [Vector3(-8.5, 0, 6.5), Vector3(-1.0, 0, 6.5), Vector3(-4.6, 0, -4.0)]:
 		# Struts from the hull roof (y = 3.2) up to the wing's underside.
 		var under := (wing_xf * Vector3(p.x - wing_xf.origin.x, 0, 0)).y - 0.25
@@ -92,10 +112,80 @@ func _ready() -> void:
 		cm.height = maxf(under - 3.35, 0.3)
 		_mesh("Strut", cm, Transform3D(Basis.IDENTITY, Vector3(p.x, 3.35 + cm.height * 0.5, p.z)))
 
-	# Low starboard wing from the fuselage's belly: swept, tapering to a point.
-	var rw := PackedVector2Array([Vector2(0, -6.5), Vector2(0, 7.5), Vector2(7.5, 8.5), Vector2(8.5, 6.8)])
+	# Low starboard wing from the fuselage's belly, in the style of the wing
+	# reference: a thick swept slab, angular clipped tip with a notch in the
+	# trailing edge.
+	var rw := PackedVector2Array([Vector2(0, -7.0), Vector2(9.6, 5.6), Vector2(8.8, 7.6),
+		Vector2(5.6, 7.2), Vector2(5.1, 8.3), Vector2(0, 7.6)])
 	var rw_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(-4.0)), Vector3(fuselage_x + 2.0, 0.4, 0.0))
-	_mesh("WingStarboard", _slab(rw, 0.35), rw_xf)
+	_mesh("WingStarboard", _wing(rw, 0.6, 0.4, 1), rw_xf)
+
+
+## A wing like the reference: a thick slab with big chamfered edges, and on
+## top a raised inner plate stepped in from the edge, split into a few large
+## sections (`axis` 0: split across z, 1: split across x).
+func _wing(outline: PackedVector2Array, thick: float, bevel: float, axis: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	_slab_into(st, outline, thick, bevel, 0.0)
+	var inner_set := Geometry2D.offset_polygon(outline, -(bevel + 0.9), Geometry2D.JOIN_MITER)
+	if inner_set.size() > 0:
+		var inner: PackedVector2Array = inner_set[0]
+		# Cut the inner plate into three big sections with 0.12 m gaps.
+		var lo := Vector2(INF, INF)
+		var hi := Vector2(-INF, -INF)
+		for p in inner:
+			lo = lo.min(p)
+			hi = hi.max(p)
+		var cuts := [0.0, 0.42, 0.7, 1.0]
+		for i in 3:
+			var a: float = cuts[i]
+			var b: float = cuts[i + 1]
+			var band: PackedVector2Array
+			if axis == 0:
+				var z0 := lerpf(lo.y, hi.y, a) + (0.06 if i > 0 else -1.0)
+				var z1 := lerpf(lo.y, hi.y, b) - (0.06 if i < 2 else -1.0)
+				band = PackedVector2Array([Vector2(lo.x - 1, z0), Vector2(hi.x + 1, z0), Vector2(hi.x + 1, z1), Vector2(lo.x - 1, z1)])
+			else:
+				var x0 := lerpf(lo.x, hi.x, a) + (0.06 if i > 0 else -1.0)
+				var x1 := lerpf(lo.x, hi.x, b) - (0.06 if i < 2 else -1.0)
+				band = PackedVector2Array([Vector2(x0, lo.y - 1), Vector2(x1, lo.y - 1), Vector2(x1, hi.y + 1), Vector2(x0, hi.y + 1)])
+			for piece in Geometry2D.intersect_polygons(inner, band):
+				if Geometry2D.is_polygon_clockwise(piece):
+					piece.reverse()
+				_slab_into(st, piece, 0.16, 0.06, thick * 0.5 + 0.08)
+	st.generate_normals()
+	return st.commit()
+
+
+## Adds a slab (outline extruded to `thick`, edges chamfered inward by
+## `bevel`) centred at height y.
+func _slab_into(st: SurfaceTool, outline: PackedVector2Array, thick: float, bevel: float, y: float) -> void:
+	var tris := Geometry2D.triangulate_polygon(outline)
+	if tris.is_empty():
+		return
+	var inset := Geometry2D.offset_polygon(outline, -bevel, Geometry2D.JOIN_MITER)
+	var cap: PackedVector2Array = inset[0] if inset.size() > 0 else outline
+	var cap_tris := Geometry2D.triangulate_polygon(cap)
+	var h := thick * 0.5
+	for yy in [y + h, y - h]:
+		for i in range(0, cap_tris.size(), 3):
+			for k in 3:
+				var c := cap[cap_tris[i + k]]
+				st.add_vertex(Vector3(c.x, yy, c.y))
+	# Chamfer band from the outline (at mid-height) to the caps.
+	var n := outline.size()
+	for i in n:
+		var j := (i + 1) % n
+		var o0 := outline[i]
+		var o1 := outline[j]
+		var c0 := _nearest(cap, o0)
+		var c1 := _nearest(cap, o1)
+		for yy in [y + h, y - h]:
+			for v in [Vector3(o0.x, y, o0.y), Vector3(o1.x, y, o1.y), Vector3(c1.x, yy, c1.y),
+					Vector3(o0.x, y, o0.y), Vector3(c1.x, yy, c1.y), Vector3(c0.x, yy, c0.y)]:
+				st.add_vertex(v)
 
 
 ## A worn-paint material with its own wear seed.
@@ -150,50 +240,6 @@ func _a_shape(span: float, length: float, leg: float) -> PackedVector2Array:
 		var t := float(i) / 6.0
 		pts.append(Vector2(-hw * sin(t * PI * 0.5), -hl + length * t * t * 0.55 + length * t * 0.45))
 	return pts
-
-
-## Extrudes an outline (x, z) into a flat-shaded slab of the given thickness,
-## its top and bottom edges slightly bevelled inward.
-func _slab(outline: PackedVector2Array, thick: float) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_smooth_group(-1)
-	var tris := Geometry2D.triangulate_polygon(outline)
-	var inset := Geometry2D.offset_polygon(outline, -minf(thick * 0.6, 0.3))
-	var cap: PackedVector2Array = inset[0] if inset.size() > 0 else outline
-	var cap_tris := Geometry2D.triangulate_polygon(cap)
-	var h := thick * 0.5
-	for y in [h, -h]:
-		for i in range(0, cap_tris.size(), 3):
-			var a := cap[cap_tris[i]]
-			var b := cap[cap_tris[i + 1]]
-			var c := cap[cap_tris[i + 2]]
-			var tri := [Vector3(a.x, y, a.y), Vector3(b.x, y, b.y), Vector3(c.x, y, c.y)]
-			if y < 0.0:
-				tri.reverse()
-			for v in tri:
-				st.add_vertex(v)
-	# Side band: from the outline at mid-height to the inset caps above/below.
-	var n := outline.size()
-	var m := cap.size()
-	for i in n:
-		var j := (i + 1) % n
-		var o0 := outline[i]
-		var o1 := outline[j]
-		# Nearest cap points for a simple bevel band.
-		var c0 := _nearest(cap, o0)
-		var c1 := _nearest(cap, o1)
-		for y in [h, -h]:
-			var quad := [Vector3(o0.x, 0, o0.y), Vector3(o1.x, 0, o1.y), Vector3(c1.x, y, c1.y), Vector3(c0.x, y, c0.y)]
-			var t1 := [quad[0], quad[1], quad[2]]
-			var t2 := [quad[0], quad[2], quad[3]]
-			if y < 0.0:
-				t1.reverse()
-				t2.reverse()
-			for v in t1 + t2:
-				st.add_vertex(v)
-	st.generate_normals()
-	return st.commit()
 
 
 func _nearest(poly: PackedVector2Array, p: Vector2) -> Vector2:

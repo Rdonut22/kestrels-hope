@@ -20,7 +20,7 @@ uniform float blue_share : hint_range(0.0, 1.0) = 0.38;
 uniform float zone_size = 9.0;
 // Overall wear: chips, rust and grime.
 uniform float chips : hint_range(0.0, 1.0) = 0.45;
-uniform float rust : hint_range(0.0, 1.0) = 0.55;
+uniform float rust : hint_range(0.0, 1.0) = 0.45;
 uniform float streaks : hint_range(0.0, 1.0) = 0.6;
 uniform float underside_grime : hint_range(0.0, 1.0) = 0.5;
 // Seed per part so repeated parts don't wear identically.
@@ -92,6 +92,10 @@ vec4 layer(vec2 uv, float facing_down, out float rough, out float metal) {
 }
 
 void fragment() {
+	// Two-sided: light back faces as if they faced the camera.
+	if (!FRONT_FACING) {
+		NORMAL = -NORMAL;
+	}
 	vec3 n = normalize(v_nrm);
 	vec3 w = pow(abs(n), vec3(4.0));
 	w /= (w.x + w.y + w.z);
