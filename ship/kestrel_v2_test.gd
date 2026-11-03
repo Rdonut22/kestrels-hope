@@ -37,6 +37,7 @@ const HULL_MAX := Vector3(5.9, 3.2, 9.5)
 const CENTRE_X := -0.15
 
 var _paint: Shader
+var _plating: Texture2D = preload("res://ship/textures/hull_plating.png")
 var _seed := 0.0
 
 
@@ -498,6 +499,7 @@ func _mat() -> ShaderMaterial:
 	m.shader = _paint
 	_seed += 1.0
 	m.set_shader_parameter("seed", _seed)
+	m.set_shader_parameter("plating", _plating)
 	return m
 
 

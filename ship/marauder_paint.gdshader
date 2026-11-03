@@ -8,8 +8,8 @@ render_mode cull_disabled;
 // metres of object space (so parts at any scale get the same plate size), and
 // projected triplanar so it works on any mesh, imported or procedural.
 
-uniform vec3 paint_white : source_color = vec3(0.86, 0.85, 0.81);
-uniform vec3 paint_blue : source_color = vec3(0.55, 0.68, 0.79);
+uniform vec3 paint_white : source_color = vec3(0.74, 0.73, 0.69);
+uniform vec3 paint_blue : source_color = vec3(0.4, 0.56, 0.72);
 uniform vec3 bare_metal : source_color = vec3(0.5, 0.52, 0.55);
 uniform vec3 rust_light : source_color = vec3(0.62, 0.38, 0.22);
 uniform vec3 rust_dark : source_color = vec3(0.36, 0.2, 0.12);
@@ -26,11 +26,24 @@ uniform float underside_grime : hint_range(0.0, 1.0) = 0.5;
 // Surface relief (bump): dents, hammered metal, scratches, chipped paint edges.
 uniform float bump_strength : hint_range(0.0, 3.0) = 1.0;
 uniform float scratches : hint_range(0.0, 1.0) = 0.5;
+// Hull plating detail (greyscale, from the Venator roughness tile): relief,
+// plate-to-plate tone and roughness. Repeats every plating_size metres,
+// mirrored so the tile's edges meet seamlessly.
+uniform sampler2D plating : filter_linear_mipmap, repeat_enable, hint_default_white;
+uniform float plating_size = 5.0;
+uniform float plating_tone : hint_range(0.0, 1.0) = 0.5;
+uniform float plating_relief : hint_range(0.0, 0.05) = 0.012;
 // Seed per part so repeated parts don't wear identically.
 uniform float seed = 0.0;
 
 varying vec3 v_pos;
 varying vec3 v_nrm;
+
+float plate(vec2 uv) {
+	vec2 q = uv / plating_size + seed * 0.37;
+	q = 1.0 - abs(1.0 - mod(q, 2.0));
+	return texture(plating, q).r;
+}
 
 float hash2(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7)) + seed * 17.13) * 43758.5453);
@@ -75,6 +88,9 @@ vec4 layer(vec2 uv, float facing_down, out float rough, out float metal, out flo
 	float blue = smoothstep(0.02, -0.02, zone - (0.32 + blue_share * 0.36));
 	vec3 col = mix(paint_white, paint_blue, blue);
 	col *= 0.95 + 0.08 * n_mid;
+	// Plating: each plate a slightly different tone of the same paint.
+	float pl = plate(uv);
+	col *= mix(1.0, 0.78 + 0.32 * pl, plating_tone);
 
 	// Chips down to bare metal, in scattered patches.
 	float chip = smoothstep(0.66, 0.72, n_mid + n_fine * 0.3 - (1.0 - chips) * 0.45);
@@ -100,9 +116,11 @@ vec4 layer(vec2 uv, float facing_down, out float rough, out float metal, out flo
 	// chips and scratches, crusty rust.
 	float dents = (fbm2(uv * 0.7 + 9.0) - 0.5) * 0.02;
 	float hammer = (noise2(uv * 14.0) - 0.5) * 0.0015;
-	height = dents + hammer - chip * 0.0012 - scratch * 0.0008 + r * (noise2(uv * 25.0) - 0.3) * 0.002;
+	height = dents + hammer - chip * 0.0012 - scratch * 0.0008 + r * (noise2(uv * 25.0) - 0.3) * 0.002
+			+ (pl - 0.5) * plating_relief;
 
 	rough = mix(mix(0.62, 0.42, chip), 0.92, r);
+	rough = clamp(rough + (0.5 - pl) * 0.2, 0.05, 1.0);
 	rough = mix(rough, 0.3, scratch * 0.7);
 	metal = max(chip, scratch) * (1.0 - r) * 0.7;
 	return vec4(col, 1.0);
