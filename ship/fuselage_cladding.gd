@@ -75,7 +75,7 @@ static func _wall_band(st: Array, path: PackedVector2Array, centre: Vector2,
 				out.append(Vector3(p.x, y0 + (clampf(v.y, sy.x, sy.y) - sy.x) * hs, p.y))
 			if ok:
 				for v in out:
-					st[_flags[t / 3]].add_vertex(v)
+					st[mini(_flags[t / 3], 1)].add_vertex(v)
 		start += tile
 		k += 1
 
@@ -120,7 +120,7 @@ static func roof(rect: Rect2, y: float, scale := 26.0) -> ArrayMesh:
 					out.append(Vector3(px, y + (v.y - TOP_REF_Y) * scale, pz))
 				if ok:
 					for v in out:
-						st[_flags[t / 3]].add_vertex(v)
+						st[mini(_flags[t / 3], 1)].add_vertex(v)
 			z0 += tile
 			row += 1
 		x0 += strip_w

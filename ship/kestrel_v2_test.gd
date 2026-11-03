@@ -304,13 +304,7 @@ func _details(walls: Mesh, roof: Mesh) -> void:
 		for v in wv:
 			if absf(v.z - z) < 0.7 and absf(v.y - y) < 0.5:
 				out_x = minf(out_x, v.x)
-		var frame := BoxMesh.new()
-		frame.size = Vector3(0.2, 0.75, 1.15)
-		_mesh("PortholeFrame", frame, Transform3D(Basis.IDENTITY, Vector3(out_x - 0.06, y, z)))
-		var pane := BoxMesh.new()
-		pane.size = Vector3(0.06, 0.5, 0.9)
-		var pm := _mesh("Porthole", pane, Transform3D(Basis.IDENTITY, Vector3(out_x - 0.16, y, z)))
-		pm.material_override = glass
+		_porthole(Vector3(out_x, y, z), glass)
 		z += 2.6
 	# Roof components.
 	var dark := _dark_metal()
@@ -352,6 +346,77 @@ func _details(walls: Mesh, roof: Mesh) -> void:
 		var pmi := _place_on_roof(rv, "Pipe", pipe, Vector3(px, 0, 1.5), 0.12)
 		pmi.rotation = Vector3(PI * 0.5, 0, 0)
 		pmi.material_override = dark
+
+
+## A porthole on the port wall (facing -x): a chamfered dark-metal frame
+## standing out of the hull, the glass set back inside it, a centre bar and
+## four bolts.
+func _porthole(at: Vector3, glass: Material) -> void:
+	var w := 1.3
+	var h := 0.8
+	var t := 0.14
+	var frame_mat := _dark_metal()
+	frame_mat.albedo_color = Color(0.3, 0.31, 0.32)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	var outer := PackedVector2Array([Vector2(-w * 0.5, -h * 0.5 + 0.12), Vector2(-w * 0.5 + 0.12, -h * 0.5),
+		Vector2(w * 0.5 - 0.12, -h * 0.5), Vector2(w * 0.5, -h * 0.5 + 0.12), Vector2(w * 0.5, h * 0.5 - 0.12),
+		Vector2(w * 0.5 - 0.12, h * 0.5), Vector2(-w * 0.5 + 0.12, h * 0.5), Vector2(-w * 0.5, h * 0.5 - 0.12)])
+	var inner := Geometry2D.offset_polygon(outer, -t, Geometry2D.JOIN_MITER)[0]
+	# Frame ring: front face (bevelled inward), outer and inner sides.
+	var n := outer.size()
+	for i in n:
+		var j := (i + 1) % n
+		var o0 := outer[i]
+		var o1 := outer[j]
+		var i0 := _nearest(inner, o0)
+		var i1 := _nearest(inner, o1)
+		var face := [Vector3(-0.2, o0.y, o0.x), Vector3(-0.2, o1.y, o1.x), Vector3(-0.26, i1.y, i1.x), Vector3(-0.26, i0.y, i0.x)]
+		var side := [Vector3(0.0, o0.y, o0.x), Vector3(0.0, o1.y, o1.x), Vector3(-0.2, o1.y, o1.x), Vector3(-0.2, o0.y, o0.x)]
+		var well := [Vector3(-0.26, i0.y, i0.x), Vector3(-0.26, i1.y, i1.x), Vector3(-0.08, i1.y, i1.x), Vector3(-0.08, i0.y, i0.x)]
+		for q in [face, side, well]:
+			for v in [q[0], q[1], q[2], q[0], q[2], q[3]]:
+				st.add_vertex(v)
+	st.generate_normals()
+	var fm := MeshInstance3D.new()
+	fm.name = "PortholeFrame"
+	fm.mesh = st.commit()
+	fm.material_override = frame_mat
+	fm.position = at
+	add_child(fm)
+	# Glass, set back in the frame.
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for p in inner:
+		lo = lo.min(p)
+		hi = hi.max(p)
+	var pane := QuadMesh.new()
+	pane.size = Vector2(hi.x - lo.x, hi.y - lo.y)
+	var pm := MeshInstance3D.new()
+	pm.name = "PortholeGlass"
+	pm.mesh = pane
+	pm.material_override = glass
+	pm.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5), at + Vector3(-0.09, 0, 0))
+	add_child(pm)
+	# Centre bar and bolts.
+	var bar := BoxMesh.new()
+	bar.size = Vector3(0.05, hi.y - lo.y, 0.07)
+	var bm := MeshInstance3D.new()
+	bm.mesh = bar
+	bm.material_override = frame_mat
+	bm.position = at + Vector3(-0.12, 0, 0)
+	add_child(bm)
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var bolt := CylinderMesh.new()
+		bolt.top_radius = 0.035
+		bolt.bottom_radius = 0.035
+		bolt.height = 0.05
+		var b := MeshInstance3D.new()
+		b.mesh = bolt
+		b.material_override = frame_mat
+		b.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5), at + Vector3(-0.23, c.y * (h * 0.5 - 0.07), c.x * (w * 0.5 - 0.07)))
+		add_child(b)
 
 
 func _verts(m: Mesh) -> PackedVector3Array:
@@ -399,7 +464,8 @@ func _nav_light(wing: MeshInstance3D, col: Color) -> void:
 	mi.material_override = m
 
 
-## Paint on surface 0, dark glass / machinery on surface 1 (the recesses).
+## Paint on surface 0, glass on surface 1 (the recessed windows / hatches)
+## and on surface 2 (the cockpit canopy, with frame bars).
 func _two_tone(mi: MeshInstance3D) -> void:
 	if mi.mesh.get_surface_count() < 2:
 		return
@@ -407,14 +473,17 @@ func _two_tone(mi: MeshInstance3D) -> void:
 	mi.material_override = null
 	mi.set_surface_override_material(0, paint)
 	mi.set_surface_override_material(1, _window_glass())
+	if mi.mesh.get_surface_count() > 2:
+		var canopy := _window_glass()
+		canopy.set_shader_parameter("mullion_spacing", Vector2(0.045, 0.055))
+		canopy.set_shader_parameter("mullion_width", 0.18)
+		canopy.set_shader_parameter("interior_glow", 0.15)
+		mi.set_surface_override_material(2, canopy)
 
 
-func _window_glass() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.05, 0.07, 0.09)
-	m.metallic = 0.4
-	m.roughness = 0.18
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+func _window_glass() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://ship/window_glass.gdshader")
 	return m
 
 

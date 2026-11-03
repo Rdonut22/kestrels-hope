@@ -23,8 +23,8 @@ static var _cache := {}
 
 ## Returns {"fuselage", "nacelle_front_left", "nacelle_front_right",
 ## "nacelle_rear_left", "nacelle_rear_right"} -> ArrayMesh (model frame).
-## The fuselage has two surfaces: 0 = outer skin, 1 = recess floors (windows,
-## hatches, vents) for a dark glass / metal material.
+## The fuselage has three surfaces: 0 = outer skin, 1 = recess floors
+## (windows, hatches, vents), 2 = the cockpit canopy.
 static func parts() -> Dictionary:
 	if not _cache.is_empty():
 		return _cache
@@ -88,7 +88,7 @@ static func _split_recesses(m: Mesh) -> ArrayMesh:
 		side_max[ks] = maxf(side_max.get(ks, 0.0), absf(p.x))
 		var kt := Vector2i(floori(p.x / cell), floori(p.z / cell))
 		top_max[kt] = maxf(top_max.get(kt, -1.0), p.y)
-	var st := [SurfaceTool.new(), SurfaceTool.new()]
+	var st := [SurfaceTool.new(), SurfaceTool.new(), SurfaceTool.new()]
 	for t in st:
 		t.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in range(0, v.size(), 3):
@@ -103,12 +103,13 @@ static func _split_recesses(m: Mesh) -> ArrayMesh:
 			recess = _enclosed(top_max, b, c.y + 0.0025)
 		# The cockpit canopy: the band of faces around the top of the nose,
 		# except the flat roof.
-		if c.z > CANOPY_Z.x and c.z < CANOPY_Z.y and c.y > CANOPY_Y.x and c.y < CANOPY_Y.y and n.y < 0.9:
-			recess = true
 		var k := 1 if recess else 0
+		if c.z > CANOPY_Z.x and c.z < CANOPY_Z.y and c.y > CANOPY_Y.x and c.y < CANOPY_Y.y and n.y < 0.9:
+			k = 2
 		for j in 3:
 			st[k].set_normal(nrm[i + j])
 			st[k].add_vertex(v[i + j])
 	var out: ArrayMesh = st[0].commit()
-	return st[1].commit(out)
+	st[1].commit(out)
+	return st[2].commit(out)
 
