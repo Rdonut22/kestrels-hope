@@ -47,6 +47,12 @@ uniform bool use_hull_color = false;
 uniform float color_size = 8.0;
 // How much the inside faces (seen from within) turn to bare dark metal.
 uniform float inside_metal : hint_range(0.0, 1.0) = 0.85;
+// Wear from the Razor Crest roughness tile 1027 (ship/textures/hull_wear.png):
+// dark = worn smooth bare-ish metal, bright = dull, dusty paint. Drives
+// roughness, a little shine and tone, and fine scratch relief.
+uniform sampler2D wear_map : filter_linear_mipmap, repeat_enable, hint_default_white;
+uniform float wear_size = 3.5;
+uniform float wear_strength : hint_range(0.0, 1.0) = 0.7;
 // Seed per part so repeated parts don't wear identically.
 uniform float seed = 0.0;
 
@@ -69,6 +75,12 @@ float grime_at(vec2 uv) {
 	vec2 q = uv / grime_size + vec2(0.29, 0.61) + seed * 0.53;
 	q = 1.0 - abs(1.0 - mod(q, 2.0));
 	return mod(seed, 2.0) < 1.0 ? texture(grime_map, q).r : texture(grime_map, q).g;
+}
+
+float wear_at(vec2 uv) {
+	vec2 q = uv / wear_size + vec2(0.71, 0.17) + seed * 0.29;
+	q = 1.0 - abs(1.0 - mod(q, 2.0));
+	return texture(wear_map, q).r;
 }
 
 float hash2(vec2 p) {
@@ -156,8 +168,15 @@ vec4 layer(vec2 uv, float facing_down, out float rough, out float metal, out flo
 
 	rough = mix(mix(0.62, 0.42, chip), 0.92, r);
 	rough = clamp(rough + (0.5 - pl) * 0.2, 0.05, 1.0);
+	// Razor Crest wear: worn smooth patches shine, dusty ones go dull and
+	// a touch lighter.
+	float wr = wear_at(uv);
+	rough = mix(rough, mix(0.28, 0.95, wr), wear_strength);
+	col *= mix(1.0, 0.88 + 0.22 * wr, wear_strength);
+	height += (wr - 0.5) * 0.004 * wear_strength;
 	rough = mix(rough, 0.3, scratch * 0.7);
 	metal = max(chip, scratch) * (1.0 - r) * 0.7;
+	metal = max(metal, (1.0 - wr) * 0.45 * wear_strength * (1.0 - r));
 	return vec4(col, 1.0);
 }
 

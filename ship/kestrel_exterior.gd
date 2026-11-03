@@ -78,6 +78,7 @@ const GUNNER_WINDOW := Vector2(2.0, 5.5)
 var _paint: Shader
 var _plating: Texture2D = preload("res://ship/textures/hull_plating.png")
 var _grime: Texture2D = preload("res://ship/textures/hull_grime.png")
+var _wear: Texture2D = preload("res://ship/textures/hull_wear.png")
 # Venator colour tiles: greys for the hull, red for the wings' tops.
 var _colors: Array[Texture2D] = [preload("res://ship/textures/hull_color_1026.png"),
 	preload("res://ship/textures/hull_color_1038.png"), preload("res://ship/textures/hull_color_1039.png")]
@@ -952,6 +953,7 @@ func _mat() -> ShaderMaterial:
 	m.set_shader_parameter("seed", _seed)
 	m.set_shader_parameter("plating", _plating)
 	m.set_shader_parameter("grime_map", _grime)
+	m.set_shader_parameter("wear_map", _wear)
 	# Venator colours instead of the white / blue paint.
 	m.set_shader_parameter("use_hull_color", true)
 	m.set_shader_parameter("hull_color", _colors[int(_seed) % _colors.size()])
