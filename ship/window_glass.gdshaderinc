@@ -18,7 +18,7 @@ uniform float grime : hint_range(0.0, 1.0) = 0.4;
 // Mullions: bar spacing (object-space units, 0 = none), width (fraction).
 uniform vec2 mullion_spacing = vec2(0.0);
 uniform float mullion_width = 0.08;
-uniform vec3 frame_color : source_color = vec3(0.16, 0.16, 0.17);
+uniform vec3 frame_color : source_color = vec3(0.55, 0.56, 0.58);
 // Frame bars painted like the hull: a hull colour tile (object-space
 // repeat every frame_tex_size units).
 uniform sampler2D frame_tex : source_color, filter_linear_mipmap, repeat_enable, hint_default_white;
@@ -79,11 +79,16 @@ void fragment() {
 		}
 		fc = texture(frame_tex, fuv / frame_tex_size).rgb;
 	}
+	// Brushed metal: fine streaks along the bars.
+	fc *= 0.85 + 0.25 * n2(v_obj.xz * vec2(400.0, 8.0));
 	ALBEDO = mix(col * 0.3, fc, bar);
-	EMISSION = mix(col * 0.6 + refl, vec3(0.0), bar);
-	ROUGHNESS = mix(0.08 + grime * dirt * 0.4, 0.6, bar);
-	METALLIC = mix(0.0, use_frame_tex ? 0.1 : 0.5, bar);
-	SPECULAR = mix(0.9, 0.4, bar);
+	// Metal bars still catch a bit of the sky.
+	EMISSION = mix(col * 0.6 + refl, env * (FRONT_FACING ? 0.12 : 0.22) * (0.5 + fres), bar);
+	ROUGHNESS = mix(0.08 + grime * dirt * 0.4, 0.32, bar);
+	// Inside the cockpit there's little to reflect: less metallic there so
+	// the cabin lights show the bars.
+	METALLIC = mix(0.0, use_frame_tex ? 0.1 : (FRONT_FACING ? 0.9 : 0.45), bar);
+	SPECULAR = mix(0.9, 0.6, bar);
 #ifdef CLEAR
 	// See-through: mostly clear head-on, more reflective at grazing angles.
 	ALPHA = max(bar, clamp(0.18 + fres * 0.7 + grime * dirt * 0.15, 0.0, 0.95));

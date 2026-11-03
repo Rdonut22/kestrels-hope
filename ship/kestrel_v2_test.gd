@@ -409,8 +409,8 @@ func _porthole(at: Vector3, glass: Material) -> void:
 	var well_back := HULL_MIN.x - at.x + 0.05
 	var w := 1.3
 	var h := 0.8
-	var t := 0.14
-	var frame_mat := _mat()
+	var t := 0.05
+	var frame_mat := _frame_metal()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
@@ -462,7 +462,7 @@ func _porthole(at: Vector3, glass: Material) -> void:
 	add_child(pm)
 	# Centre bar and bolts.
 	var bar := BoxMesh.new()
-	bar.size = Vector3(0.05, hi.y - lo.y, 0.07)
+	bar.size = Vector3(0.03, hi.y - lo.y, 0.03)
 	var bm := MeshInstance3D.new()
 	bm.mesh = bar
 	bm.material_override = frame_mat
@@ -537,10 +537,8 @@ func _two_tone(mi: MeshInstance3D) -> void:
 	if mi.mesh.get_surface_count() > 2:
 		var canopy := _clear_glass()
 		canopy.set_shader_parameter("mullion_spacing", Vector2(0.045, 0.055))
-		canopy.set_shader_parameter("mullion_width", 0.18)
-		# Frame bars in the hull's colour.
-		canopy.set_shader_parameter("use_frame_tex", true)
-		canopy.set_shader_parameter("frame_tex", _colors[0])
+		# Thin metal frame bars.
+		canopy.set_shader_parameter("mullion_width", 0.045)
 		canopy.set_shader_parameter("interior_glow", 0.15)
 		mi.set_surface_override_material(2, canopy)
 
@@ -555,6 +553,18 @@ func _window_glass() -> ShaderMaterial:
 func _clear_glass() -> ShaderMaterial:
 	var m := _window_glass()
 	m.shader = preload("res://ship/window_glass_clear.gdshader")
+	return m
+
+
+## Bare brushed steel for window frames.
+func _frame_metal() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.6, 0.61, 0.63)
+	m.metallic = 0.9
+	m.roughness = 0.35
+	m.metallic_specular = 0.6
+	m.anisotropy_enabled = false
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return m
 
 
