@@ -14,13 +14,15 @@ extends Node3D
 
 ## Fuselage size: model units -> metres (across / along, and up).
 @export var fuselage_scale := 26.0
-@export var fuselage_scale_y := 30.0
-## Fuselage placement. The model's canopy (model y 0.17..0.25, front at
-## z 0.62) is lined up over the interior cockpit's glass canopy
-## (x centre 4.0, y 0.95 up, front at z -12.6), so the pilot sees out.
+@export var fuselage_scale_y := 26.0
+## Fuselage placement: centred on the cockpit / kitchen (x 4.0), at a
+## height where the cockpit, kitchen and lounge all fit inside its body.
+## A windshield opening is cut in its nose where the interior cockpit's
+## glass canopy is, so the pilot sees out; the model's own canopy above it
+## stays as an upper bridge.
 @export var fuselage_x := 4.0
-@export var nose_z := -14.34
-@export var fuselage_floor_y := -4.15
+@export var nose_z := -15.9
+@export var fuselage_floor_y := -0.9
 ## Radius of the rounded front-left corner of the port hull.
 @export var corner_radius := 3.5
 @export var show_interior := true
@@ -136,15 +138,27 @@ func _ready() -> void:
 	# Window openings: where the lounge's curved window band runs along the
 	# starboard side, the fuselage skin is cut away so it shows (and the
 	# lounge looks out).
-	var fus := _cut(parts["fuselage"], xf, [AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4))])
+	var fus := _cut(parts["fuselage"], xf, [AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4)),
+		# Windshield: an opening in the nose in front of the interior
+		# cockpit's glass, and side windows beside it. The nose keeps its
+		# shape; only the skin inside these openings goes.
+		AABB(Vector3(2.65, 1.1, -15.0), Vector3(2.7, 1.8, 2.5)),
+		AABB(Vector3(5.65, 1.25, -12.3), Vector3(1.2, 1.4, 1.8)),
+		AABB(Vector3(1.15, 1.25, -12.3), Vector3(1.2, 1.4, 1.8))])
 	_two_tone(_mesh("Fuselage", fus, xf))
 	# Close the slots left where the nacelle mounts were cut away.
+	# (in world space; the starboard one leaves a gap for the lounge window).
+	var plate_c := xf * Vector3(0.0, 0.11, -0.08)
+	var half_len := 0.38 * s
 	for side in [-1.0, 1.0]:
-		var plate := BoxMesh.new()
-		plate.size = Vector3(0.004, 0.12, 0.76)
-		var pm := _cut(plate, xf * Transform3D(Basis.IDENTITY, Vector3(0.092 * side, 0.11, -0.08)),
-			[AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4))])
-		_mesh("SidePlate", pm, xf * Transform3D(Basis.IDENTITY, Vector3(0.092 * side, 0.11, -0.08)))
+		var px: float = fuselage_x + 0.092 * s * side
+		var z0: float = plate_c.z - half_len
+		var z1: float = plate_c.z + half_len
+		var spans := [[z0, z1]] if side < 0.0 else [[z0, -2.6], [5.8, z1]]
+		for sp in spans:
+			var plate := BoxMesh.new()
+			plate.size = Vector3(0.12, 0.12 * fuselage_scale_y, sp[1] - sp[0])
+			_mesh("SidePlate", plate, Transform3D(Basis.IDENTITY, Vector3(px, plate_c.y, (sp[0] + sp[1]) * 0.5)))
 
 	# Two big fans at the back, mirrored about the ship's centre line: one
 	# under the rear of the fuselage, one under the port hull.
@@ -516,7 +530,7 @@ func _two_tone(mi: MeshInstance3D) -> void:
 	mi.set_surface_override_material(0, paint)
 	mi.set_surface_override_material(1, _window_glass())
 	if mi.mesh.get_surface_count() > 2:
-		var canopy := _clear_glass()
+		var canopy := _window_glass()
 		canopy.set_shader_parameter("mullion_spacing", Vector2(0.045, 0.055))
 		canopy.set_shader_parameter("mullion_width", 0.18)
 		canopy.set_shader_parameter("interior_glow", 0.15)
@@ -662,8 +676,11 @@ func _in_room(p: Vector3) -> bool:
 	# Margin covers the rooms' walls (0.3 m) too.
 	if not show_interior or p.y < -0.05 or p.y > 3.15:
 		return false
-	for r in ROOMS:
-		if p.x > r[0] - 0.3 and p.x < r[1] + 0.3 and p.z > r[2] - 0.3 and p.z < r[3] + 0.3:
+	for i in ROOMS.size():
+		var r: Array = ROOMS[i]
+		# Cockpit / kitchen sit snug in the fuselage: no wall margin there.
+		var m := 0.05 if i < 2 else 0.3
+		if p.x > r[0] - m and p.x < r[1] + m and p.z > r[2] - m and p.z < r[3] + m:
 			return true
 	if p.x > LOUNGE.x and Vector2(p.x - LOUNGE.x, p.z - LOUNGE.y).length() < LOUNGE.z + 0.05:
 		return true
