@@ -12,12 +12,15 @@ extends Node3D
 ## The current interior (ship/ship_interior.tscn) is placed inside so the fit
 ## can be checked. Kestrel frame: forward is -Z, floor at y = 0.
 
-## Fuselage size: model units -> metres.
+## Fuselage size: model units -> metres (across / along, and up).
 @export var fuselage_scale := 26.0
-## Fuselage centre line (x) and where its nose tip sits (z).
-@export var fuselage_x := 4.75
-@export var nose_z := -14.5
-@export var fuselage_floor_y := -0.7
+@export var fuselage_scale_y := 30.0
+## Fuselage placement. The model's canopy (model y 0.17..0.25, front at
+## z 0.62) is lined up over the interior cockpit's glass canopy
+## (x centre 4.0, y 0.95 up, front at z -12.6), so the pilot sees out.
+@export var fuselage_x := 4.0
+@export var nose_z := -14.34
+@export var fuselage_floor_y := -4.15
 ## Radius of the rounded front-left corner of the port hull.
 @export var corner_radius := 3.5
 @export var show_interior := true
@@ -35,6 +38,14 @@ const HULL_MIN := Vector3(-7.7, -0.2, -9.9)
 const HULL_MAX := Vector3(5.9, 3.2, 9.5)
 # Ship centre line for mirroring the fans: halfway across hull + fuselage.
 const CENTRE_X := -0.15
+# Interior rooms (tools/build_scenes.gd), floor 0 to ceiling 3: exterior
+# geometry poking into them is removed. [x0, x1, z0, z1]
+const ROOMS := [[2.4, 5.6, -12.6, -7.0], [2.4, 5.6, -6.8, -3.4], [-2.3, 2.0, -5.6, 9.2],
+	[-2.6, 1.8, -9.6, -5.9], [-6.0, -2.6, -4.4, -1.6], [-6.3, -2.6, -1.3, 3.4], [-7.4, -2.6, 3.7, 7.3]]
+# The round lounge: centre (x, z) and radius, on the starboard half.
+const LOUNGE := Vector3(2.4, 1.6, 4.75)
+# The one porthole with a room behind it: the gunner's station (y, z).
+const GUNNER_WINDOW := Vector2(2.0, 5.5)
 
 var _paint: Shader
 var _plating: Texture2D = preload("res://ship/textures/hull_plating.png")
@@ -73,6 +84,19 @@ func _ready() -> void:
 					box.size.y += 0.15
 					box.position.y += 0.075
 			_round_corner(hull)
+			# The lounge's round outer wall shows through the fuselage's
+			# window cut-out: paint it like the hull.
+			var lounge_outer := hull.get_node_or_null("LoungeOuter") as CSGShape3D
+			if lounge_outer:
+				lounge_outer.material = _mat()
+			# The gunner's station is against the port wall: a real window
+			# through to it (glass and frame added with the portholes).
+			var gw := CSGBox3D.new()
+			gw.name = "Window_Gunner"
+			gw.size = Vector3(1.0, 0.62, 1.12)
+			gw.position = Vector3(HULL_MIN.x + 0.2, GUNNER_WINDOW.x, GUNNER_WINDOW.y)
+			gw.operation = CSGShape3D.OPERATION_SUBTRACTION
+			hull.add_child(gw)
 
 	# Plated skin over the port hull, in the fuselage's style.
 	var r := corner_radius
@@ -85,6 +109,8 @@ func _ready() -> void:
 	if hull_style == 0:
 		# The fuselage's own surface copied onto the hull's walls and roof.
 		var walls := FuselageCladding.walls(path, Vector2(-2.8, 0.0), -0.2, 3.35, 0.42)
+		walls = _cut(walls, Transform3D.IDENTITY, [AABB(Vector3(HULL_MIN.x - 2.0, GUNNER_WINDOW.x - 0.31,
+			GUNNER_WINDOW.y - 0.56), Vector3(2.4, 0.62, 1.12))])
 		_two_tone(_mesh("HullWalls", walls, Transform3D.IDENTITY))
 		var roof := FuselageCladding.roof(Rect2(HULL_MIN.x + r * 0.6, HULL_MIN.z + 0.2,
 			2.0 - HULL_MIN.x - r * 0.6, HULL_MAX.z - HULL_MIN.z - 0.4), 3.35)
@@ -105,14 +131,20 @@ func _ready() -> void:
 
 	# The model's nose is +Z; turn it to face -Z (forward) and scale to metres.
 	var s := fuselage_scale
-	var xf := Transform3D(Basis(Vector3.UP, PI).scaled(Vector3.ONE * s),
+	var xf := Transform3D(Basis(Vector3.UP, PI).scaled(Vector3(s, fuselage_scale_y, s)),
 		Vector3(fuselage_x, fuselage_floor_y, nose_z + 0.687 * s))
-	_two_tone(_mesh("Fuselage", parts["fuselage"], xf))
+	# Window openings: where the lounge's curved window band runs along the
+	# starboard side, the fuselage skin is cut away so it shows (and the
+	# lounge looks out).
+	var fus := _cut(parts["fuselage"], xf, [AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4))])
+	_two_tone(_mesh("Fuselage", fus, xf))
 	# Close the slots left where the nacelle mounts were cut away.
 	for side in [-1.0, 1.0]:
 		var plate := BoxMesh.new()
 		plate.size = Vector3(0.004, 0.12, 0.76)
-		_mesh("SidePlate", plate, xf * Transform3D(Basis.IDENTITY, Vector3(0.092 * side, 0.11, -0.08)))
+		var pm := _cut(plate, xf * Transform3D(Basis.IDENTITY, Vector3(0.092 * side, 0.11, -0.08)),
+			[AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4))])
+		_mesh("SidePlate", pm, xf * Transform3D(Basis.IDENTITY, Vector3(0.092 * side, 0.11, -0.08)))
 
 	# Two big fans at the back, mirrored about the ship's centre line: one
 	# under the rear of the fuselage, one under the port hull.
@@ -295,17 +327,18 @@ func _ram(n: String, a: Vector3, b: Vector3) -> void:
 func _details(walls: Mesh, roof: Mesh) -> void:
 	var wv := _verts(walls)
 	var rv := _verts(roof)
-	var glass := _window_glass()
+	var glass := _clear_glass()
 	# Portholes along the straight port wall, upper band.
-	var z := HULL_MIN.z + corner_radius + 1.5
-	while z < HULL_MAX.z - 1.5:
-		var y := 2.35
+	# Only the gunner's station is against the wall, so it gets the one real
+	# window; the rest along the wall are blanked off with cover plates.
+	var zs := [-4.5, -1.9, 0.7, 3.0, GUNNER_WINDOW.y, 8.0]
+	for z in zs:
+		var y := 2.35 if z != GUNNER_WINDOW.y else GUNNER_WINDOW.x
 		var out_x := HULL_MIN.x
 		for v in wv:
 			if absf(v.z - z) < 0.7 and absf(v.y - y) < 0.5:
 				out_x = minf(out_x, v.x)
-		_porthole(Vector3(out_x, y, z), glass)
-		z += 2.6
+		_porthole(Vector3(out_x, y, z), glass if z == GUNNER_WINDOW.y else null)
 	# Roof components.
 	var dark := _dark_metal()
 	var dome := SphereMesh.new()
@@ -352,6 +385,8 @@ func _details(walls: Mesh, roof: Mesh) -> void:
 ## standing out of the hull, the glass set back inside it, a centre bar and
 ## four bolts.
 func _porthole(at: Vector3, glass: Material) -> void:
+	# The frame's well runs back to the hull wall (through the cladding).
+	var well_back := HULL_MIN.x - at.x + 0.05
 	var w := 1.3
 	var h := 0.8
 	var t := 0.14
@@ -374,7 +409,7 @@ func _porthole(at: Vector3, glass: Material) -> void:
 		var i1 := _nearest(inner, o1)
 		var face := [Vector3(-0.2, o0.y, o0.x), Vector3(-0.2, o1.y, o1.x), Vector3(-0.26, i1.y, i1.x), Vector3(-0.26, i0.y, i0.x)]
 		var side := [Vector3(0.0, o0.y, o0.x), Vector3(0.0, o1.y, o1.x), Vector3(-0.2, o1.y, o1.x), Vector3(-0.2, o0.y, o0.x)]
-		var well := [Vector3(-0.26, i0.y, i0.x), Vector3(-0.26, i1.y, i1.x), Vector3(-0.08, i1.y, i1.x), Vector3(-0.08, i0.y, i0.x)]
+		var well := [Vector3(-0.26, i0.y, i0.x), Vector3(-0.26, i1.y, i1.x), Vector3(well_back, i1.y, i1.x), Vector3(well_back, i0.y, i0.x)]
 		for q in [face, side, well]:
 			for v in [q[0], q[1], q[2], q[0], q[2], q[3]]:
 				st.add_vertex(v)
@@ -394,10 +429,17 @@ func _porthole(at: Vector3, glass: Material) -> void:
 	var pane := QuadMesh.new()
 	pane.size = Vector2(hi.x - lo.x, hi.y - lo.y)
 	var pm := MeshInstance3D.new()
-	pm.name = "PortholeGlass"
+	pm.name = "PortholeGlass" if glass else "PortholeCover"
 	pm.mesh = pane
-	pm.material_override = glass
-	pm.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5), at + Vector3(-0.09, 0, 0))
+	if glass:
+		pm.material_override = glass
+	else:
+		# Blanked off: a painted cover plate.
+		var cover := BoxMesh.new()
+		cover.size = Vector3(0.06, hi.y - lo.y, hi.x - lo.x)
+		pm.mesh = cover
+		pm.material_override = _mat()
+	pm.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5) if glass else Basis.IDENTITY, at + Vector3(-0.09, 0, 0))
 	add_child(pm)
 	# Centre bar and bolts.
 	var bar := BoxMesh.new()
@@ -474,7 +516,7 @@ func _two_tone(mi: MeshInstance3D) -> void:
 	mi.set_surface_override_material(0, paint)
 	mi.set_surface_override_material(1, _window_glass())
 	if mi.mesh.get_surface_count() > 2:
-		var canopy := _window_glass()
+		var canopy := _clear_glass()
 		canopy.set_shader_parameter("mullion_spacing", Vector2(0.045, 0.055))
 		canopy.set_shader_parameter("mullion_width", 0.18)
 		canopy.set_shader_parameter("interior_glow", 0.15)
@@ -484,6 +526,13 @@ func _two_tone(mi: MeshInstance3D) -> void:
 func _window_glass() -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://ship/window_glass.gdshader")
+	return m
+
+
+## Glass you can see through (canopy, real windows).
+func _clear_glass() -> ShaderMaterial:
+	var m := _window_glass()
+	m.shader = preload("res://ship/window_glass_clear.gdshader")
 	return m
 
 
@@ -567,6 +616,60 @@ func _build_top_wing() -> void:
 		_ram("Ram", roof_pt, wing_pt)
 
 
+## A copy of a mesh without the triangles whose centre (in world space,
+## via xf) falls inside any of the boxes. Keeps the surfaces.
+func _cut(m: Mesh, xf: Transform3D, boxes: Array) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for sidx in m.get_surface_count():
+		var a := m.surface_get_arrays(sidx)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var nrm = a[Mesh.ARRAY_NORMAL]
+		var idx = a[Mesh.ARRAY_INDEX]
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var n: int = (idx.size() if idx != null else v.size()) / 3
+		for t in n:
+			var ids := [t * 3, t * 3 + 1, t * 3 + 2]
+			if idx != null:
+				ids = [idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2]]
+			var c: Vector3 = xf * ((v[ids[0]] + v[ids[1]] + v[ids[2]]) / 3.0)
+			var inside := _in_room(c)
+			for b: AABB in boxes:
+				if b.has_point(c):
+					inside = true
+					break
+			if inside:
+				continue
+			for i in ids:
+				if nrm != null:
+					st.set_normal(nrm[i])
+				st.add_vertex(v[i])
+		st.commit(out)
+	return out
+
+
+func _overlaps_rooms(bb: AABB) -> bool:
+	if bb.end.y < 0.0 or bb.position.y > 3.1:
+		return false
+	for r in ROOMS + [[LOUNGE.x, LOUNGE.x + LOUNGE.z, LOUNGE.y - LOUNGE.z, LOUNGE.y + LOUNGE.z]]:
+		if bb.end.x > r[0] and bb.position.x < r[1] and bb.end.z > r[2] and bb.position.z < r[3]:
+			return true
+	return false
+
+
+## True for a point inside one of the interior rooms (with a small margin).
+func _in_room(p: Vector3) -> bool:
+	# Margin covers the rooms' walls (0.3 m) too.
+	if not show_interior or p.y < -0.05 or p.y > 3.15:
+		return false
+	for r in ROOMS:
+		if p.x > r[0] - 0.3 and p.x < r[1] + 0.3 and p.z > r[2] - 0.3 and p.z < r[3] + 0.3:
+			return true
+	if p.x > LOUNGE.x and Vector2(p.x - LOUNGE.x, p.z - LOUNGE.y).length() < LOUNGE.z + 0.05:
+		return true
+	return false
+
+
 ## Venator red on a part (the wings).
 func _red_paint(mi: MeshInstance3D) -> void:
 	var m := mi.material_override as ShaderMaterial
@@ -648,6 +751,11 @@ func _nearest(poly: PackedVector2Array, p: Vector2) -> Vector2:
 func _mesh(n: String, m: Mesh, xf: Transform3D) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = n
+	# Nothing of the outside may show inside a room.
+	if show_interior and m is ArrayMesh or m is PrimitiveMesh:
+		var bb := xf * m.get_aabb()
+		if _overlaps_rooms(bb):
+			m = _cut(m, xf, [])
 	mi.mesh = m
 	mi.transform = xf
 	mi.material_override = _mat()
