@@ -24,6 +24,8 @@ extends Node3D
 ## Radius of the rounded front-left corner of the port hull.
 @export var corner_radius := 3.5
 @export var show_interior := true
+## Window frame bars on the canopy and the porthole frames (off for now).
+@export var show_window_frames := false
 ## Hull cladding: 0 = the fuselage's own paneling copied on, 1 = plated skin.
 @export_enum("Fuselage paneling", "Plated skin") var hull_style := 0
 ## The hinged top wing on its pylons and rams (off for now).
@@ -438,6 +440,7 @@ func _porthole(at: Vector3, glass: Material) -> void:
 	fm.mesh = st.commit()
 	fm.material_override = frame_mat
 	fm.position = at
+	fm.visible = show_window_frames
 	add_child(fm)
 	# Glass, set back in the frame.
 	var lo := Vector2(INF, INF)
@@ -467,6 +470,7 @@ func _porthole(at: Vector3, glass: Material) -> void:
 	bm.mesh = bar
 	bm.material_override = frame_mat
 	bm.position = at + Vector3(-0.12, 0, 0)
+	bm.visible = show_window_frames
 	add_child(bm)
 	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
 		var bolt := CylinderMesh.new()
@@ -477,6 +481,7 @@ func _porthole(at: Vector3, glass: Material) -> void:
 		b.mesh = bolt
 		b.material_override = frame_mat
 		b.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5), at + Vector3(-0.23, c.y * (h * 0.5 - 0.07), c.x * (w * 0.5 - 0.07)))
+		b.visible = show_window_frames
 		add_child(b)
 
 
@@ -539,6 +544,8 @@ func _two_tone(mi: MeshInstance3D) -> void:
 		canopy.set_shader_parameter("mullion_spacing", Vector2(0.045, 0.055))
 		# Thin metal frame bars.
 		canopy.set_shader_parameter("mullion_width", 0.045)
+		if not show_window_frames:
+			canopy.set_shader_parameter("mullion_spacing", Vector2.ZERO)
 		canopy.set_shader_parameter("interior_glow", 0.15)
 		mi.set_surface_override_material(2, canopy)
 
