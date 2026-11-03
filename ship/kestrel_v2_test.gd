@@ -73,7 +73,19 @@ func _ready() -> void:
 		[[-0.15, 0.6], [0.68, 2.42], [2.5, 3.32]],
 		Rect2(HULL_MIN.x + 0.1, HULL_MIN.z + 0.1, 2.0 - HULL_MIN.x - 0.2, HULL_MAX.z - HULL_MIN.z - 0.2), 3.35,
 		Vector2(HULL_MIN.x + r, HULL_MIN.z + r), r)
-	_mesh("HullSkin", skin, Transform3D.IDENTITY)
+	var skin_mi := _mesh("HullSkin", skin, Transform3D.IDENTITY)
+	skin_mi.material_override = null
+	skin_mi.set_surface_override_material(0, _mat())
+	skin_mi.set_surface_override_material(1, _dark_metal())
+
+	# Less boxy: a sloped fairing tapering the hull's front, and a raised deck
+	# on the inner half of the roof so the outer edge steps down.
+	var fairing := _prism_x([Vector2(HULL_MIN.z, 3.4), Vector2(HULL_MIN.z - 0.5, 3.0), Vector2(HULL_MIN.z - 1.5, 1.2),
+		Vector2(HULL_MIN.z - 1.3, -0.1), Vector2(HULL_MIN.z, -0.2)], HULL_MIN.x + r, 2.0)
+	_mesh("FrontFairing", fairing, Transform3D.IDENTITY)
+	var deck := _prism_z([Vector2(-4.4, 3.35), Vector2(-3.4, 4.35), Vector2(2.1, 4.35), Vector2(2.1, 3.35)],
+		HULL_MIN.z + 1.0, HULL_MAX.z - 1.2)
+	_mesh("RaisedDeck", deck, Transform3D.IDENTITY)
 
 	# The model's nose is +Z; turn it to face -Z (forward) and scale to metres.
 	var s := fuselage_scale
@@ -105,12 +117,29 @@ func _ready() -> void:
 	var span := 12.0
 	var chord := 19.0
 	var root_x := 1.6
-	var wing_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(wing_tilt)), Vector3(root_x, 8.4, -8.4))
+	# Hinged along the fuselage's port shoulder, on pylons, tilted down to port.
+	var hinge := Vector3(root_x + 0.3, 8.2, -8.4)
+	var wing_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(wing_tilt)), hinge + Vector3(-0.3, 0.0, 0.0))
 	_mesh("TopWing", _top_wing(span, chord), wing_xf)
-	# Rams: from the hull roof to the wing's underside, leaning outboard.
-	for rp in [[-2.2, 3.5], [-8.5, 11.0], [-2.2, 15.5], [-8.5, 16.5]]:
-		var wing_pt := wing_xf * Vector3(rp[0] - 0.8, -0.4, rp[1])
-		var roof_pt := Vector3(root_x + rp[0] * 0.55 - 0.6, 3.4, wing_xf.origin.z + rp[1])
+	# Hinge barrel along the wing's root, with brackets down to the fuselage.
+	var barrel := CylinderMesh.new()
+	barrel.top_radius = 0.42
+	barrel.bottom_radius = 0.42
+	barrel.height = chord - 1.0
+	_mesh("WingHinge", barrel, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), hinge + Vector3(0, 0, chord * 0.5)))
+	# Pylons from the fuselage's top up to the hinge, leaning in slightly.
+	var pylon_h := hinge.y - 5.7
+	for k in 4:
+		var bz := hinge.z + 1.5 + k * (chord - 3.0) / 3.0
+		var br := BoxMesh.new()
+		br.size = Vector3(0.8, pylon_h + 0.4, 0.9)
+		_mesh("HingePylon", br, Transform3D(Basis(Vector3.BACK, deg_to_rad(-12.0)), Vector3(hinge.x + 0.45, hinge.y - pylon_h * 0.5, bz)))
+	# Rams: from the raised deck / roof up to the wing's underside, with base
+	# plates and clevis blocks.
+	for rp in [[-3.6, 4.0], [-9.0, 11.0], [-3.6, 15.5], [-9.0, 16.5]]:
+		var wing_pt := wing_xf * Vector3(rp[0], -0.45, rp[1])
+		var base_y := 4.35 if rp[0] > -4.0 else 3.4
+		var roof_pt := Vector3(wing_pt.x + 1.2, base_y + 0.15, wing_pt.z - 0.6)
 		_ram("Ram", roof_pt, wing_pt)
 
 	# Low starboard wing from the fuselage's belly, in the style of the wing
@@ -224,13 +253,13 @@ func _ram(n: String, a: Vector3, b: Vector3) -> void:
 	var len := d.length()
 	var basis := Basis(Quaternion(Vector3.UP, d.normalized()))
 	var body := CylinderMesh.new()
-	body.top_radius = 0.24
-	body.bottom_radius = 0.26
+	body.top_radius = 0.34
+	body.bottom_radius = 0.36
 	body.height = len * 0.58
 	_mesh(n + "Body", body, Transform3D(basis, a + d * 0.29))
 	var rod := CylinderMesh.new()
-	rod.top_radius = 0.11
-	rod.bottom_radius = 0.11
+	rod.top_radius = 0.16
+	rod.bottom_radius = 0.16
 	rod.height = len * 0.5
 	var rod_mat := StandardMaterial3D.new()
 	rod_mat.albedo_color = Color(0.72, 0.74, 0.76)
@@ -240,9 +269,60 @@ func _ram(n: String, a: Vector3, b: Vector3) -> void:
 	mi.material_override = rod_mat
 	for p in [a, b]:
 		var k := SphereMesh.new()
-		k.radius = 0.32
-		k.height = 0.64
+		k.radius = 0.36
+		k.height = 0.72
 		_mesh(n + "Knuckle", k, Transform3D(Basis.IDENTITY, p))
+		# Clevis block / base plate the knuckle sits in.
+		var plate := BoxMesh.new()
+		plate.size = Vector3(1.0, 0.3, 1.0)
+		var up := 1.0 if p == a else -1.0
+		_mesh(n + "Mount", plate, Transform3D(Basis.IDENTITY, p - Vector3(0, 0.3 * up, 0)))
+
+
+func _dark_metal() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.17, 0.18, 0.2)
+	m.metallic = 0.6
+	m.roughness = 0.55
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+
+## A prism: side profile (z, y) extruded across x from x0 to x1.
+func _prism_x(prof: Array, x0: float, x1: float) -> ArrayMesh:
+	var a: Array[Vector3] = []
+	var b: Array[Vector3] = []
+	for q: Vector2 in prof:
+		a.append(Vector3(x0, q.y, q.x))
+		b.append(Vector3(x1, q.y, q.x))
+	return _prism(a, b)
+
+
+## A prism: front profile (x, y) extruded along z from z0 to z1.
+func _prism_z(prof: Array, z0: float, z1: float) -> ArrayMesh:
+	var a: Array[Vector3] = []
+	var b: Array[Vector3] = []
+	for q: Vector2 in prof:
+		a.append(Vector3(q.x, q.y, z0))
+		b.append(Vector3(q.x, q.y, z1))
+	return _prism(a, b)
+
+
+func _prism(a: Array[Vector3], b: Array[Vector3]) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	var n := a.size()
+	for i in n:
+		var j := (i + 1) % n
+		for v in [a[i], b[i], b[j], a[i], b[j], a[j]]:
+			st.add_vertex(v)
+	for ring in [a, b]:
+		for i in range(1, n - 1):
+			for v in [ring[0], ring[i], ring[i + 1]]:
+				st.add_vertex(v)
+	st.generate_normals()
+	return st.commit()
 
 
 ## A worn-paint material with its own wear seed.

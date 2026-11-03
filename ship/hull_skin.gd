@@ -4,7 +4,8 @@ extends RefCounted
 ## Outer skin for a boxy hull section, in the style of the marauder fuselage:
 ## raised plates of varied size with grooves between them (the darker hull
 ## shows through), long horizontal grooves splitting the walls into bands,
-## thicker armour plates, and recessed hatches with vent slats. The roof gets
+## thicker armour plates, recessed hatches with vent slats, and open
+## machinery bays (dark pipes, tanks and ribs: the mesh's second surface). The roof gets
 ## the same treatment plus a raised spine.
 ##
 ## Walls follow a footprint path (x, z) that may include a rounded corner;
@@ -15,6 +16,9 @@ const GAP := 0.08          # groove width between plates
 const BASE := 0.01         # plates start this far out from the wall
 
 var _st := SurfaceTool.new()
+# Dark machinery (pipes, ribs, tanks in open bays): a second surface.
+var _dk := SurfaceTool.new()
+var _dark := false
 var _rng := RandomNumberGenerator.new()
 
 
@@ -28,6 +32,8 @@ func build(path: PackedVector2Array, centre: Vector2, bands: Array, roof: Rect2,
 	# Flat shading; faces may wind either way (the paint shader is two-sided
 	# and flips back-facing normals).
 	_st.set_smooth_group(-1)
+	_dk.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_dk.set_smooth_group(-1)
 	var lens := _lengths(path)
 	var total: float = lens[lens.size() - 1]
 	# Three bands like the fuselage's side: a belly tucked in underneath, a
@@ -50,14 +56,19 @@ func build(path: PackedVector2Array, centre: Vector2, bands: Array, roof: Rect2,
 	_wall_slab(path, lens, centre, 0.0, total, b2[0], b2[1], 0.5, 0.06)
 	_wall_slab(path, lens, centre, 0.0, total, b2[0] - 0.1, b2[0] + 0.06, 0.58)
 	_roof(roof, roof_y, corner_c, corner_r)
+	# Surface 0: painted plates. Surface 1: dark machinery.
 	_st.generate_normals()
-	return _st.commit()
+	var mesh := _st.commit()
+	_dk.generate_normals()
+	return _dk.commit(mesh)
 
 
 func _wall_panel(path: PackedVector2Array, lens: PackedFloat32Array, centre: Vector2,
 		s0: float, s1: float, y0: float, y1: float) -> void:
 	var kind := _rng.randf()
-	if kind < 0.18 and y1 - y0 > 1.2 and s1 - s0 > 1.8:
+	if kind > 0.62 and s1 - s0 > 2.2 and y1 - y0 > 1.2:
+		_machinery_bay(path, lens, centre, s0, s1, y0, y1)
+	elif kind < 0.18 and y1 - y0 > 1.2 and s1 - s0 > 1.8:
 		# Recessed hatch: a frame of thin plates around a sunken centre with slats.
 		var fw := 0.25
 		var t := 0.5
@@ -84,6 +95,36 @@ func _wall_panel(path: PackedVector2Array, lens: PackedFloat32Array, centre: Vec
 			var b := a + minf(_rng.randf_range(0.6, 1.2), s1 - a - 0.15)
 			var ya := lerpf(y0, y1, 0.25)
 			_wall_slab(path, lens, centre, a, b, ya, ya + (y1 - y0) * 0.45, 0.62)
+
+
+## An open bay: a heavy painted frame, and inside it dark machinery set back
+## in the hull: horizontal pipes, a squat tank, and ribs.
+func _machinery_bay(path: PackedVector2Array, lens: PackedFloat32Array, centre: Vector2,
+		s0: float, s1: float, y0: float, y1: float) -> void:
+	var fw := 0.3
+	_wall_slab(path, lens, centre, s0, s1, y1 - fw, y1, 0.62)
+	_wall_slab(path, lens, centre, s0, s1, y0, y0 + fw, 0.62)
+	_wall_slab(path, lens, centre, s0, s0 + fw, y0 + fw, y1 - fw, 0.62)
+	_wall_slab(path, lens, centre, s1 - fw, s1, y0 + fw, y1 - fw, 0.62)
+	_dark = true
+	var a := s0 + fw
+	var b := s1 - fw
+	var lo := y0 + fw
+	var hi := y1 - fw
+	# Pipes along the bay at a few heights and depths.
+	var n := 2 + _rng.randi() % 2
+	for i in n:
+		var y := lerpf(lo + 0.15, hi - 0.25, float(i) / float(maxi(n - 1, 1)))
+		_wall_slab(path, lens, centre, a, b, y, y + 0.16, _rng.randf_range(0.2, 0.36))
+	# A tank and ribs.
+	var tw := (b - a) * _rng.randf_range(0.25, 0.4)
+	var ta := lerpf(a, b - tw, _rng.randf())
+	_wall_slab(path, lens, centre, ta, ta + tw, lo + 0.05, lerpf(lo, hi, 0.6), 0.42, 0.34)
+	var ribs := int((b - a) / 0.9)
+	for i in ribs:
+		var r := a + 0.45 + i * 0.9
+		_wall_slab(path, lens, centre, r, r + 0.1, lo, hi, 0.26)
+	_dark = false
 
 
 ## A plate on the wall from path distance s0 to s1, height y0..y1, standing
@@ -169,8 +210,9 @@ func _box(a: Vector3, b: Vector3, cc: Vector2, cr: float) -> void:
 
 
 func _quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	var st := _dk if _dark else _st
 	for v in [a, b, c, a, c, d]:
-		_st.add_vertex(v)
+		st.add_vertex(v)
 
 
 func _lengths(path: PackedVector2Array) -> PackedFloat32Array:
