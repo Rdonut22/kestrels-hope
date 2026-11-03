@@ -38,6 +38,7 @@ const CENTRE_X := -0.15
 
 var _paint: Shader
 var _plating: Texture2D = preload("res://ship/textures/hull_plating.png")
+var _grime: Texture2D = preload("res://ship/textures/hull_grime.png")
 var _seed := 0.0
 
 
@@ -500,6 +501,7 @@ func _mat() -> ShaderMaterial:
 	_seed += 1.0
 	m.set_shader_parameter("seed", _seed)
 	m.set_shader_parameter("plating", _plating)
+	m.set_shader_parameter("grime_map", _grime)
 	return m
 
 

@@ -33,6 +33,12 @@ uniform sampler2D plating : filter_linear_mipmap, repeat_enable, hint_default_wh
 uniform float plating_size = 5.0;
 uniform float plating_tone : hint_range(0.0, 1.0) = 0.5;
 uniform float plating_relief : hint_range(0.0, 0.05) = 0.012;
+// Grime from the Venator colour tile (desaturated): stains, dirty and
+// darker replacement plates, laid over the paint.
+uniform sampler2D grime_map : filter_linear_mipmap, repeat_enable, hint_default_white;
+uniform float grime_size = 6.5;
+uniform float grime_strength : hint_range(0.0, 1.0) = 0.6;
+uniform vec3 grime_tint : source_color = vec3(0.42, 0.38, 0.32);
 // Seed per part so repeated parts don't wear identically.
 uniform float seed = 0.0;
 
@@ -43,6 +49,12 @@ float plate(vec2 uv) {
 	vec2 q = uv / plating_size + seed * 0.37;
 	q = 1.0 - abs(1.0 - mod(q, 2.0));
 	return texture(plating, q).r;
+}
+
+float grime_at(vec2 uv) {
+	vec2 q = uv / grime_size + vec2(0.29, 0.61) + seed * 0.53;
+	q = 1.0 - abs(1.0 - mod(q, 2.0));
+	return texture(grime_map, q).r;
 }
 
 float hash2(vec2 p) {
@@ -91,6 +103,10 @@ vec4 layer(vec2 uv, float facing_down, out float rough, out float metal, out flo
 	// Plating: each plate a slightly different tone of the same paint.
 	float pl = plate(uv);
 	col *= mix(1.0, 0.78 + 0.32 * pl, plating_tone);
+	// Venator grime: darker areas of the map become dirt and stained plates.
+	float gr = grime_at(uv);
+	float dirt = smoothstep(0.62, 0.15, gr) * grime_strength;
+	col = mix(col, col * grime_tint * 1.6, dirt);
 
 	// Chips down to bare metal, in scattered patches.
 	float chip = smoothstep(0.66, 0.72, n_mid + n_fine * 0.3 - (1.0 - chips) * 0.45);
