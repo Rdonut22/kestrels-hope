@@ -120,13 +120,19 @@ func _ready() -> void:
 	if show_top_wing:
 		_build_top_wing()
 
-	# Low starboard wing from the fuselage's belly, in the style of the wing
-	# reference: a thick swept slab, angular clipped tip with a notch in the
+	# Low wings, in the style of the wing reference (the starboard one from the
+	# fuselage's belly, mirrored onto the port hull): a thick swept slab, angular clipped tip with a notch in the
 	# trailing edge.
 	var rw := PackedVector2Array([Vector2(0, -7.0), Vector2(9.6, 5.6), Vector2(8.8, 7.6),
 		Vector2(5.6, 7.2), Vector2(5.1, 8.3), Vector2(0, 7.6)])
 	var rw_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(-4.0)), Vector3(fuselage_x + 2.0, 0.4, 0.0))
 	_mesh("WingStarboard", _wing(rw, 0.6, 0.4, 1), rw_xf)
+	# The same wing mirrored onto the port hull's side.
+	var lw := PackedVector2Array()
+	for i in range(rw.size() - 1, -1, -1):
+		lw.append(Vector2(-rw[i].x, rw[i].y))
+	var lw_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(4.0)), Vector3(HULL_MIN.x - 0.2, 0.4, 0.0))
+	_mesh("WingPort", _wing(lw, 0.6, 0.4, 1), lw_xf)
 
 
 ## A wing like the reference: a thick slab with big chamfered edges, and on
