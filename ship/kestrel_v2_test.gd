@@ -21,6 +21,8 @@ extends Node3D
 ## Radius of the rounded front-left corner of the port hull.
 @export var corner_radius := 3.5
 @export var show_interior := true
+## The hinged top wing on its pylons and rams (off for now).
+@export var show_top_wing := false
 ## Tilt of the top wing (degrees, outer tip down).
 @export var wing_tilt := 16.0
 
@@ -110,37 +112,8 @@ func _ready() -> void:
 		var b := Basis(Vector3.UP, PI).scaled(Vector3.ONE * fs)
 		_mesh(f[0], m, Transform3D(b, Vector3(f[2], fan_y, fan_z) - b * c))
 
-	# Top wing (the user's sketch): straight inner edge along the hull, short
-	# flat front, a concave curved leading edge sweeping back to a shorter
-	# outer tip, straight trailing edge with a thick rim, and a heavy mount
-	# block at the inner front corner. Tilted down to port on hydraulic rams.
-	var span := 12.0
-	var chord := 19.0
-	var root_x := 1.6
-	# Hinged along the fuselage's port shoulder, on pylons, tilted down to port.
-	var hinge := Vector3(root_x + 0.3, 8.2, -8.4)
-	var wing_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(wing_tilt)), hinge + Vector3(-0.3, 0.0, 0.0))
-	_mesh("TopWing", _top_wing(span, chord), wing_xf)
-	# Hinge barrel along the wing's root, with brackets down to the fuselage.
-	var barrel := CylinderMesh.new()
-	barrel.top_radius = 0.42
-	barrel.bottom_radius = 0.42
-	barrel.height = chord - 1.0
-	_mesh("WingHinge", barrel, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), hinge + Vector3(0, 0, chord * 0.5)))
-	# Pylons from the fuselage's top up to the hinge, leaning in slightly.
-	var pylon_h := hinge.y - 5.7
-	for k in 4:
-		var bz := hinge.z + 1.5 + k * (chord - 3.0) / 3.0
-		var br := BoxMesh.new()
-		br.size = Vector3(0.8, pylon_h + 0.4, 0.9)
-		_mesh("HingePylon", br, Transform3D(Basis(Vector3.BACK, deg_to_rad(-12.0)), Vector3(hinge.x + 0.45, hinge.y - pylon_h * 0.5, bz)))
-	# Rams: from the raised deck / roof up to the wing's underside, with base
-	# plates and clevis blocks.
-	for rp in [[-3.6, 4.0], [-9.0, 11.0], [-3.6, 15.5], [-9.0, 16.5]]:
-		var wing_pt := wing_xf * Vector3(rp[0], -0.45, rp[1])
-		var base_y := 4.35 if rp[0] > -4.0 else 3.4
-		var roof_pt := Vector3(wing_pt.x + 1.2, base_y + 0.15, wing_pt.z - 0.6)
-		_ram("Ram", roof_pt, wing_pt)
+	if show_top_wing:
+		_build_top_wing()
 
 	# Low starboard wing from the fuselage's belly, in the style of the wing
 	# reference: a thick swept slab, angular clipped tip with a notch in the
@@ -323,6 +296,40 @@ func _prism(a: Array[Vector3], b: Array[Vector3]) -> ArrayMesh:
 				st.add_vertex(v)
 	st.generate_normals()
 	return st.commit()
+
+
+func _build_top_wing() -> void:
+	# Top wing (the user's sketch): straight inner edge along the hull, short
+	# flat front, a concave curved leading edge sweeping back to a shorter
+	# outer tip, straight trailing edge with a thick rim, and a heavy mount
+	# block at the inner front corner. Tilted down to port on hydraulic rams.
+	var span := 12.0
+	var chord := 19.0
+	var root_x := 1.6
+	# Hinged along the fuselage's port shoulder, on pylons, tilted down to port.
+	var hinge := Vector3(root_x + 0.3, 8.2, -8.4)
+	var wing_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(wing_tilt)), hinge + Vector3(-0.3, 0.0, 0.0))
+	_mesh("TopWing", _top_wing(span, chord), wing_xf)
+	# Hinge barrel along the wing's root, with brackets down to the fuselage.
+	var barrel := CylinderMesh.new()
+	barrel.top_radius = 0.42
+	barrel.bottom_radius = 0.42
+	barrel.height = chord - 1.0
+	_mesh("WingHinge", barrel, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), hinge + Vector3(0, 0, chord * 0.5)))
+	# Pylons from the fuselage's top up to the hinge, leaning in slightly.
+	var pylon_h := hinge.y - 5.7
+	for k in 4:
+		var bz := hinge.z + 1.5 + k * (chord - 3.0) / 3.0
+		var br := BoxMesh.new()
+		br.size = Vector3(0.8, pylon_h + 0.4, 0.9)
+		_mesh("HingePylon", br, Transform3D(Basis(Vector3.BACK, deg_to_rad(-12.0)), Vector3(hinge.x + 0.45, hinge.y - pylon_h * 0.5, bz)))
+	# Rams: from the raised deck / roof up to the wing's underside, with base
+	# plates and clevis blocks.
+	for rp in [[-3.6, 4.0], [-9.0, 11.0], [-3.6, 15.5], [-9.0, 16.5]]:
+		var wing_pt := wing_xf * Vector3(rp[0], -0.45, rp[1])
+		var base_y := 4.35 if rp[0] > -4.0 else 3.4
+		var roof_pt := Vector3(wing_pt.x + 1.2, base_y + 0.15, wing_pt.z - 0.6)
+		_ram("Ram", roof_pt, wing_pt)
 
 
 ## A worn-paint material with its own wear seed.
