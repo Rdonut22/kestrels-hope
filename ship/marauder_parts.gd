@@ -14,11 +14,17 @@ const FUSELAGE_HALF_WIDTH := 0.098
 ## Nacelles in front of this z are the front pair, behind it the rear pair.
 const NACELLE_SPLIT_Z := -0.15
 
+## Cockpit canopy region (model frame) whose faces become glass.
+const CANOPY_Z := Vector2(0.44, 0.62)
+const CANOPY_Y := Vector2(0.17, 0.25)
+
 static var _cache := {}
 
 
 ## Returns {"fuselage", "nacelle_front_left", "nacelle_front_right",
 ## "nacelle_rear_left", "nacelle_rear_right"} -> ArrayMesh (model frame).
+## The fuselage has two surfaces: 0 = outer skin, 1 = recess floors (windows,
+## hatches, vents) for a dark glass / metal material.
 static func parts() -> Dictionary:
 	if not _cache.is_empty():
 		return _cache
@@ -49,4 +55,60 @@ static func parts() -> Dictionary:
 			st.add_vertex(v[i])
 	for n in names:
 		_cache[n] = (tools[n] as SurfaceTool).commit()
+	_cache["fuselage"] = _split_recesses(_cache["fuselage"])
 	return _cache
+
+
+## True when, looking out from bin b in all four directions (up to 6 bins),
+## there's surface standing above `level`: the face sits in an inset.
+static func _enclosed(grid: Dictionary, b: Vector2i, level: float) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var found := false
+		for k in range(1, 7):
+			if grid.get(b + d * k, -1.0) > level:
+				found = true
+				break
+		if not found:
+			return false
+	return true
+
+
+## Splits a mesh into surface 0 (outer skin) and surface 1 (recess floors:
+## the window, hatch and vent insets), found by comparing each outward-facing
+## face with the outermost surface around it.
+static func _split_recesses(m: Mesh) -> ArrayMesh:
+	var a := m.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var cell := 0.008
+	var side_max := {}   # (z, y) -> outermost |x|
+	var top_max := {}    # (x, z) -> highest y
+	for p in v:
+		var ks := Vector2i(floori(p.z / cell), floori(p.y / cell))
+		side_max[ks] = maxf(side_max.get(ks, 0.0), absf(p.x))
+		var kt := Vector2i(floori(p.x / cell), floori(p.z / cell))
+		top_max[kt] = maxf(top_max.get(kt, -1.0), p.y)
+	var st := [SurfaceTool.new(), SurfaceTool.new()]
+	for t in st:
+		t.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(0, v.size(), 3):
+		var c := (v[i] + v[i + 1] + v[i + 2]) / 3.0
+		var n := (v[i + 1] - v[i]).cross(v[i + 2] - v[i]).normalized()
+		var recess := false
+		if absf(n.x) > 0.8 and absf(c.x) > 0.03:
+			var b := Vector2i(floori(c.z / cell), floori(c.y / cell))
+			recess = _enclosed(side_max, b, absf(c.x) + 0.0025)
+		elif n.y > 0.8:
+			var b := Vector2i(floori(c.x / cell), floori(c.z / cell))
+			recess = _enclosed(top_max, b, c.y + 0.0025)
+		# The cockpit canopy: the band of faces around the top of the nose,
+		# except the flat roof.
+		if c.z > CANOPY_Z.x and c.z < CANOPY_Z.y and c.y > CANOPY_Y.x and c.y < CANOPY_Y.y and n.y < 0.9:
+			recess = true
+		var k := 1 if recess else 0
+		for j in 3:
+			st[k].set_normal(nrm[i + j])
+			st[k].add_vertex(v[i + j])
+	var out: ArrayMesh = st[0].commit()
+	return st[1].commit(out)
+

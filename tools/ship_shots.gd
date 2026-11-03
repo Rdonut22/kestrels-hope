@@ -8,17 +8,33 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(out)
 	var root: Node3D = (load("res://ship/kestrel_v2_test.tscn") as PackedScene).instantiate()
 	get_root().add_child(root)
+	# Daylight like the crash site: sky, soft sky-coloured fill, a warm sun
+	# with shadows.
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
-	env.environment.background_mode = Environment.BG_COLOR
-	env.environment.background_color = Color(0.42, 0.43, 0.46)
+	var sky := Sky.new()
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color(0.2, 0.42, 0.75)
+	sky_mat.sky_horizon_color = Color(0.62, 0.74, 0.86)
+	sky_mat.ground_horizon_color = Color(0.55, 0.62, 0.55)
+	sky_mat.ground_bottom_color = Color(0.3, 0.38, 0.25)
+	sky.sky_material = sky_mat
+	env.environment.background_mode = Environment.BG_SKY
+	env.environment.sky = sky
+	# Fill and reflections as at the crash site (tools/build_scenes.gd).
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.environment.ambient_light_color = Color(0.7, 0.7, 0.75)
-	env.environment.ambient_light_energy = 0.55
+	env.environment.ambient_light_color = Color(0.62, 0.68, 0.66)
+	env.environment.ambient_light_energy = 0.6
+	env.environment.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.environment.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.environment.tonemap_exposure = 0.9
 	get_root().add_child(env)
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, -40, 0)
+	sun.rotation_degrees = Vector3(-42, -35, 0)
+	sun.light_color = Color(1.0, 0.95, 0.85)
+	sun.light_energy = 1.3
+	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 120.0
 	get_root().add_child(sun)
 	var cam := Camera3D.new()
 	cam.fov = 45
@@ -29,13 +45,14 @@ func _initialize() -> void:
 
 func _run(cam: Camera3D, out: String) -> void:
 	var c := Vector3(0.5, 1.8, 1)
-	var views := {"1_back": Vector3(0, 3.0, 38), "2_iso_front": Vector3(24, 16, -26), "3_side_starboard": Vector3(36, 2.5, 1), "4_top": Vector3(0, 46, 1.01), "5_port_front": Vector3(-24, 7, -16), "6_port_close": Vector3(-17, 1.5, -1), "7_port_low": Vector3(-24, 0.5, 12)}
+	var views := {"1_back": Vector3(0, 3.0, 38), "2_iso_front": Vector3(24, 16, -26), "3_side_starboard": Vector3(36, 2.5, 1), "4_top": Vector3(0, 46, 1.01), "5_port_front": Vector3(-24, 7, -16), "6_port_close": Vector3(-14, 6.5, -9), "7_port_low": Vector3(-24, 0.5, 12), "8_nose": Vector3(4, 4.5, -22)}
 	var only := OS.get_environment("VIEWS")
+	var look_at := {"8_nose": Vector3(4.7, 4.0, -11.0)}
 	for nm in views:
 		if only != "" and not only.contains(nm.substr(0, 1)):
 			continue
 		cam.position = c + views[nm]
-		cam.look_at(c)
+		cam.look_at(look_at.get(nm, c))
 		for i in 3:
 			await process_frame
 		await RenderingServer.frame_post_draw

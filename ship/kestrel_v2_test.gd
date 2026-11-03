@@ -79,10 +79,11 @@ func _ready() -> void:
 	if hull_style == 0:
 		# The fuselage's own surface copied onto the hull's walls and roof.
 		var walls := FuselageCladding.walls(path, Vector2(-2.8, 0.0), -0.2, 3.35, 0.42)
-		_mesh("HullWalls", walls, Transform3D.IDENTITY)
+		_two_tone(_mesh("HullWalls", walls, Transform3D.IDENTITY))
 		var roof := FuselageCladding.roof(Rect2(HULL_MIN.x + r * 0.6, HULL_MIN.z + 0.2,
 			2.0 - HULL_MIN.x - r * 0.6, HULL_MAX.z - HULL_MIN.z - 0.4), 3.35)
-		_mesh("HullRoof", roof, Transform3D.IDENTITY)
+		_two_tone(_mesh("HullRoof", roof, Transform3D.IDENTITY))
+		_details(walls, roof)
 		# A ledge along the seam between the copied bands, as on the fuselage.
 		var ledge := HullSkin.new().ledge(path, Vector2(-2.8, 0.0), lerpf(-0.2, 3.35, 0.42), 0.32, 0.7)
 		_mesh("HullLedge", ledge, Transform3D.IDENTITY)
@@ -100,7 +101,7 @@ func _ready() -> void:
 	var s := fuselage_scale
 	var xf := Transform3D(Basis(Vector3.UP, PI).scaled(Vector3.ONE * s),
 		Vector3(fuselage_x, fuselage_floor_y, nose_z + 0.687 * s))
-	_mesh("Fuselage", parts["fuselage"], xf)
+	_two_tone(_mesh("Fuselage", parts["fuselage"], xf))
 	# Close the slots left where the nacelle mounts were cut away.
 	for side in [-1.0, 1.0]:
 		var plate := BoxMesh.new()
@@ -148,6 +149,10 @@ func _ready() -> void:
 			strut.height = on_wing.distance_to(on_hull) + 0.4
 			var dir := (on_wing - on_hull).normalized()
 			_mesh(w[0] + "Strut", strut, Transform3D(Basis(Quaternion(Vector3.UP, dir)), (on_wing + on_hull) * 0.5))
+	# Nav lights: red on the port wing tips, green on the starboard one.
+	_nav_light(_find("WingPortUpper"), Color(1.0, 0.15, 0.1))
+	_nav_light(_find("WingPortLower"), Color(1.0, 0.15, 0.1))
+	_nav_light(_find("WingStarboard"), Color(0.2, 1.0, 0.35))
 
 
 ## A wing like the reference: a thick slab with big chamfered edges, and on
@@ -276,6 +281,135 @@ func _ram(n: String, a: Vector3, b: Vector3) -> void:
 		plate.size = Vector3(1.0, 0.3, 1.0)
 		var up := 1.0 if p == a else -1.0
 		_mesh(n + "Mount", plate, Transform3D(Basis.IDENTITY, p - Vector3(0, 0.3 * up, 0)))
+
+
+## Windows and components on the port hull: a row of framed portholes set
+## into the wall, and on the roof a sensor dome, antenna masts, a dish, vent
+## boxes and pipe runs. Each sits on the clad surface (found from its mesh).
+func _details(walls: Mesh, roof: Mesh) -> void:
+	var wv := _verts(walls)
+	var rv := _verts(roof)
+	var glass := _window_glass()
+	# Portholes along the straight port wall, upper band.
+	var z := HULL_MIN.z + corner_radius + 1.5
+	while z < HULL_MAX.z - 1.5:
+		var y := 2.35
+		var out_x := HULL_MIN.x
+		for v in wv:
+			if absf(v.z - z) < 0.7 and absf(v.y - y) < 0.5:
+				out_x = minf(out_x, v.x)
+		var frame := BoxMesh.new()
+		frame.size = Vector3(0.2, 0.75, 1.15)
+		_mesh("PortholeFrame", frame, Transform3D(Basis.IDENTITY, Vector3(out_x - 0.06, y, z)))
+		var pane := BoxMesh.new()
+		pane.size = Vector3(0.06, 0.5, 0.9)
+		var pm := _mesh("Porthole", pane, Transform3D(Basis.IDENTITY, Vector3(out_x - 0.16, y, z)))
+		pm.material_override = glass
+		z += 2.6
+	# Roof components.
+	var dark := _dark_metal()
+	var dome := SphereMesh.new()
+	dome.radius = 0.9
+	dome.height = 1.0
+	dome.is_hemisphere = true
+	_place_on_roof(rv, "SensorDome", dome, Vector3(-5.2, 0, 5.5), 0.0)
+	for a in [[-6.6, -3.0, 3.2], [-6.2, -2.2, 2.2], [-1.2, 7.8, 2.6]]:
+		var mast := CylinderMesh.new()
+		mast.top_radius = 0.04
+		mast.bottom_radius = 0.09
+		mast.height = a[2]
+		_place_on_roof(rv, "Antenna", mast, Vector3(a[0], 0, a[1]), a[2] * 0.5)
+		var tip := SphereMesh.new()
+		tip.radius = 0.1
+		tip.height = 0.2
+		_place_on_roof(rv, "AntennaTip", tip, Vector3(a[0], 0, a[1]), a[2])
+	var dish := CylinderMesh.new()
+	dish.top_radius = 1.0
+	dish.bottom_radius = 0.25
+	dish.height = 0.35
+	var dmi := _place_on_roof(rv, "Dish", dish, Vector3(-3.0, 0, -5.5), 0.6)
+	dmi.rotation = Vector3(deg_to_rad(-35.0), deg_to_rad(30.0), 0.0)
+	for vb in [Vector3(-6.0, 0, 0.5), Vector3(-0.5, 0, -2.5)]:
+		var box := BoxMesh.new()
+		box.size = Vector3(1.4, 0.6, 2.2)
+		_place_on_roof(rv, "VentBox", box, vb, 0.3)
+		for k in 5:
+			var slat := BoxMesh.new()
+			slat.size = Vector3(1.2, 0.06, 0.12)
+			var sm := _place_on_roof(rv, "VentSlat", slat, vb + Vector3(0, 0, -0.8 + k * 0.4), 0.63)
+			sm.material_override = dark
+	for px in [-7.0, -6.6]:
+		var pipe := CylinderMesh.new()
+		pipe.top_radius = 0.12
+		pipe.bottom_radius = 0.12
+		pipe.height = 12.0
+		var pmi := _place_on_roof(rv, "Pipe", pipe, Vector3(px, 0, 1.5), 0.12)
+		pmi.rotation = Vector3(PI * 0.5, 0, 0)
+		pmi.material_override = dark
+
+
+func _verts(m: Mesh) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for i in m.get_surface_count():
+		out.append_array(m.surface_get_arrays(i)[Mesh.ARRAY_VERTEX])
+	return out
+
+
+## Places a mesh on the clad roof at (x, z): its base on the highest roof
+## point there, lifted by `lift`.
+func _place_on_roof(rv: PackedVector3Array, n: String, m: Mesh, at: Vector3, lift: float) -> MeshInstance3D:
+	var top := 3.35
+	for v in rv:
+		if absf(v.x - at.x) < 0.8 and absf(v.z - at.z) < 0.8:
+			top = maxf(top, v.y)
+	return _mesh(n, m, Transform3D(Basis.IDENTITY, Vector3(at.x, top + lift, at.z)))
+
+
+func _find(n: String) -> MeshInstance3D:
+	return get_node_or_null(n) as MeshInstance3D
+
+
+## A small glowing light at the outermost point of a wing.
+func _nav_light(wing: MeshInstance3D, col: Color) -> void:
+	if not wing:
+		return
+	var far := Vector3.ZERO
+	var best := -1.0
+	for v in _verts(wing.mesh):
+		var wv: Vector3 = wing.transform * v
+		var d := absf(wv.x)
+		if d > best:
+			best = d
+			far = wv
+	var bulb := SphereMesh.new()
+	bulb.radius = 0.18
+	bulb.height = 0.36
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.emission_enabled = true
+	m.emission = col
+	m.emission_energy_multiplier = 3.0
+	var mi := _mesh("NavLight", bulb, Transform3D(Basis.IDENTITY, far))
+	mi.material_override = m
+
+
+## Paint on surface 0, dark glass / machinery on surface 1 (the recesses).
+func _two_tone(mi: MeshInstance3D) -> void:
+	if mi.mesh.get_surface_count() < 2:
+		return
+	var paint := mi.material_override
+	mi.material_override = null
+	mi.set_surface_override_material(0, paint)
+	mi.set_surface_override_material(1, _window_glass())
+
+
+func _window_glass() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.05, 0.07, 0.09)
+	m.metallic = 0.4
+	m.roughness = 0.18
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
 
 
 func _dark_metal() -> StandardMaterial3D:

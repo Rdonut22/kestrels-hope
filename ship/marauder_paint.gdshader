@@ -23,6 +23,9 @@ uniform float chips : hint_range(0.0, 1.0) = 0.45;
 uniform float rust : hint_range(0.0, 1.0) = 0.45;
 uniform float streaks : hint_range(0.0, 1.0) = 0.6;
 uniform float underside_grime : hint_range(0.0, 1.0) = 0.5;
+// Surface relief (bump): dents, hammered metal, scratches, chipped paint edges.
+uniform float bump_strength : hint_range(0.0, 3.0) = 1.0;
+uniform float scratches : hint_range(0.0, 1.0) = 0.5;
 // Seed per part so repeated parts don't wear identically.
 uniform float seed = 0.0;
 
@@ -62,7 +65,7 @@ void vertex() {
 // Paint, wear and rust for one projection plane. uv in metres, with +y
 // running down the hull so streaks run downward. No plate grid: large paint
 // areas and wear only, like the reference.
-vec4 layer(vec2 uv, float facing_down, out float rough, out float metal) {
+vec4 layer(vec2 uv, float facing_down, out float rough, out float metal, out float height) {
 	float n_big = fbm2(uv * 0.18);
 	float n_mid = fbm2(uv * 0.9);
 	float n_fine = noise2(uv * 6.0);
@@ -77,6 +80,13 @@ vec4 layer(vec2 uv, float facing_down, out float rough, out float metal) {
 	float chip = smoothstep(0.66, 0.72, n_mid + n_fine * 0.3 - (1.0 - chips) * 0.45);
 	col = mix(col, bare_metal * (0.85 + 0.3 * n_fine), chip);
 
+	// Scratches: fine bright lines through the paint, in loose clusters.
+	vec2 su = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * uv;
+	float sn = noise2(vec2(su.x * 18.0, su.y * 0.7));
+	float scratch = (1.0 - smoothstep(0.0, 0.025, abs(sn - 0.5)))
+			* smoothstep(0.5, 0.7, fbm2(uv * 0.5 + 4.0)) * scratches;
+	col = mix(col, bare_metal * 1.15, scratch * 0.8);
+
 	// Rust: broad swipes, plus long streaks running down the hull.
 	float swipe = smoothstep(0.5, 0.78, n_big + n_mid * 0.4 - (1.0 - rust) * 0.4);
 	float streak = smoothstep(0.6, 0.85, noise2(vec2(uv.x * 2.5, uv.y * 0.18))) * smoothstep(0.35, 0.65, n_big) * streaks;
@@ -86,8 +96,15 @@ vec4 layer(vec2 uv, float facing_down, out float rough, out float metal) {
 	// Grime gathers underneath.
 	col = mix(col, grime, facing_down * underside_grime * (0.6 + 0.4 * n_mid));
 
+	// Relief (metres): soft dents, hammered texture, paint standing proud of
+	// chips and scratches, crusty rust.
+	float dents = (fbm2(uv * 0.7 + 9.0) - 0.5) * 0.02;
+	float hammer = (noise2(uv * 14.0) - 0.5) * 0.0015;
+	height = dents + hammer - chip * 0.0012 - scratch * 0.0008 + r * (noise2(uv * 25.0) - 0.3) * 0.002;
+
 	rough = mix(mix(0.62, 0.42, chip), 0.92, r);
-	metal = chip * (1.0 - r) * 0.55;
+	rough = mix(rough, 0.3, scratch * 0.7);
+	metal = max(chip, scratch) * (1.0 - r) * 0.7;
 	return vec4(col, 1.0);
 }
 
@@ -100,12 +117,22 @@ void fragment() {
 	vec3 w = pow(abs(n), vec3(4.0));
 	w /= (w.x + w.y + w.z);
 	float down = smoothstep(0.0, -0.8, n.y);
-	float r1, r2, r3, m1, m2, m3;
+	float r1, r2, r3, m1, m2, m3, h1, h2, h3;
 	// Side planes use y as "down the hull" so streaks run downward.
-	vec4 cx = layer(vec2(v_pos.z, -v_pos.y), down, r1, m1);
-	vec4 cz = layer(vec2(v_pos.x, -v_pos.y), down, r2, m2);
-	vec4 cy = layer(v_pos.xz + vec2(31.0, 17.0), down, r3, m3);
+	vec4 cx = layer(vec2(v_pos.z, -v_pos.y), down, r1, m1, h1);
+	vec4 cz = layer(vec2(v_pos.x, -v_pos.y), down, r2, m2, h2);
+	vec4 cy = layer(v_pos.xz + vec2(31.0, 17.0), down, r3, m3, h3);
 	ALBEDO = cx.rgb * w.x + cy.rgb * w.y + cz.rgb * w.z;
 	ROUGHNESS = r1 * w.x + r3 * w.y + r2 * w.z;
 	METALLIC = m1 * w.x + m3 * w.y + m2 * w.z;
+	// Bump from the relief (surface-gradient method, view space).
+	float h = (h1 * w.x + h3 * w.y + h2 * w.z) * bump_strength;
+	vec3 nn = normalize(NORMAL);
+	vec3 dpx = dFdx(VERTEX);
+	vec3 dpy = dFdy(VERTEX);
+	vec3 rr1 = cross(dpy, nn);
+	vec3 rr2 = cross(nn, dpx);
+	float det = dot(dpx, rr1);
+	vec3 grad = sign(det) * (dFdx(h) * rr1 + dFdy(h) * rr2);
+	NORMAL = normalize(abs(det) * nn - grad);
 }
