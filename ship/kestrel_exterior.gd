@@ -223,8 +223,9 @@ func _ready() -> void:
 		var at := Vector3(f[2], fan_y, fan_z)
 		var emi := _mesh(f[0], _fan_mesh(m, c), Transform3D(b, at - b * c))
 		emi.material_override = null
-		emi.set_surface_override_material(0, _mat())
-		emi.set_surface_override_material(1, _dark_metal())
+		# Bare metal, like the reference: dark brushed casing, chrome intake.
+		emi.set_surface_override_material(0, _engine_metal(false))
+		emi.set_surface_override_material(1, _engine_metal(true))
 		# Pylon from the ship's side to the engine.
 		var inner: float = f[3]
 		var px0: float = minf(inner, f[2])
@@ -632,6 +633,14 @@ func _frame_metal() -> StandardMaterial3D:
 	return m
 
 
+func _engine_metal(polished: bool) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://ship/engine_metal.gdshader")
+	m.set_shader_parameter("polished", polished)
+	m.set_shader_parameter("wear_map", _wear)
+	return m
+
+
 func _dark_metal() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.17, 0.18, 0.2)
@@ -921,7 +930,7 @@ func _fan_mesh(m: Mesh, c: Vector3) -> ArrayMesh:
 		if idx != null:
 			ids = [idx[i * 3], idx[i * 3 + 1], idx[i * 3 + 2]]
 		var p: Vector3 = (v[ids[0]] + v[ids[1]] + v[ids[2]]) / 3.0
-		var k := 1 if Vector2(p.x - c.x, p.y - c.y).length() < r * 0.78 else 0
+		var k := 1 if Vector2(p.x - c.x, p.y - c.y).length() < r * 0.7 else 0
 		for j in ids:
 			if nrm != null:
 				st[k].set_normal(nrm[j])
