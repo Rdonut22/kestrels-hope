@@ -39,6 +39,10 @@ const CENTRE_X := -0.15
 var _paint: Shader
 var _plating: Texture2D = preload("res://ship/textures/hull_plating.png")
 var _grime: Texture2D = preload("res://ship/textures/hull_grime.png")
+# Venator colour tiles: greys for the hull, red for the wings' tops.
+var _colors: Array[Texture2D] = [preload("res://ship/textures/hull_color_1026.png"),
+	preload("res://ship/textures/hull_color_1038.png"), preload("res://ship/textures/hull_color_1039.png")]
+var _red: Texture2D = preload("res://ship/textures/hull_color_1004_red.png")
 var _seed := 0.0
 
 
@@ -131,7 +135,7 @@ func _ready() -> void:
 	var rw := PackedVector2Array([Vector2(0, -7.0), Vector2(9.6, 5.6), Vector2(8.8, 7.6),
 		Vector2(5.6, 7.2), Vector2(5.1, 8.3), Vector2(0, 7.6)])
 	var rw_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(-4.0)), Vector3(fuselage_x + 2.0, 0.4, 0.0))
-	_mesh("WingStarboard", _wing(rw, 0.6, 0.4, 1), rw_xf)
+	_red_paint(_mesh("WingStarboard", _wing(rw, 0.6, 0.4, 1), rw_xf))
 	# The same wing mirrored onto the port hull's side.
 	var lw := PackedVector2Array()
 	for i in range(rw.size() - 1, -1, -1):
@@ -141,7 +145,7 @@ func _ready() -> void:
 	# the hull by two short struts.
 	for w in [["WingPortUpper", 3.7, -port_split], ["WingPortLower", -0.5, port_split]]:
 		var wxf := Transform3D(Basis(Vector3.BACK, deg_to_rad(w[2])), Vector3(HULL_MIN.x - 1.0, w[1], 0.0))
-		_mesh(w[0], _wing(lw, 0.6, 0.4, 1), wxf)
+		_red_paint(_mesh(w[0], _wing(lw, 0.6, 0.4, 1), wxf))
 		for sz in [-2.5, 4.5]:
 			var on_wing: Vector3 = wxf * Vector3(-0.9, 0.0, sz)
 			var on_hull := Vector3(HULL_MIN.x + 0.2, w[1], sz)
@@ -494,6 +498,13 @@ func _build_top_wing() -> void:
 		_ram("Ram", roof_pt, wing_pt)
 
 
+## Venator red on a part (the wings).
+func _red_paint(mi: MeshInstance3D) -> void:
+	var m := mi.material_override as ShaderMaterial
+	if m:
+		m.set_shader_parameter("hull_color", _red)
+
+
 ## A worn-paint material with its own wear seed.
 func _mat() -> ShaderMaterial:
 	var m := ShaderMaterial.new()
@@ -502,6 +513,13 @@ func _mat() -> ShaderMaterial:
 	m.set_shader_parameter("seed", _seed)
 	m.set_shader_parameter("plating", _plating)
 	m.set_shader_parameter("grime_map", _grime)
+	# Venator colours instead of the white / blue paint.
+	m.set_shader_parameter("use_hull_color", true)
+	m.set_shader_parameter("hull_color", _colors[int(_seed) % _colors.size()])
+	m.set_shader_parameter("grime_strength", 0.2)
+	m.set_shader_parameter("plating_tone", 0.2)
+	m.set_shader_parameter("rust", 0.3)
+	m.set_shader_parameter("streaks", 0.4)
 	return m
 
 

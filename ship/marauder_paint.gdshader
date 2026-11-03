@@ -39,6 +39,12 @@ uniform sampler2D grime_map : filter_linear_mipmap, repeat_enable, hint_default_
 uniform float grime_size = 6.5;
 uniform float grime_strength : hint_range(0.0, 1.0) = 0.6;
 uniform vec3 grime_tint : source_color = vec3(0.42, 0.38, 0.32);
+// Base colour: a Venator colour tile (ship/textures/hull_color_*.png),
+// repeating every color_size metres, mirrored at the edges. When set it
+// replaces the white / blue paint.
+uniform sampler2D hull_color : source_color, filter_linear_mipmap, repeat_enable, hint_default_black;
+uniform bool use_hull_color = false;
+uniform float color_size = 8.0;
 // Seed per part so repeated parts don't wear identically.
 uniform float seed = 0.0;
 
@@ -106,6 +112,11 @@ vec4 layer(vec2 uv, float facing_down, out float rough, out float metal, out flo
 	float blue = smoothstep(0.02, -0.02, zone - (0.32 + blue_share * 0.36));
 	vec3 col = mix(paint_white, paint_blue, blue);
 	col *= 0.95 + 0.08 * n_mid;
+	if (use_hull_color) {
+		vec2 cq = uv / color_size + vec2(0.13, 0.71) + seed * 0.41;
+		cq = 1.0 - abs(1.0 - mod(cq, 2.0));
+		col = texture(hull_color, cq).rgb;
+	}
 	// Plating: each plate a slightly different tone of the same paint.
 	float pl = plate(uv);
 	col *= mix(1.0, 0.78 + 0.32 * pl, plating_tone);
