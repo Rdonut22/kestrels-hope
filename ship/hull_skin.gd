@@ -63,6 +63,16 @@ func build(path: PackedVector2Array, centre: Vector2, bands: Array, roof: Rect2,
 	return _dk.commit(mesh)
 
 
+## Just a horizontal ledge along the path at height y (for other cladding).
+func ledge(path: PackedVector2Array, centre: Vector2, y: float, h: float, depth: float) -> ArrayMesh:
+	_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_st.set_smooth_group(-1)
+	var lens := _lengths(path)
+	_wall_slab(path, lens, centre, 0.0, lens[lens.size() - 1], y - h * 0.5, y + h * 0.5, depth)
+	_st.generate_normals()
+	return _st.commit()
+
+
 func _wall_panel(path: PackedVector2Array, lens: PackedFloat32Array, centre: Vector2,
 		s0: float, s1: float, y0: float, y1: float) -> void:
 	var kind := _rng.randf()

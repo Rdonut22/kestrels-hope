@@ -21,6 +21,8 @@ extends Node3D
 ## Radius of the rounded front-left corner of the port hull.
 @export var corner_radius := 3.5
 @export var show_interior := true
+## Hull cladding: 0 = the fuselage's own paneling copied on, 1 = plated skin.
+@export_enum("Fuselage paneling", "Plated skin") var hull_style := 0
 ## The hinged top wing on its pylons and rams (off for now).
 @export var show_top_wing := false
 ## Tilt of the top wing (degrees, outer tip down).
@@ -50,11 +52,12 @@ func _ready() -> void:
 		if hull:
 			var outer := hull.get_node_or_null("Outer") as CSGShape3D
 			if outer:
-				# Dark hull underneath: shows through the grooves of the skin.
-				var dark := StandardMaterial3D.new()
-				dark.albedo_color = Color(0.2, 0.21, 0.23)
-				dark.roughness = 0.8
-				outer.material = dark
+				# Under the plated skin the hull is dark, showing through the
+				# grooves; under the fuselage paneling it's painted like it.
+				if hull_style == 1:
+					outer.material = _dark_metal()
+				else:
+					outer.material = _mat()
 				# The ceiling panels' top is level with the roof and showed
 				# through outside: lift the roof 0.15 m above them.
 				var box := outer as CSGBox3D
@@ -71,23 +74,25 @@ func _ready() -> void:
 		# From the port side (facing -x) round to the front (facing -z).
 		path.append(Vector2(HULL_MIN.x + r - r * cos(a), HULL_MIN.z + r - r * sin(a)))
 	path.append(Vector2(2.0, HULL_MIN.z))
-	var skin := HullSkin.new().build(path, Vector2(-2.8, 0.0),
-		[[-0.15, 0.6], [0.68, 2.42], [2.5, 3.32]],
-		Rect2(HULL_MIN.x + 0.1, HULL_MIN.z + 0.1, 2.0 - HULL_MIN.x - 0.2, HULL_MAX.z - HULL_MIN.z - 0.2), 3.35,
-		Vector2(HULL_MIN.x + r, HULL_MIN.z + r), r)
-	var skin_mi := _mesh("HullSkin", skin, Transform3D.IDENTITY)
-	skin_mi.material_override = null
-	skin_mi.set_surface_override_material(0, _mat())
-	skin_mi.set_surface_override_material(1, _dark_metal())
-
-	# Less boxy: a sloped fairing tapering the hull's front, and a raised deck
-	# on the inner half of the roof so the outer edge steps down.
-	var fairing := _prism_x([Vector2(HULL_MIN.z, 3.4), Vector2(HULL_MIN.z - 0.5, 3.0), Vector2(HULL_MIN.z - 1.5, 1.2),
-		Vector2(HULL_MIN.z - 1.3, -0.1), Vector2(HULL_MIN.z, -0.2)], HULL_MIN.x + r, 2.0)
-	_mesh("FrontFairing", fairing, Transform3D.IDENTITY)
-	var deck := _prism_z([Vector2(-4.4, 3.35), Vector2(-3.4, 4.35), Vector2(2.1, 4.35), Vector2(2.1, 3.35)],
-		HULL_MIN.z + 1.0, HULL_MAX.z - 1.2)
-	_mesh("RaisedDeck", deck, Transform3D.IDENTITY)
+	if hull_style == 0:
+		# The fuselage's own surface copied onto the hull's walls and roof.
+		var walls := FuselageCladding.walls(path, Vector2(-2.8, 0.0), -0.2, 3.35, 0.42)
+		_mesh("HullWalls", walls, Transform3D.IDENTITY)
+		var roof := FuselageCladding.roof(Rect2(HULL_MIN.x + r * 0.6, HULL_MIN.z + 0.2,
+			2.0 - HULL_MIN.x - r * 0.6, HULL_MAX.z - HULL_MIN.z - 0.4), 3.35)
+		_mesh("HullRoof", roof, Transform3D.IDENTITY)
+		# A ledge along the seam between the copied bands, as on the fuselage.
+		var ledge := HullSkin.new().ledge(path, Vector2(-2.8, 0.0), lerpf(-0.2, 3.35, 0.42), 0.32, 0.7)
+		_mesh("HullLedge", ledge, Transform3D.IDENTITY)
+	else:
+		var skin := HullSkin.new().build(path, Vector2(-2.8, 0.0),
+			[[-0.15, 0.6], [0.68, 2.42], [2.5, 3.32]],
+			Rect2(HULL_MIN.x + 0.1, HULL_MIN.z + 0.1, 2.0 - HULL_MIN.x - 0.2, HULL_MAX.z - HULL_MIN.z - 0.2), 3.35,
+			Vector2(HULL_MIN.x + r, HULL_MIN.z + r), r)
+		var skin_mi := _mesh("HullSkin", skin, Transform3D.IDENTITY)
+		skin_mi.material_override = null
+		skin_mi.set_surface_override_material(0, _mat())
+		skin_mi.set_surface_override_material(1, _dark_metal())
 
 	# The model's nose is +Z; turn it to face -Z (forward) and scale to metres.
 	var s := fuselage_scale
