@@ -1,7 +1,11 @@
 @tool
+class_name KestrelExterior
 extends Node3D
 
-## Blockout test for the reworked Kestrel exterior (the user's sketches):
+## The Kestrel's exterior (the user's sketches), built at runtime around the
+## ship it's added to (ship/ship_interior.tscn, ship/ship_crashed.tscn, from
+## tools/build_scenes.gd), or, on its own (ship/kestrel_v2_test.tscn), around
+## a fresh copy of the interior:
 ## the stripped marauder fuselage around the cockpit, kitchen and lounge on
 ## the starboard (+X) side, the existing hull to port (front-left corner
 ## rounded) clad in a plated skin (ship/hull_skin.gd), two big fan turbines
@@ -9,8 +13,11 @@ extends Node3D
 ## wing to starboard, both built like the user's wing reference (thick
 ## chamfered slabs with a raised inner plate). Every part wears the same
 ## procedural worn paint (ship/marauder_paint.gdshader).
-## The current interior (ship/ship_interior.tscn) is placed inside so the fit
-## can be checked. Kestrel frame: forward is -Z, floor at y = 0.
+## It also turns the old box cockpit into the flight deck inside the
+## fuselage's hollow nose (raised FLIGHT_DECK_Y, steps up from the kitchen).
+## In the editor it only adds the shell and leaves the ship's own nodes
+## alone (so saving a scene never bakes the changes in).
+## Kestrel frame: forward is -Z, floor at y = 0.
 
 ## Fuselage size: model units -> metres (across / along, and up).
 @export var fuselage_scale := 30.0
@@ -23,6 +30,10 @@ extends Node3D
 @export var fuselage_floor_y := -2.0
 ## Radius of the rounded front-left corner of the port hull.
 @export var corner_radius := 3.5
+## The wreck at the crash site: no landing gear, the starboard wing torn
+## off and a breach cut through the shell where the hull is torn open.
+@export var crashed := false
+## Without a ship parent (the test scene): show a copy of the interior.
 @export var show_interior := true
 ## Window frame bars on the canopy and the porthole frames (off for now).
 @export var show_window_frames := false
@@ -42,6 +53,8 @@ const HULL_MAX := Vector3(5.9, 3.2, 9.5)
 # Ship centre line for mirroring the fans: halfway across hull + fuselage.
 const CENTRE_X := -0.15
 const GEAR_GROUND := -3.4
+# The crash site's hull breach (tools/build_scenes.gd BREACH), with margin.
+const BREACH_BOX := AABB(Vector3(5.0, -0.6, -0.3), Vector3(5.5, 3.6, 5.2))
 # The flight deck (the old cockpit, raised into the fuselage's nose).
 const FLIGHT_DECK_Y := 1.35
 const DECK_Z := Vector2(-8.8, -13.3)      # back edge, front edge
@@ -67,22 +80,31 @@ var _colors: Array[Texture2D] = [preload("res://ship/textures/hull_color_1026.pn
 	preload("res://ship/textures/hull_color_1038.png"), preload("res://ship/textures/hull_color_1039.png")]
 var _red: Texture2D = preload("res://ship/textures/hull_color_1004_red.png")
 var _seed := 0.0
+var _has_ship := false
 
 
 func _ready() -> void:
 	_paint = load("res://ship/marauder_paint.gdshader")
 	var parts := MarauderParts.parts()
 
-	if show_interior:
-		var ship: Node3D = (load("res://ship/ship_interior.tscn") as PackedScene).instantiate()
+	var ship: Node3D = null
+	var own_ship := false
+	if get_parent() and get_parent().has_node("Hull"):
+		ship = get_parent() as Node3D
+	elif show_interior:
+		ship = (load("res://ship/ship_interior.tscn") as PackedScene).instantiate()
 		add_child(ship)
+		own_ship = true
+	_has_ship = ship != null
+	# Only change the ship's own nodes at runtime (or our own copy).
+	if ship and (own_ship or not Engine.is_editor_hint()):
 		var ext := ship.get_node_or_null("Exterior")
 		if ext:
-			ext.visible = false
+			ext.free()
 		# The old engine block's glowing thruster cores sit outside "Exterior".
 		for c in ship.get_children():
-			if String(c.name).begins_with("ThrusterCore"):
-				c.visible = false
+			if String(c.name).begins_with("ThrusterCore") or c.name == "Turret":
+				c.free()
 		var hull := ship.get_node_or_null("Hull") as CSGCombiner3D
 		if hull:
 			var outer := hull.get_node_or_null("Outer") as CSGShape3D
@@ -153,12 +175,15 @@ func _ready() -> void:
 	# Window openings: where the lounge's curved window band runs along the
 	# starboard side, the fuselage skin is cut away so it shows (and the
 	# lounge looks out).
-	var fus := _cut(parts["fuselage"], xf, [AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4))])
+	var cuts := [AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4))]
+	if crashed:
+		cuts.append(BREACH_BOX)
+	var fus := _cut(parts["fuselage"], xf, cuts)
 	var fus_mi := _mesh("Fuselage", fus, xf)
 	_two_tone(fus_mi)
 	# You walk around inside its nose now.
 	fus_mi.create_trimesh_collision()
-	if show_interior:
+	if _has_ship:
 		_flight_deck()
 	# Close the slots left where the nacelle mounts were cut away.
 	# (in world space; the starboard one leaves a gap for the lounge window).
@@ -169,6 +194,8 @@ func _ready() -> void:
 		var z0: float = plate_c.z - half_len
 		var z1: float = plate_c.z + half_len
 		var spans := [[z0, z1]] if side < 0.0 else [[z0, -2.6], [5.8, z1]]
+		if crashed and side > 0.0:
+			spans = [[z0, -2.6], [5.8, z1]]
 		for sp in spans:
 			var plate := BoxMesh.new()
 			plate.size = Vector3(0.12, 0.12 * fuselage_scale_y, sp[1] - sp[0])
@@ -204,7 +231,9 @@ func _ready() -> void:
 	var rw := PackedVector2Array([Vector2(0, -7.0), Vector2(9.6, 5.6), Vector2(8.8, 7.6),
 		Vector2(5.6, 7.2), Vector2(5.1, 8.3), Vector2(0, 7.6)])
 	var rw_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(-4.0)), Vector3(fuselage_x + 2.0, 0.4, 0.0))
-	_red_paint(_mesh("WingStarboard", _wing(rw, 0.6, 0.4, 1), rw_xf))
+	# (At the crash site it was torn off: the hull breach is there.)
+	if not crashed:
+		_red_paint(_mesh("WingStarboard", _wing(rw, 0.6, 0.4, 1), rw_xf))
 	# The same wing mirrored onto the port hull's side.
 	var lw := PackedVector2Array()
 	for i in range(rw.size() - 1, -1, -1):
@@ -685,9 +714,14 @@ func _raise_cockpit(ship: Node3D, hull: CSGCombiner3D) -> void:
 	open.position = Vector3(4.0, 1.6, -8.5)
 	open.operation = CSGShape3D.OPERATION_SUBTRACTION
 	hull.add_child(open)
-	var canopy := ship.get_node_or_null("Canopy")
+	# The old glass canopy goes; its overhead console moves up with the rest.
+	var canopy := ship.get_node_or_null("Canopy") as Node3D
 	if canopy:
-		canopy.free()
+		for c in canopy.get_children():
+			var cn := String(c.name)
+			if not (cn.begins_with("Overhead") or cn.begins_with("Cable")):
+				c.free()
+		canopy.position.y += FLIGHT_DECK_Y
 	for path in COCKPIT_NODES:
 		var nd := ship.get_node_or_null(path) as Node3D
 		if nd:
@@ -740,12 +774,15 @@ func _flight_deck() -> void:
 		mi.material_override = deck_mat
 		mi.position = Vector3(fuselage_x, top * 0.5, STAIR_Z.x - run * (i + 0.5))
 		body.add_child(mi)
-		var cs := CollisionShape3D.new()
-		var bs := BoxShape3D.new()
-		bs.size = b.size
-		cs.shape = bs
-		cs.position = mi.position
-		body.add_child(cs)
+	# The player doesn't climb steps: one smooth ramp collider under them.
+	var length := Vector2(STAIR_Z.x - STAIR_Z.y, y).length()
+	var ramp := CollisionShape3D.new()
+	var rs := BoxShape3D.new()
+	rs.size = Vector3(2.0, 0.1, length)
+	ramp.shape = rs
+	var ang := atan2(y, STAIR_Z.x - STAIR_Z.y)
+	ramp.transform = Transform3D(Basis(Vector3.RIGHT, ang), Vector3(fuselage_x, y * 0.5 - 0.05, (STAIR_Z.x + STAIR_Z.y) * 0.5))
+	body.add_child(ramp)
 
 
 ## A copy of a mesh without the triangles whose centre (in world space,
@@ -792,7 +829,7 @@ func _overlaps_rooms(bb: AABB) -> bool:
 ## True for a point inside one of the interior rooms (with a small margin).
 func _in_room(p: Vector3) -> bool:
 	# Margin covers the rooms' walls (0.3 m) too.
-	if not show_interior or p.y < -0.05 or p.y > 3.15:
+	if not _has_ship or p.y < -0.05 or p.y > 3.15:
 		return false
 	for i in ROOMS.size():
 		var r: Array = ROOMS[i]
@@ -841,7 +878,7 @@ func _fan_mesh(m: Mesh, c: Vector3) -> ArrayMesh:
 ## One landing leg from the hull's underside at `top` down to the ground:
 ## a fat cylinder, a polished piston, a knee knuckle and a wide foot pad.
 func _gear(top: Vector3) -> void:
-	if not show_landing_gear:
+	if not show_landing_gear or crashed:
 		return
 	var foot := Vector3(top.x, GEAR_GROUND, top.z + 0.4)
 	_ram("Gear", top, foot + Vector3(0, 0.35, 0))
@@ -928,7 +965,7 @@ func _mesh(n: String, m: Mesh, xf: Transform3D) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = n
 	# Nothing of the outside may show inside a room.
-	if show_interior and m is ArrayMesh or m is PrimitiveMesh:
+	if _has_ship and (m is ArrayMesh or m is PrimitiveMesh):
 		var bb := xf * m.get_aabb()
 		if _overlaps_rooms(bb):
 			m = _cut(m, xf, [])

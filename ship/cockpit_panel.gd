@@ -165,12 +165,13 @@ func _build_hud() -> void:
 
 
 ## Where the panel camera sits and looks (used by the pilot seat).
+## (The panel moves up with the flight deck: ship/kestrel_exterior.gd.)
 func view_eye() -> Vector3:
-	return Vector3(3.97, 1.42, -10.5)
+	return to_global(Vector3(3.97, 1.42, -10.5))
 
 
 func view_target() -> Vector3:
-	return Vector3(3.97, 1.5, -12.1)
+	return to_global(Vector3(3.97, 1.5, -12.1))
 
 
 # ---------- state ----------

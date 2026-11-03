@@ -677,7 +677,15 @@ func _build_ship() -> void:
 
 	if crashed:
 		_make_world_materials()
-	_exterior()
+	# The exterior (fuselage, hull cladding, wings, fans) and the flight deck
+	# in the fuselage's nose are built at runtime by ship/kestrel_exterior.gd.
+	# (The old box exterior, _exterior(), is no longer used.)
+	var ext := Node3D.new()
+	ext.name = "KestrelExterior"
+	ext.set_script(load("res://ship/kestrel_exterior.gd"))
+	ext.set("crashed", crashed)
+	scene_root.add_child(ext)
+	ext.owner = scene_root
 	if crashed:
 		_apply_crash_damage()
 		_save(scene_root, "res://ship/ship_crashed.tscn")

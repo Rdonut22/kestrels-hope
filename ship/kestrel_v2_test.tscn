@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://ship/kestrel_v2_test.gd" id="1"]
+[ext_resource type="Script" path="res://ship/kestrel_exterior.gd" id="1"]
 
 [node name="KestrelV2Test" type="Node3D"]
 script = ExtResource("1")

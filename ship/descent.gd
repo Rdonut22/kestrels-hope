@@ -424,7 +424,7 @@ func _build_cabin_fx() -> void:
 	glow.mesh = q
 	glow.material_override = _glow_mat
 	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	glow.transform = Transform3D(Basis(Vector3.RIGHT, up, -out), Vector3(4.0, 0.95, -12.6) + up * 1.0 + out * 0.45)
+	glow.transform = Transform3D(Basis(Vector3.RIGHT, up, -out), Vector3(4.0, 0.95 + KestrelExterior.FLIGHT_DECK_Y, -14.6) + up * 1.0 + out * 0.45)
 	add_child(glow)
 	# Air streaming past the canopy.
 	_streaks = CPUParticles3D.new()
@@ -454,13 +454,13 @@ func _build_cabin_fx() -> void:
 	_heat_light.light_color = Color(1.0, 0.55, 0.25)
 	_heat_light.omni_range = 6.0
 	_heat_light.light_energy = 0.0
-	_heat_light.position = Vector3(3.8, 1.9, -12.9)
+	_heat_light.position = Vector3(3.8, 1.9 + KestrelExterior.FLIGHT_DECK_Y, -12.9)
 	add_child(_heat_light)
 	_alarm_light = OmniLight3D.new()
 	_alarm_light.light_color = Color(1.0, 0.15, 0.1)
 	_alarm_light.omni_range = 7.0
 	_alarm_light.light_energy = 0.0
-	_alarm_light.position = Vector3(3.4, 2.5, -10.4)
+	_alarm_light.position = Vector3(3.4, 2.5 + KestrelExterior.FLIGHT_DECK_Y, -10.4)
 	add_child(_alarm_light)
 	# Screen effects in the HUD, under Gana's thoughts.
 	var hud := _hud()
@@ -853,7 +853,8 @@ func _impact(pose: Transform3D) -> void:
 
 
 func _cabin_sparks() -> void:
-	for at in [Vector3(3.1, 1.0, -12.0), Vector3(4.9, 1.1, -11.9), Vector3(2.5, 2.3, -11.5)]:
+	for at0 in [Vector3(3.1, 1.0, -12.0), Vector3(4.9, 1.1, -11.9), Vector3(2.5, 2.3, -11.5)]:
+		var at: Vector3 = at0 + Vector3(0, KestrelExterior.FLIGHT_DECK_Y, 0)
 		var sparks := CPUParticles3D.new()
 		sparks.one_shot = true
 		sparks.amount = 26
