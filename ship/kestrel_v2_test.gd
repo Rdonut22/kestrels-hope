@@ -26,6 +26,7 @@ extends Node3D
 @export var show_interior := true
 ## Window frame bars on the canopy and the porthole frames (off for now).
 @export var show_window_frames := false
+@export var show_landing_gear := true
 ## Hull cladding: 0 = the fuselage's own paneling copied on, 1 = plated skin.
 @export_enum("Fuselage paneling", "Plated skin") var hull_style := 0
 ## The hinged top wing on its pylons and rams (off for now).
@@ -40,6 +41,7 @@ const HULL_MIN := Vector3(-7.7, -0.2, -9.9)
 const HULL_MAX := Vector3(5.9, 3.2, 9.5)
 # Ship centre line for mirroring the fans: halfway across hull + fuselage.
 const CENTRE_X := -0.15
+const GEAR_GROUND := -3.4
 # The flight deck (the old cockpit, raised into the fuselage's nose).
 const FLIGHT_DECK_Y := 1.35
 const DECK_Z := Vector2(-8.8, -13.3)      # back edge, front edge
@@ -77,6 +79,10 @@ func _ready() -> void:
 		var ext := ship.get_node_or_null("Exterior")
 		if ext:
 			ext.visible = false
+		# The old engine block's glowing thruster cores sit outside "Exterior".
+		for c in ship.get_children():
+			if String(c.name).begins_with("ThrusterCore"):
+				c.visible = false
 		var hull := ship.get_node_or_null("Hull") as CSGCombiner3D
 		if hull:
 			var outer := hull.get_node_or_null("Outer") as CSGShape3D
@@ -168,20 +174,29 @@ func _ready() -> void:
 			plate.size = Vector3(0.12, 0.12 * fuselage_scale_y, sp[1] - sp[0])
 			_mesh("SidePlate", plate, Transform3D(Basis.IDENTITY, Vector3(px, plate_c.y, (sp[0] + sp[1]) * 0.5)))
 
-	# Two big fans at the back, mirrored about the ship's centre line: one
-	# under the rear of the fuselage, one under the port hull.
+	# Two big fans at the back, level and mirrored about the ship's centre
+	# line. Intakes and blades dark metal.
 	var fs := 34.0
-	var fan_y := 0.6
-	var fan_z := 10.2
-	for f in [["FanStarboard", "nacelle_rear_right", fuselage_x],
-			["FanPort", "nacelle_rear_left", 2.0 * CENTRE_X - fuselage_x]]:
+	var fan_y := 1.2
+	var fan_z := 13.0
+	# Beside the fuselage's tail to starboard; mirrored to port.
+	var fan_x := fuselage_x + 0.098 * s + 1.6
+	for f in [["FanStarboard", "nacelle_rear_right", fan_x],
+			["FanPort", "nacelle_rear_left", 2.0 * CENTRE_X - fan_x]]:
 		var m: Mesh = parts[f[1]]
 		var c := m.get_aabb().get_center()
 		var b := Basis(Vector3.UP, PI).scaled(Vector3.ONE * fs)
-		_mesh(f[0], m, Transform3D(b, Vector3(f[2], fan_y, fan_z) - b * c))
+		var at := Vector3(f[2], fan_y, fan_z)
+		var fan := _fan_mesh(m, c)
+		var fmi := _mesh(f[0], fan, Transform3D(b, at - b * c))
+		fmi.material_override = null
+		fmi.set_surface_override_material(0, _mat())
+		fmi.set_surface_override_material(1, _dark_metal())
 
-	if show_top_wing:
-		_build_top_wing()
+	# Landing gear: a nose leg under the cockpit and two main legs, hydraulic
+	# struts down to wide feet (ground at GEAR_GROUND).
+	for g in [Vector3(fuselage_x, -1.7, -9.5), Vector3(fuselage_x, -1.5, 10.0), Vector3(-4.5, -0.2, 4.0)]:
+		_gear(g)
 
 	# Low wings, in the style of the wing reference (the starboard one from the
 	# fuselage's belly; mirrored copies split top and bottom on the port hull): a thick swept slab, angular clipped tip with a notch in the
@@ -795,6 +810,47 @@ func _red_paint(mi: MeshInstance3D) -> void:
 	var m := mi.material_override as ShaderMaterial
 	if m:
 		m.set_shader_parameter("hull_color", _red)
+
+
+## Splits a fan nacelle into its casing (surface 0) and the dark intake,
+## blades and hub near its axis (surface 1).
+func _fan_mesh(m: Mesh, c: Vector3) -> ArrayMesh:
+	var a := m.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var nrm = a[Mesh.ARRAY_NORMAL]
+	var idx = a[Mesh.ARRAY_INDEX]
+	var r := minf(m.get_aabb().size.x, m.get_aabb().size.y) * 0.5
+	var st := [SurfaceTool.new(), SurfaceTool.new()]
+	for t in st:
+		t.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n: int = (idx.size() if idx != null else v.size()) / 3
+	for i in n:
+		var ids := [i * 3, i * 3 + 1, i * 3 + 2]
+		if idx != null:
+			ids = [idx[i * 3], idx[i * 3 + 1], idx[i * 3 + 2]]
+		var p: Vector3 = (v[ids[0]] + v[ids[1]] + v[ids[2]]) / 3.0
+		var k := 1 if Vector2(p.x - c.x, p.y - c.y).length() < r * 0.78 else 0
+		for j in ids:
+			if nrm != null:
+				st[k].set_normal(nrm[j])
+			st[k].add_vertex(v[j])
+	var out: ArrayMesh = st[0].commit()
+	return st[1].commit(out)
+
+
+## One landing leg from the hull's underside at `top` down to the ground:
+## a fat cylinder, a polished piston, a knee knuckle and a wide foot pad.
+func _gear(top: Vector3) -> void:
+	if not show_landing_gear:
+		return
+	var foot := Vector3(top.x, GEAR_GROUND, top.z + 0.4)
+	_ram("Gear", top, foot + Vector3(0, 0.35, 0))
+	var pad := CylinderMesh.new()
+	pad.top_radius = 0.7
+	pad.bottom_radius = 0.85
+	pad.height = 0.25
+	var pm := _mesh("GearFoot", pad, Transform3D(Basis.IDENTITY, foot + Vector3(0, 0.12, 0)))
+	pm.material_override = _dark_metal()
 
 
 ## A worn-paint material with its own wear seed.
