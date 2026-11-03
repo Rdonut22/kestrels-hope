@@ -57,15 +57,16 @@ const GEAR_GROUND := -3.4
 const BREACH_BOX := AABB(Vector3(5.0, -0.6, -0.3), Vector3(5.5, 3.6, 5.2))
 # The flight deck (the old cockpit, raised into the fuselage's nose).
 const FLIGHT_DECK_Y := 1.35
-const DECK_Z := Vector2(-8.8, -13.3)      # back edge, front edge
-const STAIR_Z := Vector2(-7.05, -8.8)
+const DECK_Z := Vector2(-9.6, -13.3)      # back edge, front edge
+# Steps start clear of the door lintel (the door is at z -6.9).
+const STAIR_Z := Vector2(-7.5, -9.6)
 # Everything of the old cockpit that moves up onto the flight deck.
 const COCKPIT_NODES := ["CockpitFurniture", "ConsoleScreenLeft", "ConsoleScreenRight", "PilotChair",
 	"CopilotChair", "CockpitPanel", "Lights/Cockpit", "Lights/CanopyFill", "Interactables/ShipComputer",
 	"Interactables/PilotSeat", "FlexHoses/CockpitHoses", "Clutter/BarrelC"]
 # Interior rooms (tools/build_scenes.gd), floor 0 to ceiling 3: exterior
 # geometry poking into them is removed. [x0, x1, z0, z1]
-const ROOMS := [[2.4, 5.6, -6.8, -3.4], [-2.3, 2.0, -5.6, 9.2],
+const ROOMS := [[2.4, 5.6, -6.8, -3.4], [2.4, 5.6, -9.95, -6.8], [-2.3, 2.0, -5.6, 9.2],
 	[-2.6, 1.8, -9.6, -5.9], [-6.0, -2.6, -4.4, -1.6], [-6.3, -2.6, -1.3, 3.4], [-7.4, -2.6, 3.7, 7.3]]
 # The round lounge: centre (x, z) and radius, on the starboard half.
 const LOUNGE := Vector3(2.4, 1.6, 4.75)
@@ -731,7 +732,7 @@ func _raise_cockpit(ship: Node3D, hull: CSGCombiner3D) -> void:
 	var comp := ship.get_node_or_null("Interactables/ShipComputer") as Node3D
 	for nd in [bench, comp]:
 		if nd:
-			nd.position.z -= 1.4
+			nd.position.z -= 2.0
 
 
 ## The flight deck floor inside the fuselage's nose and the steps up to it
@@ -834,7 +835,7 @@ func _in_room(p: Vector3) -> bool:
 	for i in ROOMS.size():
 		var r: Array = ROOMS[i]
 		# Cockpit / kitchen sit snug in the fuselage: no wall margin there.
-		var m := 0.05 if i < 1 else 0.3
+		var m := 0.05 if i < 2 else 0.3
 		if p.x > r[0] - m and p.x < r[1] + m and p.z > r[2] - m and p.z < r[3] + m:
 			return true
 	if p.x > LOUNGE.x and Vector2(p.x - LOUNGE.x, p.z - LOUNGE.y).length() < LOUNGE.z + 0.05:
