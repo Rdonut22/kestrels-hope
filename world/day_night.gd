@@ -96,18 +96,18 @@ func _apply() -> void:
 	_sun.light_energy = 1.8 * smoothstep(-0.02, 0.18, s)
 	_sun.light_color = Color(1.0, 0.5, 0.28).lerp(Color(1.0, 0.95, 0.85), smoothstep(0.0, 0.4, s))
 	_sun.visible = _sun.light_energy > 0.01
-	_moon.light_energy = 0.32 * (1.0 - day)
+	_moon.light_energy = 0.45 * (1.0 - day)
 	_moon.visible = _moon.light_energy > 0.01
 
-	var night_amb := Color(0.16, 0.2, 0.36)
+	var night_amb := Color(0.2, 0.25, 0.42)
 	var day_amb := Color(0.55, 0.65, 0.55)
 	_env.ambient_light_color = night_amb.lerp(day_amb, day).lerp(Color(0.85, 0.55, 0.45), dusk * 0.5)
-	_env.ambient_light_energy = lerpf(0.22, 0.55, day)
+	_env.ambient_light_energy = lerpf(0.28, 0.55, day)
 	var night_fog := Color(0.05, 0.07, 0.13)
 	var day_fog := Color(0.52, 0.7, 0.66)
 	_env.fog_light_color = night_fog.lerp(day_fog, day).lerp(Color(0.78, 0.5, 0.42), dusk * 0.7)
 
-	var tint := Color(0.2, 0.25, 0.42).lerp(Color(1, 1, 1), day).lerp(Color(1.0, 0.72, 0.58), dusk * 0.5)
+	var tint := Color(0.27, 0.32, 0.5).lerp(Color(1, 1, 1), day).lerp(Color(1.0, 0.72, 0.58), dusk * 0.5)
 	var fog := _env.fog_light_color
 	for m in _tinted:
 		m.set_shader_parameter("world_tint", tint)
