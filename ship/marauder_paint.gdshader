@@ -45,6 +45,8 @@ uniform vec3 grime_tint : source_color = vec3(0.42, 0.38, 0.32);
 uniform sampler2D hull_color : source_color, filter_linear_mipmap, repeat_enable, hint_default_black;
 uniform bool use_hull_color = false;
 uniform float color_size = 8.0;
+// How much the inside faces (seen from within) turn to bare dark metal.
+uniform float inside_metal : hint_range(0.0, 1.0) = 0.85;
 // Seed per part so repeated parts don't wear identically.
 uniform float seed = 0.0;
 
@@ -164,6 +166,9 @@ void fragment() {
 	if (!FRONT_FACING) {
 		NORMAL = -NORMAL;
 	}
+	// The inside of the hull (seen from within the cockpit): darker,
+	// unpainted metal.
+	float inside = FRONT_FACING ? 0.0 : 1.0;
 	vec3 n = normalize(v_nrm);
 	vec3 w = pow(abs(n), vec3(4.0));
 	w /= (w.x + w.y + w.z);
@@ -174,6 +179,7 @@ void fragment() {
 	vec4 cz = layer(vec2(v_pos.x, -v_pos.y), down, r2, m2, h2);
 	vec4 cy = layer(v_pos.xz + vec2(31.0, 17.0), down, r3, m3, h3);
 	ALBEDO = cx.rgb * w.x + cy.rgb * w.y + cz.rgb * w.z;
+	ALBEDO = mix(ALBEDO, vec3(0.2, 0.21, 0.22) * (0.8 + 0.4 * dot(ALBEDO, vec3(0.33))), inside * inside_metal);
 	ROUGHNESS = r1 * w.x + r3 * w.y + r2 * w.z;
 	METALLIC = m1 * w.x + m3 * w.y + m2 * w.z;
 	// Bump from the relief (surface-gradient method, view space).

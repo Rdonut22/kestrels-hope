@@ -13,16 +13,14 @@ extends Node3D
 ## can be checked. Kestrel frame: forward is -Z, floor at y = 0.
 
 ## Fuselage size: model units -> metres (across / along, and up).
-@export var fuselage_scale := 26.0
-@export var fuselage_scale_y := 26.0
-## Fuselage placement: centred on the cockpit / kitchen (x 4.0), at a
-## height where the cockpit, kitchen and lounge all fit inside its body.
-## A windshield opening is cut in its nose where the interior cockpit's
-## glass canopy is, so the pilot sees out; the model's own canopy above it
-## stays as an upper bridge.
+@export var fuselage_scale := 30.0
+@export var fuselage_scale_y := 30.0
+## Fuselage placement: centred on the cockpit / kitchen (x 4.0). Its hollow
+## nose is the cockpit: a flight deck FLIGHT_DECK_Y above the main deck,
+## under the model's own canopy, up a few steps from the kitchen door.
 @export var fuselage_x := 4.0
-@export var nose_z := -15.9
-@export var fuselage_floor_y := -0.9
+@export var nose_z := -16.21
+@export var fuselage_floor_y := -2.0
 ## Radius of the rounded front-left corner of the port hull.
 @export var corner_radius := 3.5
 @export var show_interior := true
@@ -40,9 +38,17 @@ const HULL_MIN := Vector3(-7.7, -0.2, -9.9)
 const HULL_MAX := Vector3(5.9, 3.2, 9.5)
 # Ship centre line for mirroring the fans: halfway across hull + fuselage.
 const CENTRE_X := -0.15
+# The flight deck (the old cockpit, raised into the fuselage's nose).
+const FLIGHT_DECK_Y := 1.35
+const DECK_Z := Vector2(-8.8, -13.3)      # back edge, front edge
+const STAIR_Z := Vector2(-7.05, -8.8)
+# Everything of the old cockpit that moves up onto the flight deck.
+const COCKPIT_NODES := ["CockpitFurniture", "ConsoleScreenLeft", "ConsoleScreenRight", "PilotChair",
+	"CopilotChair", "CockpitPanel", "Lights/Cockpit", "Lights/CanopyFill", "Interactables/ShipComputer",
+	"Interactables/PilotSeat", "FlexHoses/CockpitHoses", "Clutter/BarrelC"]
 # Interior rooms (tools/build_scenes.gd), floor 0 to ceiling 3: exterior
 # geometry poking into them is removed. [x0, x1, z0, z1]
-const ROOMS := [[2.4, 5.6, -12.6, -7.0], [2.4, 5.6, -6.8, -3.4], [-2.3, 2.0, -5.6, 9.2],
+const ROOMS := [[2.4, 5.6, -6.8, -3.4], [-2.3, 2.0, -5.6, 9.2],
 	[-2.6, 1.8, -9.6, -5.9], [-6.0, -2.6, -4.4, -1.6], [-6.3, -2.6, -1.3, 3.4], [-7.4, -2.6, 3.7, 7.3]]
 # The round lounge: centre (x, z) and radius, on the starboard half.
 const LOUNGE := Vector3(2.4, 1.6, 4.75)
@@ -86,6 +92,7 @@ func _ready() -> void:
 					box.size.y += 0.15
 					box.position.y += 0.075
 			_round_corner(hull)
+			_raise_cockpit(ship, hull)
 			# The lounge's round outer wall shows through the fuselage's
 			# window cut-out: paint it like the hull.
 			var lounge_outer := hull.get_node_or_null("LoungeOuter") as CSGShape3D
@@ -138,14 +145,13 @@ func _ready() -> void:
 	# Window openings: where the lounge's curved window band runs along the
 	# starboard side, the fuselage skin is cut away so it shows (and the
 	# lounge looks out).
-	var fus := _cut(parts["fuselage"], xf, [AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4)),
-		# Windshield: an opening in the nose in front of the interior
-		# cockpit's glass, and side windows beside it. The nose keeps its
-		# shape; only the skin inside these openings goes.
-		AABB(Vector3(2.65, 1.1, -15.0), Vector3(2.7, 1.8, 2.5)),
-		AABB(Vector3(5.65, 1.25, -12.3), Vector3(1.2, 1.4, 1.8)),
-		AABB(Vector3(1.15, 1.25, -12.3), Vector3(1.2, 1.4, 1.8))])
-	_two_tone(_mesh("Fuselage", fus, xf))
+	var fus := _cut(parts["fuselage"], xf, [AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4))])
+	var fus_mi := _mesh("Fuselage", fus, xf)
+	_two_tone(fus_mi)
+	# You walk around inside its nose now.
+	fus_mi.create_trimesh_collision()
+	if show_interior:
+		_flight_deck()
 	# Close the slots left where the nacelle mounts were cut away.
 	# (in world space; the starboard one leaves a gap for the lounge window).
 	var plate_c := xf * Vector3(0.0, 0.11, -0.08)
@@ -530,7 +536,7 @@ func _two_tone(mi: MeshInstance3D) -> void:
 	mi.set_surface_override_material(0, paint)
 	mi.set_surface_override_material(1, _window_glass())
 	if mi.mesh.get_surface_count() > 2:
-		var canopy := _window_glass()
+		var canopy := _clear_glass()
 		canopy.set_shader_parameter("mullion_spacing", Vector2(0.045, 0.055))
 		canopy.set_shader_parameter("mullion_width", 0.18)
 		canopy.set_shader_parameter("interior_glow", 0.15)
@@ -630,6 +636,84 @@ func _build_top_wing() -> void:
 		_ram("Ram", roof_pt, wing_pt)
 
 
+## The old cockpit goes: its box walls, nose, floor and glass canopy are
+## removed (the fuselage's hollow nose replaces them) and everything in it
+## moves up onto the flight deck.
+func _raise_cockpit(ship: Node3D, hull: CSGCombiner3D) -> void:
+	for n in ["NoseLower", "CockpitNose", "FloorNose", "Cockpit", "CanopyRearFrame", "CockpitHullBevel"]:
+		var c := hull.get_node_or_null(n)
+		if c:
+			c.free()
+	# The hull box's forward end beside the kitchen (z -9.9..-7.05) opens up.
+	var open := CSGBox3D.new()
+	open.name = "CockpitOpen"
+	open.size = Vector3(4.0, 3.8, 2.9)
+	open.position = Vector3(4.0, 1.6, -8.5)
+	open.operation = CSGShape3D.OPERATION_SUBTRACTION
+	hull.add_child(open)
+	var canopy := ship.get_node_or_null("Canopy")
+	if canopy:
+		canopy.free()
+	for path in COCKPIT_NODES:
+		var nd := ship.get_node_or_null(path) as Node3D
+		if nd:
+			nd.position.y += FLIGHT_DECK_Y
+	# The computer bench stood where the stairs go: move it beside them.
+	var bench := ship.get_node_or_null("CockpitFurniture/ComputerBench") as Node3D
+	var comp := ship.get_node_or_null("Interactables/ShipComputer") as Node3D
+	for nd in [bench, comp]:
+		if nd:
+			nd.position.z -= 1.4
+
+
+## The flight deck floor inside the fuselage's nose and the steps up to it
+## from the kitchen door, painted and with collision.
+func _flight_deck() -> void:
+	var body := StaticBody3D.new()
+	body.name = "FlightDeck"
+	add_child(body)
+	var deck_mat := _dark_metal()
+	deck_mat.albedo_color = Color(0.36, 0.36, 0.37)
+	# Floor: tapers with the nose.
+	var hw_back := 2.2
+	var hw_front := 1.6
+	var y := FLIGHT_DECK_Y
+	var pts := PackedVector2Array([Vector2(fuselage_x - hw_back, DECK_Z.x), Vector2(fuselage_x + hw_back, DECK_Z.x),
+		Vector2(fuselage_x + hw_front, DECK_Z.y), Vector2(fuselage_x - hw_front, DECK_Z.y)])
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	_slab_into(st, pts, 0.2, 0.02, y - 0.1)
+	st.generate_normals()
+	var fm := MeshInstance3D.new()
+	fm.name = "DeckFloor"
+	fm.mesh = st.commit()
+	fm.material_override = deck_mat
+	body.add_child(fm)
+	var fc := CollisionShape3D.new()
+	fc.shape = fm.mesh.create_convex_shape()
+	body.add_child(fc)
+	# Steps from the kitchen door (floor 0) up to the deck.
+	var n := 6
+	var run := (STAIR_Z.x - STAIR_Z.y) / n
+	for i in n:
+		var top := y * float(i + 1) / n
+		var b := BoxMesh.new()
+		b.size = Vector3(2.0, top, run)
+		var mi := MeshInstance3D.new()
+		mi.name = "Step%d" % i
+		mi.mesh = b
+		mi.material_override = deck_mat
+		mi.position = Vector3(fuselage_x, top * 0.5, STAIR_Z.x - run * (i + 0.5))
+		body.add_child(mi)
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = b.size
+		cs.shape = bs
+		cs.position = mi.position
+		body.add_child(cs)
+
+
 ## A copy of a mesh without the triangles whose centre (in world space,
 ## via xf) falls inside any of the boxes. Keeps the surfaces.
 func _cut(m: Mesh, xf: Transform3D, boxes: Array) -> ArrayMesh:
@@ -679,7 +763,7 @@ func _in_room(p: Vector3) -> bool:
 	for i in ROOMS.size():
 		var r: Array = ROOMS[i]
 		# Cockpit / kitchen sit snug in the fuselage: no wall margin there.
-		var m := 0.05 if i < 2 else 0.3
+		var m := 0.05 if i < 1 else 0.3
 		if p.x > r[0] - m and p.x < r[1] + m and p.z > r[2] - m and p.z < r[3] + m:
 			return true
 	if p.x > LOUNGE.x and Vector2(p.x - LOUNGE.x, p.z - LOUNGE.y).length() < LOUNGE.z + 0.05:

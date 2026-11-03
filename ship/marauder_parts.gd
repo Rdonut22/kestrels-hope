@@ -16,7 +16,7 @@ const NACELLE_SPLIT_Z := -0.15
 
 ## Cockpit canopy region (model frame) whose faces become glass.
 const CANOPY_Z := Vector2(0.44, 0.62)
-const CANOPY_Y := Vector2(0.17, 0.25)
+const CANOPY_Y := Vector2(0.115, 0.25)
 
 static var _cache := {}
 
