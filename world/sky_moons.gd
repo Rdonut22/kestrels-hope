@@ -50,7 +50,7 @@ extends Node3D
 
 ## Copied from the sky material each frame when it has them.
 const SKY_PARAMS := ["day", "dusk", "sky_rot", "mountains", "space", "pixel",
-		"cloud_tex", "clouds_on", "cloud_pixelate"]
+		"cloud_tex", "cloud_tex_prev", "cloud_blend", "clouds_on", "cloud_pixelate"]
 
 var _giant: ShaderMaterial
 var _small: ShaderMaterial

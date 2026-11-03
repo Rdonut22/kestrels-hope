@@ -65,6 +65,9 @@ float skyline_top(float saz, float height_scale) {
 // rgb = cloud light * 0.5 (premultiplied), a = opacity. Azimuth across,
 // elevation from -0.03 rad (bottom row) to straight up (top row).
 uniform sampler2D cloud_tex : filter_linear, repeat_enable;
+// The previous panorama, cross-faded out as cloud_blend goes 0 -> 1.
+uniform sampler2D cloud_tex_prev : filter_linear, repeat_enable;
+uniform float cloud_blend = 1.0;
 uniform float clouds_on = 0.0;
 uniform float cloud_pixelate = 1.0;
 
@@ -76,7 +79,11 @@ vec4 sky_clouds(float az, float el) {
 	vec2 size = vec2(textureSize(cloud_tex, 0));
 	float v = (1.5707963 - el) / (1.5707963 + 0.03);
 	v = clamp(v, 0.5 / size.y, 1.0 - 0.5 / size.y);
-	vec4 c = textureLod(cloud_tex, vec2(az / 6.2831853 + 0.5, v), 0.0);
+	vec2 uv = vec2(az / 6.2831853 + 0.5, v);
+	vec4 c = textureLod(cloud_tex, uv, 0.0);
+	if (cloud_blend < 1.0) {
+		c = mix(textureLod(cloud_tex_prev, uv, 0.0), c, cloud_blend);
+	}
 	return vec4(c.rgb * 2.0, c.a);
 }
 

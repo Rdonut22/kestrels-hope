@@ -121,8 +121,16 @@ const QUALITY_TABLE := {
 # Lowest elevation in the panorama (radians); matches cloud_bake.gdshader.
 const EL_MIN := -0.03
 
-var _vp: SubViewport
-var _rect: ColorRect
+# Two panoramas: the sky shows the front one (cross-fading from the previous
+# one) while the next is filled in off-screen, a band of rows per frame.
+# Nobody ever sees a half-drawn panorama.
+const FADE_SECONDS := 2.0
+var _vps: Array[SubViewport] = []
+var _rects: Array[ColorRect] = []
+var _front := 0
+var _blend := 1.0
+var _filling := false
+var _last_sun := Vector3.ZERO
 var _mat: ShaderMaterial
 var _sky: ShaderMaterial
 var _rebuild := true
@@ -190,22 +198,26 @@ func _panorama_size() -> Vector2i:
 
 func _build() -> void:
 	_rebuild = false
-	if not _vp:
-		_vp = SubViewport.new()
-		_vp.name = "CloudPanorama"
-		_vp.disable_3d = true
-		_vp.transparent_bg = true
-		# Rendered only on frames that draw a band (UPDATE_ONCE in _set_band).
-		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-		add_child(_vp)
-		_rect = ColorRect.new()
+	if _vps.is_empty():
 		_mat = ShaderMaterial.new()
 		_mat.shader = load("res://world/clouds/cloud_bake.gdshader")
-		_rect.material = _mat
-		_vp.add_child(_rect)
+		for i in 2:
+			var vp := SubViewport.new()
+			vp.name = "CloudPanorama%d" % i
+			vp.disable_3d = true
+			vp.transparent_bg = true
+			# Rendered only on frames that draw a band (UPDATE_ONCE in _draw_band).
+			vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+			add_child(vp)
+			var rect := ColorRect.new()
+			rect.material = _mat
+			vp.add_child(rect)
+			_vps.append(vp)
+			_rects.append(rect)
 	_find_sky()
-	_vp.size = _panorama_size()
-	_row = 0
+	var size := _panorama_size()
+	for vp in _vps:
+		vp.size = size
 	_full_redraw = 1
 	_sky_dirty = true
 
@@ -220,22 +232,38 @@ func _find_sky() -> void:
 		_sky_dirty = true
 
 
+func _show_front() -> void:
+	if not _sky:
+		return
+	_sky.set_shader_parameter("cloud_tex", _vps[_front].get_texture())
+	_sky.set_shader_parameter("cloud_tex_prev", _vps[1 - _front].get_texture())
+	_sky.set_shader_parameter("cloud_blend", _blend)
+
+
+func _sky_sun() -> Vector3:
+	if sun_direction_override.length() > 0.001:
+		return sun_direction_override.normalized()
+	var v: Variant = _sky.get_shader_parameter("sun_dir") if _sky else null
+	return v if v is Vector3 else Vector3.UP
+
+
 func _process(delta: float) -> void:
-	if not _vp:
+	if _vps.is_empty():
 		return
 	if _rebuild:
 		_build()
 	_find_sky()
 	if _sky_dirty and _sky:
 		_sky_dirty = false
-		_sky.set_shader_parameter("cloud_tex", _vp.get_texture())
+		_show_front()
 		_sky.set_shader_parameter("clouds_on", 1.0 if enabled else 0.0)
 		_sky.set_shader_parameter("cloud_pixelate", 1.0 if pixelated else 0.0)
 	if _sky and override_sky_colors:
 		_sky.set_shader_parameter("top_color", sky_zenith)
 		_sky.set_shader_parameter("horizon_color", sky_horizon)
 	if not enabled:
-		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		for vp in _vps:
+			vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		return
 
 	_time += delta * time_scale
@@ -243,15 +271,38 @@ func _process(delta: float) -> void:
 	# Shader adds the offset to positions, so subtract to drift downwind.
 	_wind -= _wind_dir * wind_speed / 3600.0 * delta * time_scale
 
-	var size := _vp.size
+	# A big jump in time of day (sleeping, skipping hours): redraw at once.
+	var sun := _sky_sun()
+	if _last_sun != Vector3.ZERO and sun.distance_to(_last_sun) > 0.15:
+		_full_redraw = 1
+
+	var size := _vps[0].size
 	if _full_redraw > 0:
-		# First frame, and after big changes: the whole panorama at once.
-		_full_redraw -= 1
+		# First frame, and after big changes: both panoramas, whole, at once.
+		_full_redraw = 0
 		_push_params()
-		_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
-		_set_band(0, size.y)
+		for i in 2:
+			_vps[i].render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
+			_draw_band(i, 0, size.y)
+		_last_sun = sun
+		_blend = 1.0
+		_filling = false
+		_show_front()
 		return
-	_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_NEVER
+
+	# Cross-fade from the previous panorama to the front one.
+	if _blend < 1.0:
+		_blend = minf(_blend + delta / FADE_SECONDS, 1.0)
+		_sky.set_shader_parameter("cloud_blend", _blend)
+		return
+	# Then fill the back panorama, a few rows per frame.
+	var back := 1 - _front
+	if not _filling:
+		_filling = true
+		_row = 0
+		_row_accum = 0.0
+		_last_sun = sun
+	_vps[back].render_target_clear_mode = SubViewport.CLEAR_MODE_NEVER
 	var q: Array = QUALITY_TABLE[quality]
 	# Rows owed for this frame, capped so a slow frame never causes more work.
 	_row_accum = minf(_row_accum + float(size.y) * minf(delta, 0.05) / float(q[4]), float(q[5]))
@@ -259,21 +310,27 @@ func _process(delta: float) -> void:
 	if rows < 1:
 		return
 	_row_accum -= float(rows)
-	if _row >= size.y:
-		_row = 0
 	rows = mini(rows, size.y - _row)
 	_push_params()
-	_set_band(_row, rows)
+	_draw_band(back, _row, rows)
 	_row += rows
+	if _row >= size.y:
+		# Finished: show it, fading over from the old one.
+		_filling = false
+		_front = back
+		_blend = 0.0
+		_show_front()
 
 
-func _set_band(first: int, rows: int) -> void:
-	var size := _vp.size
-	_rect.position = Vector2(0, first)
-	_rect.size = Vector2(size.x, rows)
+func _draw_band(which: int, first: int, rows: int) -> void:
+	var size := _vps[which].size
+	# Both rects share the material; only one panorama renders per frame
+	# (or both with identical full-height bands).
+	_rects[which].position = Vector2(0, first)
+	_rects[which].size = Vector2(size.x, rows)
 	_mat.set_shader_parameter("band_start", float(first) / float(size.y))
 	_mat.set_shader_parameter("band_height", float(rows) / float(size.y))
-	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	_vps[which].render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
 ## Places the hero tower along a world direction (like SkyMoons.point_at),

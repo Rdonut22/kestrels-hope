@@ -41,7 +41,7 @@ func _run() -> void:
 		var t0 := Time.get_ticks_msec()
 		await _frames(4)
 		print("bake + frames ms: ", Time.get_ticks_msec() - t0)
-		var pano: SubViewport = clouds.get_node("CloudPanorama")
+		var pano: SubViewport = clouds.get_node("CloudPanorama0")
 		pano.get_texture().get_image().save_png(out.path_join("pano_h%s.png" % h))
 		for v in views:
 			var p: PackedStringArray = v.split(":")
