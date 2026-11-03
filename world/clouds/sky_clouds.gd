@@ -268,6 +268,16 @@ func _set_band(first: int, rows: int) -> void:
 	_mat.set_shader_parameter("band_height", float(rows) / float(size.y))
 
 
+## Places the hero tower along a world direction (like SkyMoons.point_at),
+## optionally at a new distance (km).
+func point_hero_at(dir: Vector3, distance_km := -1.0) -> void:
+	var d := Vector3(dir.x, 0.0, dir.z).normalized()
+	hero_azimuth = rad_to_deg(atan2(d.x, -d.z))
+	if distance_km > 0.0:
+		hero_distance = distance_km
+	redraw()
+
+
 ## Redraws the whole panorama next frame (after big setting changes).
 func redraw() -> void:
 	_full_redraw = 1

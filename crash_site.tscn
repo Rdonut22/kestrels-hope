@@ -80,6 +80,7 @@
 [ext_resource type="Material" path="res://world/models/tower_blue.tres" id="78_lrv3v"]
 [ext_resource type="Material" path="res://world/materials/ruin.tres" id="79_fd53d"]
 [ext_resource type="Material" path="res://world/materials/firefly.tres" id="80_gblet"]
+[ext_resource type="Script" path="res://world/clouds/sky_clouds.gd" id="81_skycl"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_kvxll"]
 shader = ExtResource("1_acji8")
@@ -4533,6 +4534,9 @@ light_energy = 0.0
 
 [node name="SkyMoons" type="Node3D" parent="." unique_id=1273626855]
 script = ExtResource("9_j1wex")
+
+[node name="SkyClouds" type="Node" parent="." unique_id=1473158606]
+script = ExtResource("81_skycl")
 
 [node name="OutdoorMusic" type="Node" parent="." unique_id=587525992]
 script = ExtResource("10_26mqx")

@@ -3211,6 +3211,12 @@ func _build_crash_site() -> void:
 	moons.set_script(load("res://world/sky_moons.gd"))
 	R.add_child(moons)
 	moons.owner = R
+	# Towering cumulus in the day sky (world/clouds/sky_clouds.gd).
+	var clouds := Node.new()
+	clouds.name = "SkyClouds"
+	clouds.set_script(load("res://world/clouds/sky_clouds.gd"))
+	R.add_child(clouds)
+	clouds.owner = R
 	var music := Node.new()
 	music.name = "OutdoorMusic"
 	music.set_script(load("res://world/outdoor_music.gd"))

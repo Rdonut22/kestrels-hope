@@ -244,6 +244,10 @@ func _setup_camera(seat: Transform3D) -> void:
 	var moons := world.get_node("SkyMoons")
 	moons.point_at("giant", (-b.z + b.y * 0.47 - b.x * 0.12).normalized())
 	moons.point_at("small", (-b.z + b.y * 0.56 + b.x * 1.0).normalized())
+	# The giant cumulus towers up in this shot too, left of the moons.
+	var clouds := world.get_node_or_null("SkyClouds")
+	if clouds:
+		clouds.point_hero_at(-b.z - b.x * 0.75, 32.0)
 
 
 func _process(delta: float) -> void:
