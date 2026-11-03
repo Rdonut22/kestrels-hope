@@ -25,6 +25,8 @@ extends Node3D
 @export_enum("Fuselage paneling", "Plated skin") var hull_style := 0
 ## The hinged top wing on its pylons and rams (off for now).
 @export var show_top_wing := false
+## Angle (degrees) the port split wings open up / down.
+@export var port_split := 22.0
 ## Tilt of the top wing (degrees, outer tip down).
 @export var wing_tilt := 16.0
 
@@ -121,7 +123,7 @@ func _ready() -> void:
 		_build_top_wing()
 
 	# Low wings, in the style of the wing reference (the starboard one from the
-	# fuselage's belly, mirrored onto the port hull): a thick swept slab, angular clipped tip with a notch in the
+	# fuselage's belly; mirrored copies split top and bottom on the port hull): a thick swept slab, angular clipped tip with a notch in the
 	# trailing edge.
 	var rw := PackedVector2Array([Vector2(0, -7.0), Vector2(9.6, 5.6), Vector2(8.8, 7.6),
 		Vector2(5.6, 7.2), Vector2(5.1, 8.3), Vector2(0, 7.6)])
@@ -131,8 +133,21 @@ func _ready() -> void:
 	var lw := PackedVector2Array()
 	for i in range(rw.size() - 1, -1, -1):
 		lw.append(Vector2(-rw[i].x, rw[i].y))
-	var lw_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(4.0)), Vector3(HULL_MIN.x - 0.2, 0.4, 0.0))
-	_mesh("WingPort", _wing(lw, 0.6, 0.4, 1), lw_xf)
+	# Port side: a split pair (the user's sketch), one off the top edge angled
+	# up and out, one off the bottom edge angled down and out, each held off
+	# the hull by two short struts.
+	for w in [["WingPortUpper", 3.7, -port_split], ["WingPortLower", -0.5, port_split]]:
+		var wxf := Transform3D(Basis(Vector3.BACK, deg_to_rad(w[2])), Vector3(HULL_MIN.x - 1.0, w[1], 0.0))
+		_mesh(w[0], _wing(lw, 0.6, 0.4, 1), wxf)
+		for sz in [-2.5, 4.5]:
+			var on_wing: Vector3 = wxf * Vector3(-0.9, 0.0, sz)
+			var on_hull := Vector3(HULL_MIN.x + 0.2, w[1], sz)
+			var strut := CylinderMesh.new()
+			strut.top_radius = 0.22
+			strut.bottom_radius = 0.22
+			strut.height = on_wing.distance_to(on_hull) + 0.4
+			var dir := (on_wing - on_hull).normalized()
+			_mesh(w[0] + "Strut", strut, Transform3D(Basis(Quaternion(Vector3.UP, dir)), (on_wing + on_hull) * 0.5))
 
 
 ## A wing like the reference: a thick slab with big chamfered edges, and on
