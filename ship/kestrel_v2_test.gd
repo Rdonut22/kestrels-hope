@@ -21,6 +21,8 @@ extends Node3D
 ## Radius of the rounded front-left corner of the port hull.
 @export var corner_radius := 3.5
 @export var show_interior := true
+## Tilt of the top wing (degrees, outer tip down).
+@export var wing_tilt := 16.0
 
 # Port hull box (from tools/build_scenes.gd): x -7.7..5.9, z -9.9..9.5.
 const HULL_MIN := Vector3(-7.7, -0.2, -9.9)
@@ -96,21 +98,20 @@ func _ready() -> void:
 		var b := Basis(Vector3.UP, PI).scaled(Vector3.ONE * fs)
 		_mesh(f[0], m, Transform3D(b, Vector3(f[2], fan_y, fan_z) - b * c))
 
-	# Top wing on struts: a curved "A" seen from above (pointed nose, two legs
-	# with an arch cut out between them at the back), tilted to rise towards
-	# the fuselage and overhanging the port side.
-	var tilt := deg_to_rad(7.0)
-	var wing_xf := Transform3D(Basis(Vector3.BACK, tilt), Vector3(-4.6, 4.75, 1.0))
-	_mesh("TopWing", _wing(_a_shape(14.5, 19.0, 0.42), 0.7, 0.45, 0), wing_xf)
-	for p in [Vector3(-8.5, 0, 6.5), Vector3(-1.0, 0, 6.5), Vector3(-4.6, 0, -4.0)]:
-		# Struts from the hull roof (y = 3.2) up to the wing's underside.
-		var under := (wing_xf * Vector3(p.x - wing_xf.origin.x, 0, 0)).y - 0.25
-		# (the roof is now at y = 3.35)
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.18
-		cm.bottom_radius = 0.26
-		cm.height = maxf(under - 3.35, 0.3)
-		_mesh("Strut", cm, Transform3D(Basis.IDENTITY, Vector3(p.x, 3.35 + cm.height * 0.5, p.z)))
+	# Top wing (the user's sketch): straight inner edge along the hull, short
+	# flat front, a concave curved leading edge sweeping back to a shorter
+	# outer tip, straight trailing edge with a thick rim, and a heavy mount
+	# block at the inner front corner. Tilted down to port on hydraulic rams.
+	var span := 12.0
+	var chord := 19.0
+	var root_x := 1.6
+	var wing_xf := Transform3D(Basis(Vector3.BACK, deg_to_rad(wing_tilt)), Vector3(root_x, 8.4, -8.4))
+	_mesh("TopWing", _top_wing(span, chord), wing_xf)
+	# Rams: from the hull roof to the wing's underside, leaning outboard.
+	for rp in [[-2.2, 3.5], [-8.5, 11.0], [-2.2, 15.5], [-8.5, 16.5]]:
+		var wing_pt := wing_xf * Vector3(rp[0] - 0.8, -0.4, rp[1])
+		var roof_pt := Vector3(root_x + rp[0] * 0.55 - 0.6, 3.4, wing_xf.origin.z + rp[1])
+		_ram("Ram", roof_pt, wing_pt)
 
 	# Low starboard wing from the fuselage's belly, in the style of the wing
 	# reference: a thick swept slab, angular clipped tip with a notch in the
@@ -186,6 +187,62 @@ func _slab_into(st: SurfaceTool, outline: PackedVector2Array, thick: float, beve
 			for v in [Vector3(o0.x, y, o0.y), Vector3(o1.x, y, o1.y), Vector3(c1.x, yy, c1.y),
 					Vector3(o0.x, y, o0.y), Vector3(c1.x, yy, c1.y), Vector3(c0.x, yy, c0.y)]:
 				st.add_vertex(v)
+
+
+## The top wing's outline (x outboard = negative, z from the front edge back).
+func _top_wing(span: float, chord: float) -> ArrayMesh:
+	var flat := span * 0.27
+	var tip_v := chord * 0.45
+	var pts := PackedVector2Array([Vector2(0, 0), Vector2(-flat, 0)])
+	for i in range(1, 13):
+		var t := float(i) / 12.0
+		# Concave sweep (as sketched): drops steeply from the flat front, then
+		# flattens out towards the tip.
+		pts.append(Vector2(-flat - (span - flat) * t, tip_v * (1.0 - pow(1.0 - t, 1.8))))
+	pts.append(Vector2(-span, chord))
+	pts.append(Vector2(0, chord))
+	pts.reverse()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	var m := _wing(pts, 0.7, 0.45, 0)
+	st.append_from(m, 0, Transform3D.IDENTITY)
+	# Thick rim along the trailing edge.
+	_slab_into(st, PackedVector2Array([Vector2(-span + 0.2, chord - 1.1), Vector2(-0.2, chord - 1.1),
+		Vector2(-0.2, chord - 0.1), Vector2(-span + 0.2, chord - 0.1)]), 1.0, 0.2, 0.0)
+	# Heavy mount block at the inner front corner (the hatched strip).
+	_slab_into(st, PackedVector2Array([Vector2(-1.4, 0.2), Vector2(-0.1, 0.2), Vector2(-0.1, chord * 0.22), Vector2(-1.4, chord * 0.22)]),
+		1.5, 0.25, 0.25)
+	st.generate_normals()
+	return st.commit()
+
+
+## A hydraulic ram between two points: fat cylinder at the bottom, thinner
+## polished rod sliding out of it, a knuckle at each end.
+func _ram(n: String, a: Vector3, b: Vector3) -> void:
+	var d := b - a
+	var len := d.length()
+	var basis := Basis(Quaternion(Vector3.UP, d.normalized()))
+	var body := CylinderMesh.new()
+	body.top_radius = 0.24
+	body.bottom_radius = 0.26
+	body.height = len * 0.58
+	_mesh(n + "Body", body, Transform3D(basis, a + d * 0.29))
+	var rod := CylinderMesh.new()
+	rod.top_radius = 0.11
+	rod.bottom_radius = 0.11
+	rod.height = len * 0.5
+	var rod_mat := StandardMaterial3D.new()
+	rod_mat.albedo_color = Color(0.72, 0.74, 0.76)
+	rod_mat.metallic = 0.8
+	rod_mat.roughness = 0.3
+	var mi := _mesh(n + "Rod", rod, Transform3D(basis, a + d * 0.72))
+	mi.material_override = rod_mat
+	for p in [a, b]:
+		var k := SphereMesh.new()
+		k.radius = 0.32
+		k.height = 0.64
+		_mesh(n + "Knuckle", k, Transform3D(Basis.IDENTITY, p))
 
 
 ## A worn-paint material with its own wear seed.
