@@ -247,7 +247,7 @@ func _setup_camera(seat: Transform3D) -> void:
 	# The giant cumulus towers up in this shot too, left of the moons.
 	var clouds := world.get_node_or_null("SkyClouds")
 	if clouds:
-		clouds.point_hero_at(-b.z - b.x * 0.75, 32.0)
+		clouds.point_hero_at(-b.z - b.x * 0.55, 20.0)
 
 
 func _process(delta: float) -> void:

@@ -272,16 +272,19 @@ void fragment() {
 	float t1 = min(so.y, t0 + 140.0);
 
 	vec3 l = normalize(sun_dir);
-	float sun_up = smoothstep(-0.06, 0.2, l.y);
+	// High cloud tops keep catching the sun a while after it has set.
+	float sun_up = smoothstep(-0.2, 0.06, l.y);
 	// Light from just below the horizon still skims the tops at dusk.
-	vec3 lm = normalize(vec3(l.x, max(l.y, 0.04), l.z));
-	vec3 sun_col = mix(vec3(1.0, 0.5, 0.28), vec3(1.0, 0.96, 0.88), smoothstep(0.0, 0.4, l.y));
+	vec3 lm = normalize(vec3(l.x, max(l.y, 0.08), l.z));
+	// Sunset: deep orange-pink on the tops, warm white by day.
+	vec3 sun_col = mix(vec3(1.0, 0.45, 0.32), vec3(1.0, 0.96, 0.88), smoothstep(-0.02, 0.4, l.y));
 	sun_col *= lit_tint * sun_strength * mix(0.0, 1.0, sun_up);
 	float night = 1.0 - day;
 	vec3 top = mix(vec3(0.015, 0.025, 0.07), sky_top, day);
 	vec3 hor = mix(vec3(0.04, 0.06, 0.13), sky_horizon, day);
 	hor = mix(hor, vec3(1.0, 0.6, 0.45), dusk * 0.4);
-	float amb_level = mix(0.08, 1.0, day) * ambient_strength;
+	// Never darker than the sky behind: faintly moonlit at night.
+	float amb_level = mix(0.22, 1.0, day) * ambient_strength;
 
 	float mu = dot(rd, lm);
 	float phase = mix(1.0, 0.55 * hg(mu, 0.6) + 0.45 * hg(mu, -0.2), 0.5);
@@ -341,6 +344,10 @@ void fragment() {
 			shadow = mix(shadow, top * 1.5 + 0.3, 0.3 * clamp(n.y, 0.0, 1.0));
 			shadow *= mix(0.9, 1.05, 0.5 + 0.5 * n.y);
 			vec3 amb = shadow * amb_level * mix(shadow_lift, 1.0, 0.5 + 0.5 * sh);
+			// Dusk: the glowing horizon tints the shadows rose and violet.
+			amb = mix(amb, (hor * 0.9 + vec3(0.25, 0.12, 0.25)) * mix(0.6, 1.0, hh), dusk * 0.55);
+			// Night: silvery-blue moonlight instead of black.
+			amb = mix(amb, vec3(0.1, 0.13, 0.22) * mix(0.8, 1.2, 0.5 + 0.5 * n.y) * ambient_strength, night * (1.0 - dusk));
 			// Painterly turn: a band of clear cyan where light gives way to shadow.
 			float turn = wrap * (1.0 - wrap) * 4.0 * mix(sh, 1.0, 0.4);
 			amb += shadow_tint * vec3(0.55, 0.95, 1.1) * turn * 0.25 * amb_level;
