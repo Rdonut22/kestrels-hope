@@ -104,7 +104,10 @@ static func _split_recesses(m: Mesh) -> ArrayMesh:
 		# The cockpit canopy: the band of faces around the top of the nose,
 		# except the flat roof.
 		var k := 1 if recess else 0
-		if c.z > CANOPY_Z.x and c.z < CANOPY_Z.y and c.y > CANOPY_Y.x and c.y < CANOPY_Y.y and n.y < 0.9:
+		# Glass only on faces looking forward or up (a windshield), not the
+		# nose's sides. (The model's winding makes n point inward.)
+		if c.z > CANOPY_Z.x and c.z < CANOPY_Z.y and c.y > CANOPY_Y.x and c.y < CANOPY_Y.y and n.y < 0.9 \
+				and absf(n.x) < 0.85 and (-n.z > 0.12 or -n.y > 0.15):
 			k = 2
 		for j in 3:
 			st[k].set_normal(nrm[i + j])

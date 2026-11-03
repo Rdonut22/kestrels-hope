@@ -58,6 +58,10 @@ void fragment() {
 	float dirt = n2(v_obj.xz * 40.0 + v_obj.y * 13.0) * n2(vec2(v_obj.x * 6.0, v_obj.y * 60.0));
 	vec3 col = tint + interior * interior_glow * (0.4 + 0.6 * n2(v_obj.xy * 3.0));
 	vec3 refl = env * reflect_strength * fres * (1.0 - grime * dirt * 0.6);
+	// From inside, edge-on panes shouldn't flare up bright.
+	if (!FRONT_FACING) {
+		refl *= 0.25;
+	}
 
 	// Frame bars.
 	float bar = 0.0;
@@ -91,6 +95,6 @@ void fragment() {
 	SPECULAR = mix(0.9, 0.6, bar);
 #ifdef CLEAR
 	// See-through: mostly clear head-on, more reflective at grazing angles.
-	ALPHA = max(bar, clamp(0.18 + fres * 0.7 + grime * dirt * 0.15, 0.0, 0.95));
+	ALPHA = max(bar, clamp(0.18 + fres * (FRONT_FACING ? 0.7 : 0.25) + grime * dirt * 0.15, 0.0, 0.95));
 #endif
 }
