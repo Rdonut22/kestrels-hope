@@ -38,6 +38,8 @@ extends Node3D
 ## Window frame bars on the canopy and the porthole frames (off for now).
 @export var show_window_frames := false
 @export var show_landing_gear := true
+## Size of the two engines (1 = the model's own size, about 12 m long).
+@export var engine_scale := 0.85
 ## Hull cladding: 0 = the fuselage's own paneling copied on, 1 = plated skin.
 @export_enum("Fuselage paneling", "Plated skin") var hull_style := 0
 ## The hinged top wing on its pylons and rams (off for now).
@@ -202,24 +204,33 @@ func _ready() -> void:
 			plate.size = Vector3(0.12, 0.12 * fuselage_scale_y, sp[1] - sp[0])
 			_mesh("SidePlate", plate, Transform3D(Basis.IDENTITY, Vector3(px, plate_c.y, (sp[0] + sp[1]) * 0.5)))
 
-	# Two big fans at the back, level and mirrored about the ship's centre
-	# line. Intakes and blades dark metal.
-	var fs := 34.0
+	# Two big engines at the back, level and mirrored about the ship's
+	# centre line (ship/models/razor/engines.glb: the user's model, engines
+	# only, simplified), on pylons to the fuselage and the port hull.
+	# Painted like the hull; intakes and blades dark metal.
+	var engines := _razor_engines()
+	var es := engine_scale
 	var fan_y := 1.2
 	var fan_z := 13.0
-	# Beside the fuselage's tail to starboard; mirrored to port.
-	var fan_x := fuselage_x + 0.098 * s + 1.6
-	for f in [["FanStarboard", "nacelle_rear_right", fan_x],
-			["FanPort", "nacelle_rear_left", 2.0 * CENTRE_X - fan_x]]:
-		var m: Mesh = parts[f[1]]
+	var fan_x := fuselage_x + 0.098 * s + 2.3
+	var port_x := 2.0 * CENTRE_X - fan_x
+	for f in [["EngineStarboard", 1, fan_x, fuselage_x + 0.09 * s], ["EnginePort", 0, port_x, HULL_MIN.x + 0.3]]:
+		var m: Mesh = engines[f[1]]
 		var c := m.get_aabb().get_center()
-		var b := Basis(Vector3.UP, PI).scaled(Vector3.ONE * fs)
+		# The model's engines face +Z (its nose); the Kestrel's forward is -Z.
+		var b := Basis(Vector3.UP, PI).scaled(Vector3.ONE * es)
 		var at := Vector3(f[2], fan_y, fan_z)
-		var fan := _fan_mesh(m, c)
-		var fmi := _mesh(f[0], fan, Transform3D(b, at - b * c))
-		fmi.material_override = null
-		fmi.set_surface_override_material(0, _mat())
-		fmi.set_surface_override_material(1, _dark_metal())
+		var emi := _mesh(f[0], _fan_mesh(m, c), Transform3D(b, at - b * c))
+		emi.material_override = null
+		emi.set_surface_override_material(0, _mat())
+		emi.set_surface_override_material(1, _dark_metal())
+		# Pylon from the ship's side to the engine.
+		var inner: float = f[3]
+		var px0: float = minf(inner, f[2])
+		var px1: float = maxf(inner, f[2])
+		var pyl := BoxMesh.new()
+		pyl.size = Vector3(px1 - px0, 0.9, 4.0)
+		_mesh(f[0] + "Pylon", pyl, Transform3D(Basis.IDENTITY, Vector3((px0 + px1) * 0.5, fan_y + 0.6, fan_z - 2.5)))
 
 	# Landing gear: a nose leg under the cockpit and two main legs, hydraulic
 	# struts down to wide feet (ground at GEAR_GROUND).
@@ -848,6 +859,48 @@ func _red_paint(mi: MeshInstance3D) -> void:
 	var m := mi.material_override as ShaderMaterial
 	if m:
 		m.set_shader_parameter("hull_color", _red)
+
+
+## The two engines from ship/models/razor/engines.glb as [port, starboard]
+## meshes (model frame: its nose +Z, so +x is its left = our port after the
+## 180 degree turn... split by the sign of x).
+static var _engine_cache: Array = []
+
+
+func _razor_engines() -> Array:
+	if not _engine_cache.is_empty():
+		return _engine_cache
+	var root: Node = (load("res://ship/models/razor/engines.glb") as PackedScene).instantiate()
+	var st := [SurfaceTool.new(), SurfaceTool.new()]
+	for t in st:
+		t.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for n in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		var xf: Transform3D = Transform3D.IDENTITY
+		var p: Node = mi
+		while p and p != root:
+			if p is Node3D:
+				xf = (p as Node3D).transform * xf
+			p = p.get_parent()
+		for sidx in mi.mesh.get_surface_count():
+			var a := mi.mesh.surface_get_arrays(sidx)
+			var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var idx = a[Mesh.ARRAY_INDEX]
+			var cnt: int = (idx.size() if idx != null else v.size()) / 3
+			for t in cnt:
+				var ids := [t * 3, t * 3 + 1, t * 3 + 2]
+				if idx != null:
+					ids = [idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2]]
+				var c: Vector3 = xf * ((v[ids[0]] + v[ids[1]] + v[ids[2]]) / 3.0)
+				# After the turn, the model's +x side ends up on our port (-x).
+				var k := 0 if c.x > 0.0 else 1
+				for i in ids:
+					st[k].add_vertex(xf * v[i])
+	root.free()
+	for t in st:
+		t.generate_normals()
+		_engine_cache.append(t.commit())
+	return _engine_cache
 
 
 ## Splits a fan nacelle into its casing (surface 0) and the dark intake,
