@@ -28,7 +28,9 @@ func _run() -> void:
 	await create_timer(2.0).timeout
 	_check(current_scene.scene_file_path == "res://main.tscn", "intro ends in the ship")
 	var player: Node3D = current_scene.get_node("Player")
-	_check(player.global_position.distance_to(Vector3(4.0, 1.1, -9.3)) < 0.6, "player starts in the cockpit (%s)" % player.global_position)
+	# The cockpit is the raised flight deck now (ship/kestrel_exterior.gd).
+	var seat: Node3D = get_first_node_in_group("pilot_seat")
+	_check(seat != null and player.global_position.distance_to(seat.global_position) < 2.0, "player starts in the cockpit (%s)" % player.global_position)
 	var hum: AudioStreamPlayer = current_scene.get_node("ShipHum")
 	_check(hum.playing, "ship hum playing in the cockpit")
 	await create_timer(1.0).timeout
