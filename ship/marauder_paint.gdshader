@@ -26,14 +26,14 @@ uniform float underside_grime : hint_range(0.0, 1.0) = 0.5;
 // Surface relief (bump): dents, hammered metal, scratches, chipped paint edges.
 uniform float bump_strength : hint_range(0.0, 3.0) = 1.0;
 uniform float scratches : hint_range(0.0, 1.0) = 0.5;
-// Hull plating detail (greyscale, from the Venator roughness tile): relief,
+// Hull plating detail (Venator roughness tiles 1008 / 1063 / 1064 in R/G/B): relief,
 // plate-to-plate tone and roughness. Repeats every plating_size metres,
 // mirrored so the tile's edges meet seamlessly.
 uniform sampler2D plating : filter_linear_mipmap, repeat_enable, hint_default_white;
 uniform float plating_size = 5.0;
 uniform float plating_tone : hint_range(0.0, 1.0) = 0.5;
 uniform float plating_relief : hint_range(0.0, 0.05) = 0.012;
-// Grime from the Venator colour tile (desaturated): stains, dirty and
+// Grime from the Venator colour tiles 1038 / 1026 (desaturated, R/G): stains, dirty and
 // darker replacement plates, laid over the paint.
 uniform sampler2D grime_map : filter_linear_mipmap, repeat_enable, hint_default_white;
 uniform float grime_size = 6.5;
@@ -45,16 +45,22 @@ uniform float seed = 0.0;
 varying vec3 v_pos;
 varying vec3 v_nrm;
 
+// Each part uses one of the packed tiles (by its seed) so neighbours differ.
+float pick(vec4 t, float k) {
+	float c = mod(floor(k), 3.0);
+	return c < 0.5 ? t.r : (c < 1.5 ? t.g : t.b);
+}
+
 float plate(vec2 uv) {
 	vec2 q = uv / plating_size + seed * 0.37;
 	q = 1.0 - abs(1.0 - mod(q, 2.0));
-	return texture(plating, q).r;
+	return pick(texture(plating, q), seed);
 }
 
 float grime_at(vec2 uv) {
 	vec2 q = uv / grime_size + vec2(0.29, 0.61) + seed * 0.53;
 	q = 1.0 - abs(1.0 - mod(q, 2.0));
-	return texture(grime_map, q).r;
+	return mod(seed, 2.0) < 1.0 ? texture(grime_map, q).r : texture(grime_map, q).g;
 }
 
 float hash2(vec2 p) {
