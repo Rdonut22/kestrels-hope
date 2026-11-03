@@ -96,7 +96,7 @@ enum Quality { LOW, MEDIUM, HIGH, ULTRA }
 @export_range(0.0, 50.0) var time_scale := 1.0
 
 @export_group("Quality")
-@export var quality := Quality.HIGH:
+@export var quality := Quality.MEDIUM:
 	set(v):
 		quality = v
 		_rebuild = true
@@ -110,12 +110,13 @@ enum Quality { LOW, MEDIUM, HIGH, ULTRA }
 		_sky_dirty = true
 
 # Per quality: panorama texels per sky pixel, max march steps, light steps,
-# fine step (km), seconds to refresh the whole panorama.
+# fine step (km), seconds to refresh the whole panorama, most rows per frame.
+# The clouds drift slowly, so a refresh every several seconds is invisible.
 const QUALITY_TABLE := {
-	Quality.LOW: [0.5, 110, 3, 0.2, 3.0],
-	Quality.MEDIUM: [0.75, 160, 4, 0.15, 2.5],
-	Quality.HIGH: [1.0, 220, 6, 0.12, 2.0],
-	Quality.ULTRA: [2.0, 320, 7, 0.08, 2.0],
+	Quality.LOW: [0.5, 100, 3, 0.2, 10.0, 2],
+	Quality.MEDIUM: [0.75, 150, 4, 0.15, 8.0, 3],
+	Quality.HIGH: [1.0, 200, 5, 0.12, 6.0, 4],
+	Quality.ULTRA: [2.0, 300, 6, 0.08, 6.0, 8],
 }
 # Lowest elevation in the panorama (radians); matches cloud_bake.gdshader.
 const EL_MIN := -0.03
@@ -194,7 +195,8 @@ func _build() -> void:
 		_vp.name = "CloudPanorama"
 		_vp.disable_3d = true
 		_vp.transparent_bg = true
-		_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		# Rendered only on frames that draw a band (UPDATE_ONCE in _set_band).
+		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		add_child(_vp)
 		_rect = ColorRect.new()
 		_mat = ShaderMaterial.new()
@@ -204,7 +206,7 @@ func _build() -> void:
 	_find_sky()
 	_vp.size = _panorama_size()
 	_row = 0
-	_full_redraw = 2
+	_full_redraw = 1
 	_sky_dirty = true
 
 
@@ -233,29 +235,34 @@ func _process(delta: float) -> void:
 		_sky.set_shader_parameter("top_color", sky_zenith)
 		_sky.set_shader_parameter("horizon_color", sky_horizon)
 	if not enabled:
+		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		return
 
 	_time += delta * time_scale
 	_wind_dir = wind_direction.normalized() if wind_direction.length() > 0.001 else Vector2.RIGHT
 	# Shader adds the offset to positions, so subtract to drift downwind.
 	_wind -= _wind_dir * wind_speed / 3600.0 * delta * time_scale
-	_push_params()
 
 	var size := _vp.size
 	if _full_redraw > 0:
-		# First frames, and whenever the noise finishes generating: everything.
+		# First frame, and after big changes: the whole panorama at once.
 		_full_redraw -= 1
+		_push_params()
 		_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
 		_set_band(0, size.y)
 		return
 	_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_NEVER
-	var refresh: float = QUALITY_TABLE[quality][4]
-	_row_accum += float(size.y) * delta / refresh
-	var rows := clampi(int(_row_accum), 1, size.y)
+	var q: Array = QUALITY_TABLE[quality]
+	# Rows owed for this frame, capped so a slow frame never causes more work.
+	_row_accum = minf(_row_accum + float(size.y) * minf(delta, 0.05) / float(q[4]), float(q[5]))
+	var rows := int(_row_accum)
+	if rows < 1:
+		return
 	_row_accum -= float(rows)
 	if _row >= size.y:
 		_row = 0
 	rows = mini(rows, size.y - _row)
+	_push_params()
 	_set_band(_row, rows)
 	_row += rows
 
@@ -266,6 +273,7 @@ func _set_band(first: int, rows: int) -> void:
 	_rect.size = Vector2(size.x, rows)
 	_mat.set_shader_parameter("band_start", float(first) / float(size.y))
 	_mat.set_shader_parameter("band_height", float(rows) / float(size.y))
+	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
 ## Places the hero tower along a world direction (like SkyMoons.point_at),

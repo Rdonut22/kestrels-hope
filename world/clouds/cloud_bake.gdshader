@@ -299,8 +299,10 @@ void fragment() {
 	// Per-texel jitter of the first step hides step banding.
 	float t = t0 + fine * fract(52.9829189 * fract(dot(UV * vec2(4096.0, 1024.0), vec2(0.06711056, 0.00583715))));
 	int empty = 99;
+	vec3 n = -rd;
+	bool need_normal = true;
 	for (int i = 0; i < max_steps; i++) {
-		if (t > t1 || T < 0.01) {
+		if (t > t1 || T < 0.03) {
 			break;
 		}
 		vec3 p = ro + rd * t;
@@ -331,7 +333,11 @@ void fragment() {
 			sh = clamp(sh, 0.0, 1.0);
 			// Lobe shading: the surface normal gives every billow a sunlit
 			// top and a cool shadowed underside (computed near the surface only).
-			vec3 n = T > 0.25 ? cloud_normal(p, centre, r_in) : -rd;
+			// Normal once per surface the ray enters (T near 1), then reused.
+			if (need_normal) {
+				n = cloud_normal(p, centre, r_in);
+				need_normal = false;
+			}
 			float ndl = dot(n, lm);
 			float wrap = smoothstep(-0.45, 0.7, ndl);
 			float direct = wrap * mix(sh, 1.0, 0.15) * phase;
@@ -362,6 +368,9 @@ void fragment() {
 			t += fine * (1.0 + t * 0.006);
 		} else {
 			empty++;
+			if (empty > 2) {
+				need_normal = true;
+			}
 			t += (empty > 2 ? coarse : fine) * (1.0 + t * 0.006);
 		}
 	}
