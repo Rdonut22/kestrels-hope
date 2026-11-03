@@ -2,9 +2,9 @@ shader_type spatial;
 render_mode cull_disabled;
 
 // Worn hull paint for the reworked Kestrel, after the marauder reference:
-// hull plates in faded off-white and pale blue, chipped down to bare metal
-// along their edges, broad rust swipes and rust streaks running down from the
-// seams, and grime underneath. No textures: everything is procedural, in
+// big areas of faded off-white and pale blue (no plate grid), chipped down
+// to bare metal, broad rust swipes and rust streaks running down the hull,
+// and grime underneath. No textures: everything is procedural, in
 // metres of object space (so parts at any scale get the same plate size), and
 // projected triplanar so it works on any mesh, imported or procedural.
 
@@ -14,16 +14,10 @@ uniform vec3 bare_metal : source_color = vec3(0.5, 0.52, 0.55);
 uniform vec3 rust_light : source_color = vec3(0.62, 0.38, 0.22);
 uniform vec3 rust_dark : source_color = vec3(0.36, 0.2, 0.12);
 uniform vec3 grime : source_color = vec3(0.24, 0.23, 0.22);
-// Share of plates painted blue / left bare.
+// How much of the hull is painted blue (vs white).
 uniform float blue_share : hint_range(0.0, 1.0) = 0.38;
-uniform float bare_share : hint_range(0.0, 1.0) = 0.04;
-// Share of odd replacement plates in the other colour (hand repairs).
-uniform float patch_share : hint_range(0.0, 1.0) = 0.08;
 // Size (metres) of the big blue / white paint areas.
 uniform float zone_size = 9.0;
-// Plate size (metres) and how dark the seams between plates are.
-uniform vec2 plate_size = vec2(4.2, 2.1);
-uniform float seam_dark : hint_range(0.0, 1.0) = 0.18;
 // Overall wear: chips, rust and grime.
 uniform float chips : hint_range(0.0, 1.0) = 0.45;
 uniform float rust : hint_range(0.0, 1.0) = 0.55;
@@ -65,50 +59,30 @@ void vertex() {
 	v_nrm = normalize(NORMAL);
 }
 
-// Paint, wear and rust for one projection plane. uv in metres; `up` is the
-// direction of "down the hull" for streaks in this plane (y in uv).
+// Paint, wear and rust for one projection plane. uv in metres, with +y
+// running down the hull so streaks run downward. No plate grid: large paint
+// areas and wear only, like the reference.
 vec4 layer(vec2 uv, float facing_down, out float rough, out float metal) {
-	// Plates in staggered rows.
-	vec2 q = uv / plate_size;
-	q.x += 0.5 * mod(floor(q.y), 2.0);
-	vec2 id = floor(q);
-	vec2 f = fract(q);
-	// Big irregular areas of blue and white (like the reference), with the
-	// odd plate replaced in the other colour.
-	float zone = fbm2(uv / zone_size + vec2(seed * 3.7, 0.0));
-	bool blue = zone < 0.32 + blue_share * 0.36;
-	if (hash2(id + 5.3) < patch_share) {
-		blue = !blue;
-	}
-	vec3 col = blue ? paint_blue : paint_white;
-	col *= 0.96 + 0.07 * hash2(id + 3.1);
-	bool bare = hash2(id + 7.7) < bare_share;
-	// Distance to the plate edge (metres): seams and edge chipping.
-	vec2 e = min(f, 1.0 - f) * plate_size;
-	float edge = min(e.x, e.y);
-
 	float n_big = fbm2(uv * 0.18);
 	float n_mid = fbm2(uv * 0.9);
 	float n_fine = noise2(uv * 6.0);
 
-	// Chips: bare metal near plate edges and in scattered patches.
-	float chip = smoothstep(0.62, 0.7, n_mid + n_fine * 0.25 + (0.25 - min(edge, 0.25)) * 1.6 - (1.0 - chips) * 0.45);
-	if (bare) {
-		chip = 1.0;
-	}
+	// Big irregular areas of white and pale blue.
+	float zone = fbm2(uv / zone_size + vec2(seed * 3.7, 0.0));
+	float blue = smoothstep(0.02, -0.02, zone - (0.32 + blue_share * 0.36));
+	vec3 col = mix(paint_white, paint_blue, blue);
+	col *= 0.95 + 0.08 * n_mid;
+
+	// Chips down to bare metal, in scattered patches.
+	float chip = smoothstep(0.66, 0.72, n_mid + n_fine * 0.3 - (1.0 - chips) * 0.45);
 	col = mix(col, bare_metal * (0.85 + 0.3 * n_fine), chip);
 
-	// Rust: broad swipes (large noise) plus streaks running down from seams.
+	// Rust: broad swipes, plus long streaks running down the hull.
 	float swipe = smoothstep(0.5, 0.78, n_big + n_mid * 0.4 - (1.0 - rust) * 0.4);
-	float streak_n = noise2(vec2(uv.x * 3.0, uv.y * 0.25));
-	float below_seam = 1.0 - smoothstep(0.0, 1.2, f.y * plate_size.y);
-	float streak = smoothstep(0.55, 0.85, streak_n) * below_seam * streaks;
-	float r = clamp(max(swipe, streak * 0.85) * (0.6 + 0.6 * n_fine), 0.0, 1.0);
-	vec3 rust_col = mix(rust_dark, rust_light, n_mid);
-	col = mix(col, rust_col, r);
+	float streak = smoothstep(0.6, 0.85, noise2(vec2(uv.x * 2.5, uv.y * 0.18))) * smoothstep(0.35, 0.65, n_big) * streaks;
+	float r = clamp(max(swipe, streak * 0.8) * (0.6 + 0.6 * n_fine), 0.0, 1.0);
+	col = mix(col, mix(rust_dark, rust_light, n_mid), r);
 
-	// Seams: thin dark lines between plates.
-	col *= 1.0 - seam_dark * (1.0 - smoothstep(0.015, 0.05, edge));
 	// Grime gathers underneath.
 	col = mix(col, grime, facing_down * underside_grime * (0.6 + 0.4 * n_mid));
 

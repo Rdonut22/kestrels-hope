@@ -45,6 +45,12 @@ func _ready() -> void:
 			var outer := hull.get_node_or_null("Outer") as CSGShape3D
 			if outer:
 				outer.material = _mat()
+				# The ceiling panels' top is level with the roof and showed
+				# through outside: lift the roof 0.15 m above them.
+				var box := outer as CSGBox3D
+				if box:
+					box.size.y += 0.15
+					box.position.y += 0.075
 			_round_corner(hull)
 
 	# The model's nose is +Z; turn it to face -Z (forward) and scale to metres.
@@ -79,11 +85,12 @@ func _ready() -> void:
 	for p in [Vector3(-8.5, 0, 6.5), Vector3(-1.0, 0, 6.5), Vector3(-4.6, 0, -4.0)]:
 		# Struts from the hull roof (y = 3.2) up to the wing's underside.
 		var under := (wing_xf * Vector3(p.x - wing_xf.origin.x, 0, 0)).y - 0.25
+		# (the roof is now at y = 3.35)
 		var cm := CylinderMesh.new()
 		cm.top_radius = 0.18
 		cm.bottom_radius = 0.26
-		cm.height = maxf(under - 3.2, 0.3)
-		_mesh("Strut", cm, Transform3D(Basis.IDENTITY, Vector3(p.x, 3.2 + cm.height * 0.5, p.z)))
+		cm.height = maxf(under - 3.35, 0.3)
+		_mesh("Strut", cm, Transform3D(Basis.IDENTITY, Vector3(p.x, 3.35 + cm.height * 0.5, p.z)))
 
 	# Low starboard wing from the fuselage's belly: swept, tapering to a point.
 	var rw := PackedVector2Array([Vector2(0, -6.5), Vector2(0, 7.5), Vector2(7.5, 8.5), Vector2(8.5, 6.8)])
