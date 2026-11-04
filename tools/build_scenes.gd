@@ -133,12 +133,7 @@ func _make_materials() -> void:
 	_shader_mat("corridor_wall", "corridor", {
 		"plate_nor": load(tex + "plate_nor.png"), "plate_rough": load(tex + "plate_rough.png"),
 		"plate_detail": load(tex + "plate_detail.png"),
-		"green_nor": load(tex + "green_metal_nor.png"), "green_rough": load(tex + "green_metal_rough.png"),
-		"green_detail": load(tex + "green_metal_detail.png"),
-		"shutter_nor": load(tex + "shutter_nor.png"), "shutter_rough": load(tex + "shutter_rough.png"),
-		"shutter_detail": load(tex + "shutter_detail.png"),
 		"rubber_nor": load(tex + "rubber_nor.png"), "rubber_rough": load(tex + "rubber_rough.png"),
-		"green_albedo": load(tex + "green_metal_color.png"), "shutter_albedo": load(tex + "shutter_color.png"),
 		"plate_albedo": load(tex + "plate_color.png"), "rusty_albedo": load(tex + "rusty_color.png"),
 		"rusty_nor": load(tex + "rusty_nor.png"), "rusty_rough": load(tex + "rusty_rough.png"),
 		"rusty_metal": load(tex + "rusty_metal.png"),

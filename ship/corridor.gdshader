@@ -35,15 +35,9 @@ uniform float panel_top = 3.6;
 uniform sampler2D plate_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D plate_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D plate_detail : hint_default_white, filter_linear_mipmap, repeat_enable;
-uniform sampler2D green_nor : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D green_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
-uniform sampler2D green_detail : hint_default_white, filter_linear_mipmap, repeat_enable;
-uniform sampler2D shutter_nor : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D shutter_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
-uniform sampler2D shutter_detail : hint_default_white, filter_linear_mipmap, repeat_enable;
 // The texture sets' real colour maps, applied as they are.
-uniform sampler2D green_albedo : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D shutter_albedo : source_color, filter_linear_mipmap, repeat_enable;
+// (Kept to as few textures as possible: GPUs, Macs especially, cap how
+// many one shader may sample, and over the cap it draws nothing.)
 uniform sampler2D plate_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_nor : hint_normal, filter_linear_mipmap, repeat_enable;
