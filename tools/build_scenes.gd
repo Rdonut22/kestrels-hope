@@ -525,8 +525,8 @@ func _build_ship() -> void:
 	# Corridor: each light hangs just under one of the luminous ceiling
 	# panels (ship/corridor_dressing.gd CEILING_PANELS) and falls off
 	# steeply, so the light pools beneath the panels and the stretches of
-	# ceiling between them stay dark. They cast shadows (pipes, frames,
-	# cart). DeckPoolD is only a faint fill in the dark gap near the mats.
+	# ceiling between them stay dark.
+	# DeckPoolD is only a faint fill in the dark gap near the mats.
 	# [name, z, energy, range]
 	for d in [["DeckFore", -3.6, 2.0, 3.8], ["DeckMid", 1.1, 1.9, 3.8], ["DeckPoolD", 4.3, 0.12, 2.0], ["DeckAft", 6.9, 1.4, 3.6]]:
 		var pool := OmniLight3D.new()
@@ -535,7 +535,10 @@ func _build_ship() -> void:
 		pool.light_energy = d[2]
 		pool.omni_range = d[3]
 		pool.omni_attenuation = 1.8
-		pool.shadow_enabled = d[2] > 0.5
+		# No shadows: each shadowed omni light redraws the corridor in an
+		# extra pass and re-renders its shadow cube as things move (about a
+		# third of the frame). The steep falloff keeps the dark gaps.
+		pool.shadow_enabled = false
 		_add(lights, pool, d[0])
 	var lounge_warm := OmniLight3D.new()
 	lounge_warm.position = Vector3(1.2, 2.2, 1.4)
