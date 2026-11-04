@@ -15,3 +15,4 @@ shader_parameter/trunk_sway = 0.35
 shader_parameter/tree_height = 64.0
 shader_parameter/streaks = 0.55
 shader_parameter/world_tint = Color(1, 1, 1, 1)
+shader_parameter/night_fill = 0.0

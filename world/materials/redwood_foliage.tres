@@ -19,3 +19,4 @@ shader_parameter/alpha_cut = 0.45
 shader_parameter/sun_tint = 0.3
 shader_parameter/translucency = 0.35
 shader_parameter/world_tint = Color(1, 1, 1, 1)
+shader_parameter/night_fill = 0.0
