@@ -3,19 +3,19 @@ shader_type spatial;
 // The corridor (central deck) materials: walls, floor and ceiling, after the
 // interior art direction (painted aluminium and composite panels, warm
 // off-white / muted olive / gunmetal, wear only where people touch things).
-// Projected in ship space (the hull is CSG, no UVs); the user's PBR sets
-// supply normal and roughness detail, their colour maps only light/dark
-// detail (the palette sets the hue).
+// Projected in ship space (the hull is CSG, no UVs). The user's PBR sets
+// are applied with their own colour, normal, roughness (and metal) maps.
 //
-//   surface 0: wall: a charcoal kick strip, then aged-ivory painted panels
-//              (blue metal plate set); the panel layout itself is geometry
-//              (corridor_dressing.gd). The olive band / upper band zones are
-//              still there (olive_top, rail_top, panel_top) but off by default.
+//   surface 0: wall: a rusty-metal kick strip, the green painted metal
+//              (its own colour) up to the chair rail at 1 m, a gunmetal rail,
+//              then aged-ivory painted panels (plate set normals) above.
 //   surface 1: floor: dark anti-slip (worn shutter set, fine ribs), darker
 //              border along the walls, a worn walking line down the middle
 //   surface 2: ceiling: off-white panels (plate set)
 //   surface 3: a single painted panel in `panel_color` (plate set)
 //   surface 4: a rubber tile mat (rubber_tiles set)
+//   surface 5: blue metal plate in its own colour
+//   surface 6: rusty metal in its own colour
 
 uniform int surface = 0;
 
@@ -27,8 +27,8 @@ uniform vec3 panel_color : source_color = vec3(0.714, 0.702, 0.643);
 
 // Wall zone heights (metres, ship space).
 uniform float kick_top = 0.12;
-uniform float olive_top = 0.12;
-uniform float rail_top = 0.12;
+uniform float olive_top = 1.0;
+uniform float rail_top = 1.06;
 uniform float panel_top = 3.6;
 
 uniform sampler2D plate_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -40,6 +40,15 @@ uniform sampler2D green_detail : hint_default_white, filter_linear_mipmap, repea
 uniform sampler2D shutter_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D shutter_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D shutter_detail : hint_default_white, filter_linear_mipmap, repeat_enable;
+// The texture sets' real colour maps, applied as they are.
+uniform sampler2D green_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D shutter_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D plate_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rusty_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rusty_nor : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rusty_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rusty_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
+uniform float rusty_tile = 1.5;
 // Rubber tile mats (the user's rubber_tiles set) over the aft third of the
 // floor, from the boarding ramp in: z > mat_start.
 uniform sampler2D rubber_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -134,8 +143,7 @@ void fragment() {
 		// Floor: dark anti-slip ribs across the walkway.
 		vec2 fuv = vec2(v_pos.z, v_pos.x) / shutter_tile;
 		tn = unpack_n(texture(shutter_nor, fuv), normal_strength * 0.8);
-		float d = texture(shutter_detail, fuv).r;
-		col = floor_color * mix(1.0, 0.7 + d * 0.6, detail_amount);
+		col = texture(shutter_albedo, fuv).rgb * 1.15;
 		rough = mix(0.55, 0.9, texture(shutter_rough, fuv).r);
 		metal = 0.35;
 		// Darker gunmetal border along the walls; a polished walking line
@@ -146,6 +154,21 @@ void fragment() {
 		path *= 0.6 + 0.4 * vnoise(v_pos.xz * 1.7);
 		col = mix(col, col * 1.18, path * 0.5);
 		rough = mix(rough, 0.35, path * 0.45);
+	} else if (s == 5) {
+		// Blue metal plate, its own colour (equipment housings, cabinets).
+		vec2 puv = uv / 1.2;
+		tn = unpack_n(texture(plate_nor, puv), normal_strength);
+		col = texture(plate_albedo, puv).rgb * 1.2;
+		rough = mix(0.35, 0.8, texture(plate_rough, puv).r);
+		metal = 0.3;
+	} else if (s == 6 || (s == 0 && y <= kick_top)) {
+		// Rusty metal, its own colour, metalness and roughness (kick strip,
+		// ramp door, worn and damaged spots).
+		vec2 ruv = uv / rusty_tile;
+		tn = unpack_n(texture(rusty_nor, ruv), normal_strength);
+		col = texture(rusty_albedo, ruv).rgb;
+		rough = texture(rusty_rough, ruv).r;
+		metal = texture(rusty_metal, ruv).r;
 	} else if (s == 2 || s == 3 || (s == 0 && y > rail_top && y < panel_top)) {
 		// Painted aluminium panels (plate set): off-white walls / ceiling.
 		vec2 puv = uv / plate_tile;
@@ -164,13 +187,10 @@ void fragment() {
 		// Olive utility panels low on the walls (green metal set).
 		vec2 guv = uv / green_tile;
 		tn = unpack_n(texture(green_nor, guv), normal_strength);
-		float d = texture(green_detail, guv).r;
-		col = olive * mix(1.0, 0.7 + d * 0.6, detail_amount);
+		col = texture(green_albedo, guv).rgb * 1.1;
 		rough = mix(0.4, 0.85, texture(green_rough, guv).r);
 		metal = 0.15;
-		// Boots scuff the bottom of the panels.
-		float scuff = (1.0 - smoothstep(kick_top, kick_top + 0.25, y)) * vnoise(uv * vec2(3.0, 9.0));
-		col = mix(col, gunmetal * 0.9, scuff * 0.35);
+
 	} else {
 		// Gunmetal structure: kick strip, rail band, upper band.
 		vec2 puv = uv / plate_tile;

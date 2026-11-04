@@ -1,0 +1,64 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/corridor.gdshader" id="1_dhati"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_color.png" id="2_fmfyq"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_detail.png" id="3_74y4f"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_nor.png" id="4_7gpd7"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_rough.png" id="5_hgsp2"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_color.png" id="6_qkf7g"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_detail.png" id="7_rl75d"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_nor.png" id="8_iois2"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_rough.png" id="9_p7v0h"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rubber_nor.png" id="10_tj1ow"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rubber_rough.png" id="11_s47ut"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_color.png" id="12_2qrkp"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_metal.png" id="13_13mdy"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_nor.png" id="14_5t85x"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_rough.png" id="15_vsumj"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_color.png" id="16_yilah"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_detail.png" id="17_6jy4t"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_nor.png" id="18_8rque"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_rough.png" id="19_8bjc5"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_dhati")
+shader_parameter/surface = 6
+shader_parameter/off_white = Color(0.773, 0.725, 0.647, 1)
+shader_parameter/olive = Color(0.42, 0.447, 0.365, 1)
+shader_parameter/gunmetal = Color(0.282, 0.275, 0.255, 1)
+shader_parameter/floor_color = Color(0.24, 0.24, 0.23, 1)
+shader_parameter/panel_color = Color(0.714, 0.702, 0.643, 1)
+shader_parameter/kick_top = 0.12
+shader_parameter/olive_top = 1.0
+shader_parameter/rail_top = 1.06
+shader_parameter/panel_top = 3.6
+shader_parameter/plate_nor = ExtResource("8_iois2")
+shader_parameter/plate_rough = ExtResource("9_p7v0h")
+shader_parameter/plate_detail = ExtResource("7_rl75d")
+shader_parameter/green_nor = ExtResource("4_7gpd7")
+shader_parameter/green_rough = ExtResource("5_hgsp2")
+shader_parameter/green_detail = ExtResource("3_74y4f")
+shader_parameter/shutter_nor = ExtResource("18_8rque")
+shader_parameter/shutter_rough = ExtResource("19_8bjc5")
+shader_parameter/shutter_detail = ExtResource("17_6jy4t")
+shader_parameter/green_albedo = ExtResource("2_fmfyq")
+shader_parameter/shutter_albedo = ExtResource("16_yilah")
+shader_parameter/plate_albedo = ExtResource("6_qkf7g")
+shader_parameter/rusty_albedo = ExtResource("12_2qrkp")
+shader_parameter/rusty_nor = ExtResource("14_5t85x")
+shader_parameter/rusty_rough = ExtResource("15_vsumj")
+shader_parameter/rusty_metal = ExtResource("13_13mdy")
+shader_parameter/rusty_tile = 1.5
+shader_parameter/rubber_nor = ExtResource("10_tj1ow")
+shader_parameter/rubber_rough = ExtResource("11_s47ut")
+shader_parameter/mat_start = 4.3
+shader_parameter/rubber_tile = 1.3
+shader_parameter/rubber_color = Color(0.3, 0.31, 0.32, 1)
+shader_parameter/plate_tile = 3.0
+shader_parameter/green_tile = 1.6
+shader_parameter/shutter_tile = 1.0
+shader_parameter/normal_strength = 1.3
+shader_parameter/detail_amount = 0.6
+shader_parameter/doors = [Vector4(-2.3, -3, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(0, 0, 0, 0), Vector4(0, 0, 0, 0)]
+shader_parameter/hand_wear = 0.6

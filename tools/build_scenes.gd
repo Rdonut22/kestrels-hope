@@ -138,9 +138,17 @@ func _make_materials() -> void:
 		"shutter_nor": load(tex + "shutter_nor.png"), "shutter_rough": load(tex + "shutter_rough.png"),
 		"shutter_detail": load(tex + "shutter_detail.png"),
 		"rubber_nor": load(tex + "rubber_nor.png"), "rubber_rough": load(tex + "rubber_rough.png"),
+		"green_albedo": load(tex + "green_metal_color.png"), "shutter_albedo": load(tex + "shutter_color.png"),
+		"plate_albedo": load(tex + "plate_color.png"), "rusty_albedo": load(tex + "rusty_color.png"),
+		"rusty_nor": load(tex + "rusty_nor.png"), "rusty_rough": load(tex + "rusty_rough.png"),
+		"rusty_metal": load(tex + "rusty_metal.png"),
 		# Bathroom and engineering doorways on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(), Vector4()]})
 	_mat("corridor_frame", Color("484641"), 0.55, 0.5)
+	var rusty: ShaderMaterial = mats["corridor_wall"].duplicate()
+	rusty.set_shader_parameter("surface", 6)
+	ResourceSaver.save(rusty, "res://ship/materials/corridor_rusty.tres")
+	mats["corridor_rusty"] = load("res://ship/materials/corridor_rusty.tres")
 	# Low amber guide lights instead of the cool-white strips.
 	_mat("corridor_guide", Color("F0D6AD"), 0.5, 0.0, 0.3)
 	_mat("fixture_warm", Color(1.0, 0.6, 0.25), 0.5, 0.0, 1.4)
@@ -573,7 +581,7 @@ func _build_ship() -> void:
 	_box(deck, "SuitLocker", Vector3(1.45, 0, 6.6), Vector3(2.0, 2.1, 7.6), "metal_dark")
 	_box(deck, "ArmoryLocker", Vector3(1.45, 0, 7.8), Vector3(2.0, 2.1, 8.8), "barrel")
 	# Boarding ramp door: charcoal, with a hazard band along its foot only.
-	_box(deck, "RampDoor", Vector3(-1.4, 0, 9.12), Vector3(1.4, 2.5, 9.2), "corridor_frame")
+	_box(deck, "RampDoor", Vector3(-1.4, 0, 9.12), Vector3(1.4, 2.5, 9.2), "corridor_rusty")
 	_box(deck, "RampDoorHazard", Vector3(-1.4, 0.05, 9.1), Vector3(1.4, 0.3, 9.12), "hazard")
 	_box(deck, "CrateA", Vector3(-2.3, 0, 7.6), Vector3(-1.5, 0.8, 8.4), "crate")
 	_box(deck, "CrateB", Vector3(-2.3, 0, 8.4), Vector3(-1.6, 0.7, 9.1), "crate")
