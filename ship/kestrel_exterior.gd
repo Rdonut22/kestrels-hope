@@ -193,7 +193,8 @@ func _ready() -> void:
 	# (in world space; the starboard one leaves a gap for the lounge window).
 	var plate_c := xf * Vector3(0.0, 0.11, -0.08)
 	var half_len := 0.38 * s
-	for side in [-1.0, 1.0]:
+	# (Only the starboard one: the port one fell inside the hull's corridor.)
+	for side in [1.0]:
 		var px: float = fuselage_x + 0.092 * s * side
 		var z0: float = plate_c.z - half_len
 		var z1: float = plate_c.z + half_len

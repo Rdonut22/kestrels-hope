@@ -1,0 +1,42 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/corridor.gdshader" id="1_pjcob"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_detail.png" id="2_ocg6w"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_nor.png" id="3_odwvf"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_rough.png" id="4_ws57c"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_detail.png" id="5_7yfgl"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_nor.png" id="6_w6y33"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_rough.png" id="7_0huqg"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_detail.png" id="8_fqtdn"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_nor.png" id="9_0bg5i"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_rough.png" id="10_4myud"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_pjcob")
+shader_parameter/surface = 0
+shader_parameter/off_white = Color(0.714, 0.702, 0.643, 1)
+shader_parameter/olive = Color(0.322, 0.388, 0.302, 1)
+shader_parameter/gunmetal = Color(0.204, 0.227, 0.231, 1)
+shader_parameter/floor_color = Color(0.17, 0.18, 0.18, 1)
+shader_parameter/panel_color = Color(0.714, 0.702, 0.643, 1)
+shader_parameter/kick_top = 0.12
+shader_parameter/olive_top = 0.85
+shader_parameter/rail_top = 0.95
+shader_parameter/panel_top = 2.35
+shader_parameter/plate_nor = ExtResource("6_w6y33")
+shader_parameter/plate_rough = ExtResource("7_0huqg")
+shader_parameter/plate_detail = ExtResource("5_7yfgl")
+shader_parameter/green_nor = ExtResource("3_odwvf")
+shader_parameter/green_rough = ExtResource("4_ws57c")
+shader_parameter/green_detail = ExtResource("2_ocg6w")
+shader_parameter/shutter_nor = ExtResource("9_0bg5i")
+shader_parameter/shutter_rough = ExtResource("10_4myud")
+shader_parameter/shutter_detail = ExtResource("8_fqtdn")
+shader_parameter/plate_tile = 2.4
+shader_parameter/green_tile = 1.6
+shader_parameter/shutter_tile = 1.0
+shader_parameter/normal_strength = 0.8
+shader_parameter/detail_amount = 0.35
+shader_parameter/doors = [Vector4(-2.3, -3, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(0, 0, 0, 0), Vector4(0, 0, 0, 0)]
+shader_parameter/hand_wear = 0.6

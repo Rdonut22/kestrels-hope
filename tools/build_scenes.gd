@@ -127,6 +127,21 @@ func _make_materials() -> void:
 	_mat("glass", Color(0.6, 0.8, 1.0), 0.05, 0.0, 0.0, 0.12)
 	_mat("fixture", Color(1.0, 0.86, 0.68), 0.5, 0.0, 1.1)
 	_mat("led_strip", Color(0.85, 0.88, 0.95), 0.5, 0.0, 1.1)
+	# Corridor (central deck) only: the interior art direction
+	# (ship/corridor.gdshader, ship/corridor_dressing.gd).
+	var tex := "res://ship/textures/interior/"
+	_shader_mat("corridor_wall", "corridor", {
+		"plate_nor": load(tex + "plate_nor.png"), "plate_rough": load(tex + "plate_rough.png"),
+		"plate_detail": load(tex + "plate_detail.png"),
+		"green_nor": load(tex + "green_metal_nor.png"), "green_rough": load(tex + "green_metal_rough.png"),
+		"green_detail": load(tex + "green_metal_detail.png"),
+		"shutter_nor": load(tex + "shutter_nor.png"), "shutter_rough": load(tex + "shutter_rough.png"),
+		"shutter_detail": load(tex + "shutter_detail.png"),
+		# Bathroom and engineering doorways on the left wall: hand wear.
+		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(), Vector4()]})
+	_mat("corridor_frame", Color("343A3B"), 0.5, 0.6)
+	# Low amber guide lights instead of the cool-white strips.
+	_mat("corridor_guide", Color("E6B978"), 0.5, 0.0, 0.45)
 	_mat("fixture_warm", Color(1.0, 0.6, 0.25), 0.5, 0.0, 1.4)
 	_mat("screen_cyan", Color(0.1, 0.55, 0.9), 0.3, 0.0, 1.2)
 	_mat("screen_amber", Color(1.0, 0.6, 0.15), 0.3, 0.0, 1.2)
@@ -419,7 +434,7 @@ func _build_ship() -> void:
 	lounge.operation = CSGShape3D.OPERATION_SUBTRACTION
 	# Collar around the round lounge entrance, standing out into the lounge.
 	_lounge_tube(hull, "LoungeEntranceCollar", LOUNGE_DOOR_R + 0.25, 2.0, 3.4, -0.2, "gunmetal")
-	_room(hull, "Deck", -2.3, 2.0, -5.6, 9.2)
+	_box(hull, "Deck", Vector3(-2.3, 0, -5.6), Vector3(2.0, 3.0, 9.2), "corridor_wall", true)
 	_room(hull, "Quarters", -2.6, 1.8, -9.6, -5.9)
 	_room(hull, "Bathroom", -6.0, -2.6, -4.4, -1.6)
 	_room(hull, "Engineering", -6.3, -2.6, -1.3, 3.4)
@@ -497,9 +512,16 @@ func _build_ship() -> void:
 	_add(lights, canopy_fill, "CanopyFill")
 	_light(lights, "Kitchen", Vector3(4.0, 2.75, -5.1), Color(1.0, 0.85, 0.65), 1.1, 4.0)
 	_light(lights, "Lounge", Vector3(3.6, 2.75, 1.6), Color(1.0, 0.68, 0.42), 0.9, 6.0)
-	_light(lights, "DeckFore", Vector3(-0.15, 2.75, -3.4), Color(1.0, 0.78, 0.58), 1.6, 6.5)
-	_light(lights, "DeckMid", Vector3(-0.15, 2.75, 1.8), Color(1.0, 0.78, 0.58), 1.6, 6.5)
-	_light(lights, "DeckAft", Vector3(-0.15, 2.75, 6.9), Color(1.0, 0.78, 0.58), 1.6, 6.5)
+	# Corridor: pools of warm-neutral light from recessed fixtures
+	# (ship/corridor_dressing.gd draws them), darker between.
+	for d in [["DeckFore", -3.4], ["DeckPoolB", -0.8], ["DeckMid", 1.8], ["DeckPoolD", 4.4], ["DeckAft", 6.9]]:
+		var pool := OmniLight3D.new()
+		pool.position = Vector3(-0.15, 2.8, d[1])
+		pool.light_color = Color(1.0, 0.9, 0.78)
+		pool.light_energy = 0.75
+		pool.omni_range = 4.2
+		pool.omni_attenuation = 1.1
+		_add(lights, pool, d[0])
 	_light(lights, "Quarters", Vector3(-0.4, 2.75, -7.7), Color(1.0, 0.8, 0.6), 1.0, 4.5)
 	_light(lights, "Bathroom", Vector3(-4.3, 2.75, -3.0), Color(0.95, 0.97, 1.0), 0.8, 3.5)
 	_light(lights, "Engineering", Vector3(-4.6, 2.75, 1.4), Color(1.0, 0.65, 0.4), 0.9, 4.5)
@@ -680,6 +702,12 @@ func _build_ship() -> void:
 	# The exterior (fuselage, hull cladding, wings, fans) and the flight deck
 	# in the fuselage's nose are built at runtime by ship/kestrel_exterior.gd.
 	# (The old box exterior, _exterior(), is no longer used.)
+	var dressing := Node3D.new()
+	dressing.name = "CorridorDressing"
+	dressing.set_script(load("res://ship/corridor_dressing.gd"))
+	dressing.set("crashed", crashed)
+	scene_root.add_child(dressing)
+	dressing.owner = scene_root
 	var ext := Node3D.new()
 	ext.name = "KestrelExterior"
 	ext.set_script(load("res://ship/kestrel_exterior.gd"))
@@ -1171,15 +1199,15 @@ func _deck_details() -> void:
 	ribs.use_collision = true
 	for z in [-1.6, 3.2, 5.4, 8.9]:
 		var tag := "%d" % int(round(z * 10))
-		_box(ribs, "PostL" + tag, Vector3(-2.3, 0, z - 0.12), Vector3(-2.16, 2.55, z + 0.12), "rib")
-		_box(ribs, "PostR" + tag, Vector3(1.86, 0, z - 0.12), Vector3(2.0, 2.55, z + 0.12), "rib")
-		_box(ribs, "Beam" + tag, Vector3(-1.85, 2.86, z - 0.12), Vector3(1.55, 2.98, z + 0.12), "rib")
+		_box(ribs, "PostL" + tag, Vector3(-2.3, 0, z - 0.12), Vector3(-2.16, 2.55, z + 0.12), "corridor_frame")
+		_box(ribs, "PostR" + tag, Vector3(1.86, 0, z - 0.12), Vector3(2.0, 2.55, z + 0.12), "corridor_frame")
+		_box(ribs, "Beam" + tag, Vector3(-1.85, 2.86, z - 0.12), Vector3(1.55, 2.98, z + 0.12), "corridor_frame")
 		for side in [[-1.958, PI / 4, "L"], [1.658, -PI / 4, "R"]]:
 			var brace := CSGBox3D.new()
 			brace.size = Vector3(0.72, 0.12, 0.24)
 			brace.position = Vector3(side[0], 2.658, z)
 			brace.rotation.z = side[1]
-			brace.material = mats["rib"]
+			brace.material = mats["corridor_frame"]
 			_add(ribs, brace, "Brace" + side[2] + tag)
 
 	var pipes := _add(scene_root, Node3D.new(), "Pipes")
@@ -1195,14 +1223,14 @@ func _deck_details() -> void:
 		_mesh_box(scene_root, "FloorRail%d" % int(x * 100), Vector3(x, 0.025, 1.8), Vector3(0.28, 0.01, 14.4), "grate")
 		_mesh_box(scene_root, "RailEdgeA%d" % int(x * 100), Vector3(x - 0.16, 0.03, 1.8), Vector3(0.04, 0.02, 14.4), "rib")
 		_mesh_box(scene_root, "RailEdgeB%d" % int(x * 100), Vector3(x + 0.16, 0.03, 1.8), Vector3(0.04, 0.02, 14.4), "rib")
-	# Low cool-blue strips along the base of the deck walls.
+	# Low amber guide strips along the base of the deck walls.
 	# Segments stop short of each doorway.
 	var strips := [[-2.28, -5.5, -3.75], [-2.28, -2.25, 0.35], [-2.28, 1.85, 9.1],
 		[1.98, -3.8, -0.4], [1.98, 2.4, 9.1]]
 	for i in strips.size():
 		var z0: float = strips[i][1]
 		var z1: float = strips[i][2]
-		_mesh_box(scene_root, "LedStrip%d" % i, Vector3(strips[i][0], 0.18, (z0 + z1) / 2.0), Vector3(0.03, 0.04, z1 - z0), "led_strip")
+		_mesh_box(scene_root, "LedStrip%d" % i, Vector3(strips[i][0], 0.18, (z0 + z1) / 2.0), Vector3(0.03, 0.04, z1 - z0), "corridor_guide")
 
 	var clutter := _add(scene_root, CSGCombiner3D.new(), "Clutter")
 	clutter.use_collision = true
@@ -2916,7 +2944,7 @@ func _apply_crash_damage() -> void:
 
 	# Lights: mostly dead or dim, red emergency lights, one flickering.
 	var lights := R.get_node("Lights")
-	var dead := ["DeckMid", "Kitchen", "Gunner", "Bathroom", "CanopyFill"]
+	var dead := ["DeckMid", "DeckPoolB", "DeckPoolD", "Kitchen", "Gunner", "Bathroom", "CanopyFill"]
 	for l in lights.get_children():
 		if l is OmniLight3D:
 			if l.name in dead:
