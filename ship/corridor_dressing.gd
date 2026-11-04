@@ -62,6 +62,7 @@ func _ready() -> void:
 	_tool_cart()
 	_rug()
 	_mat_edge()
+	_sconces()
 
 
 # ---------- materials ----------
@@ -470,3 +471,23 @@ func _mat_edge() -> void:
 				# Shifted in the crash.
 				m.position += Vector3(0.04 * (c - 1.5), 0.0, 0.05)
 				m.rotation.y = 0.05 * (r - 2)
+
+
+## Industrial caged sconces (ship/caged_sconce.gd) on both walls, in the dark
+## stretches between the ceiling panels, glowing warm orange. Dead after
+## the crash. [wall x, z]
+const SCONCES := [[X_L, -1.0], [X_L, 3.05], [X_L, 7.6], [X_R, -1.0], [X_R, 4.45]]
+const SCONCE_Y := 1.95
+
+
+func _sconces() -> void:
+	var script: Script = load("res://ship/caged_sconce.gd")
+	for i in SCONCES.size():
+		var wx: float = SCONCES[i][0]
+		var lamp := Node3D.new()
+		lamp.set_script(script)
+		lamp.name = "Sconce%d" % i
+		lamp.set("lit", not crashed)
+		lamp.position = Vector3(wx, SCONCE_Y, SCONCES[i][1])
+		lamp.rotation.y = PI * 0.5 if wx < 0.0 else -PI * 0.5
+		add_child(lamp)
