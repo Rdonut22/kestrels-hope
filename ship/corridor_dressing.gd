@@ -327,6 +327,30 @@ func _rug() -> void:
 	rug.position = Vector3(0.55, 0.02, 1.4 + (0.3 if crashed else 0.0))
 
 
-## An aluminium transition strip where the rubber mats start (aft third).
+## Rubber mats over the aft third (from the boarding ramp in): separate
+## mats laid in a grid, a uniform inch (2.54 cm) apart, with an aluminium
+## transition strip where they start.
+const MAT_GAP := 0.0254
+const MAT_Z := Vector2(4.34, 9.15)
+const MAT_COLS := 4
+const MAT_ROWS := 5
+
+
 func _mat_edge() -> void:
-	_box("MatEdge", Vector3((X_L + X_R) * 0.5, 0.028, 4.3), Vector3(X_R - X_L, 0.012, 0.05), _alu())
+	_box("MatEdge", Vector3((X_L + X_R) * 0.5, 0.028, MAT_Z.x - 0.03), Vector3(X_R - X_L - 0.06, 0.012, 0.05), _alu())
+	var rubber := _surface(4)
+	var x0 := X_L + 0.06
+	var x1 := X_R - 0.06
+	var w := (x1 - x0 - MAT_GAP * (MAT_COLS - 1)) / MAT_COLS
+	var d := (MAT_Z.y - MAT_Z.x - MAT_GAP * (MAT_ROWS - 1)) / MAT_ROWS
+	for c in MAT_COLS:
+		for r in MAT_ROWS:
+			var cx := x0 + w * 0.5 + c * (w + MAT_GAP)
+			var cz := MAT_Z.x + d * 0.5 + r * (d + MAT_GAP)
+			# Raised over the floor rails so they read as loose mats.
+			var m := _box("RubberMat%d_%d" % [c, r], Vector3(cx, 0.044, cz), Vector3(w, 0.02, d), rubber)
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if crashed and (c + r) % 3 == 0:
+				# Shifted in the crash.
+				m.position += Vector3(0.04 * (c - 1.5), 0.0, 0.05)
+				m.rotation.y = 0.05 * (r - 2)

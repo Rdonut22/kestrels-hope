@@ -14,6 +14,7 @@ shader_type spatial;
 //              border along the walls, a worn walking line down the middle
 //   surface 2: ceiling: off-white panels (plate set)
 //   surface 3: a single painted panel in `panel_color` (plate set)
+//   surface 4: a rubber tile mat (rubber_tiles set)
 
 uniform int surface = 0;
 
@@ -43,8 +44,8 @@ uniform sampler2D shutter_detail : hint_default_white, filter_linear_mipmap, rep
 uniform sampler2D rubber_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rubber_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform float mat_start = 4.3;
-uniform float rubber_tile = 2.0;
-uniform vec3 rubber_color : source_color = vec3(0.075, 0.08, 0.09);
+uniform float rubber_tile = 1.3;
+uniform vec3 rubber_color : source_color = vec3(0.3, 0.31, 0.32);
 
 // Texture tile sizes (metres).
 uniform float plate_tile = 2.4;
@@ -112,16 +113,21 @@ void fragment() {
 	int s = surface;
 
 	if (s == 1 && v_pos.z > mat_start) {
-		// Rubber tile mats near the ship's entrance.
+		// Under the rubber mats: bare dark deck shows in the gaps.
+		col = gunmetal * 0.55;
+		rough = 0.7;
+		metal = 0.4;
+	} else if (s == 4) {
+		// A rubber tile mat (corridor_dressing.gd lays them, gaps between).
 		vec2 ruv = vec2(v_pos.x, v_pos.z) / rubber_tile;
-		tn = unpack_n(texture(rubber_nor, ruv), normal_strength);
+		tn = unpack_n(texture(rubber_nor, ruv), normal_strength * 1.6);
 		float r0 = texture(rubber_rough, ruv).r;
-		col = rubber_color * (0.9 + 0.2 * vnoise(ruv * 7.0));
-		// Seams between tiles read darker; boots polish the middle a little.
-		col *= mix(0.6, 1.0, smoothstep(0.55, 0.8, r0));
-		rough = mix(0.55, 0.92, r0);
+		col = rubber_color * (0.85 + 0.3 * vnoise(ruv * 7.0));
+		// The set's tile seams read darker; boots polish the middle a little.
+		col *= mix(0.45, 1.0, smoothstep(0.55, 0.8, r0));
+		rough = mix(0.4, 0.85, r0);
 		float path = 1.0 - smoothstep(0.25, 0.8, abs(v_pos.x + 0.15));
-		rough = mix(rough, 0.6, path * 0.35);
+		rough = mix(rough, 0.45, path * 0.35);
 		metal = 0.0;
 	} else if (s == 1) {
 		// Floor: dark anti-slip ribs across the walkway.
