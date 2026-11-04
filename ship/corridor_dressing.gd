@@ -324,7 +324,7 @@ func _labels() -> void:
 ## frame and a soft ivory diffuser (dark after the crash, but for one dim
 ## panel near the quarters).
 func _fixtures() -> void:
-	var lit := _std("diffuser", LIGHT, 0.5, 0.0, 0.5)
+	var lit := _std("diffuser", LIGHT.darkened(0.08), 0.5, 0.0, 0.3)
 	var dark := _std("diffuser_dark", Color(0.3, 0.29, 0.27), 0.6, 0.0)
 	var dim := _std("diffuser_dim", LIGHT, 0.5, 0.0, 0.25)
 	for i in CEILING_PANELS.size():

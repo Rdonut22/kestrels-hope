@@ -520,10 +520,11 @@ func _build_ship() -> void:
 	for d in [["DeckFore", -3.6], ["DeckMid", 0.8], ["DeckPoolD", 4.3], ["DeckAft", 7.2]]:
 		var pool := OmniLight3D.new()
 		pool.position = Vector3(-0.15, 2.6, d[1])
-		pool.light_color = Color(1.0, 0.93, 0.83)
-		pool.light_energy = 0.95
-		pool.omni_range = 5.5
-		pool.omni_attenuation = 0.85
+		# Dim, warm and broad: soft fill rather than spots.
+		pool.light_color = Color(1.0, 0.86, 0.7)
+		pool.light_energy = 0.55
+		pool.omni_range = 6.5
+		pool.omni_attenuation = 0.55
 		_add(lights, pool, d[0])
 	var lounge_warm := OmniLight3D.new()
 	lounge_warm.position = Vector3(1.2, 2.2, 1.4)
@@ -1508,7 +1509,7 @@ func _update_main() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	# Soft ivory, not orange (the interior art direction).
-	env.ambient_light_color = Color(0.62, 0.6, 0.56)
+	env.ambient_light_color = Color(0.64, 0.57, 0.48)
 	env.ambient_light_energy = 0.8
 	env.tonemap_exposure = 1.05
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
