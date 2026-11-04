@@ -146,7 +146,10 @@ func _make_materials() -> void:
 		"ceil_rough": load(tex + "ceilplate_rough.png"),
 		# Bathroom and engineering doorways on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(), Vector4()]})
-	_mat("corridor_frame", Color(0.27, 0.28, 0.3), 0.5, 0.35)
+	var frame: ShaderMaterial = mats["corridor_wall"].duplicate()
+	frame.set_shader_parameter("surface", 7)
+	ResourceSaver.save(frame, "res://ship/materials/corridor_frame.tres")
+	mats["corridor_frame"] = load("res://ship/materials/corridor_frame.tres")
 	var rusty: ShaderMaterial = mats["corridor_wall"].duplicate()
 	rusty.set_shader_parameter("surface", 6)
 	ResourceSaver.save(rusty, "res://ship/materials/corridor_rusty.tres")

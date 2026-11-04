@@ -89,8 +89,10 @@ func _std(key: String, color: Color, rough: float, metal: float, emit := 0.0) ->
 	return m
 
 
-func _gunmetal() -> StandardMaterial3D:
-	return _std("gunmetal", GUNMETAL, 0.5, 0.6)
+func _gunmetal() -> Material:
+	if not _mats.has("worn_dark"):
+		_mats["worn_dark"] = _surface(7)
+	return _mats["worn_dark"]
 
 
 func _alu() -> StandardMaterial3D:
@@ -162,8 +164,8 @@ func _slab(n: String, r: Rect2, y: float, dir: float, mat: Material) -> void:
 ## proud in a darker ivory, so the panels read as set in. A curved cove
 ## softens the wall-to-ceiling joint.
 func _panel_framing() -> void:
-	var frame := _std("panel_frame", IVORY.darkened(0.22), 0.6, 0.15)
-	var cove := _surface(3, IVORY.darkened(0.05))
+	var frame := _surface(7)
+	var cove := _surface(7)
 	for side in [[X_L, LEFT_SPANS], [X_R, RIGHT_SPANS]]:
 		var wx: float = side[0]
 		for sp in side[1]:
@@ -276,7 +278,10 @@ func _utilities() -> void:
 	# One replacement panel in a slightly different off-white, between two
 	# mullions on the right wall; missing after the crash.
 	if not crashed:
-		_on_wall("ReplacementPanel", X_R, -2.55, -1.55, 1.06, 2.26, 0.012, _surface(3, Color("CFC6AE")))
+		# A newer replacement panel: same dark paint, less worn.
+		var rp := _surface(7)
+		rp.set_shader_parameter("dark_paint", Color(0.26, 0.255, 0.24))
+		_on_wall("ReplacementPanel", X_R, -2.55, -1.55, 1.06, 2.26, 0.012, rp)
 	else:
 		_on_wall("MissingPanel", X_R, -2.55, -1.55, 1.06, 2.26, 0.008, _surface(6))
 

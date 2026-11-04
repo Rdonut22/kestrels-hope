@@ -1,6 +1,79 @@
-[gd_resource type="StandardMaterial3D" format=3]
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/corridor.gdshader" id="1_drdhs"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_metal.png" id="2_1f84o"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_nor.png" id="3_c48i6"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_rough.png" id="4_ounyb"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_color.png" id="5_2c715"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_detail.png" id="6_endtc"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_nor.png" id="7_mcmdd"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/green_metal_rough.png" id="8_4k08s"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_color.png" id="9_aniop"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_detail.png" id="10_343wc"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_nor.png" id="11_gv0lo"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_rough.png" id="12_ke4qw"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rubber_nor.png" id="13_u3dgs"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rubber_rough.png" id="14_1h45v"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_color.png" id="15_if2k6"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_metal.png" id="16_f7jxt"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_nor.png" id="17_c8man"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_rough.png" id="18_5ymfn"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_color.png" id="19_ndpck"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_detail.png" id="20_46myc"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_nor.png" id="21_6atyy"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/shutter_rough.png" id="22_lfhol"]
 
 [resource]
-albedo_color = Color(0.27, 0.28, 0.3, 1)
-metallic = 0.35
-roughness = 0.5
+render_priority = 0
+shader = ExtResource("1_drdhs")
+shader_parameter/surface = 7
+shader_parameter/off_white = Color(0.773, 0.725, 0.647, 1)
+shader_parameter/olive = Color(0.42, 0.447, 0.365, 1)
+shader_parameter/gunmetal = Color(0.282, 0.275, 0.255, 1)
+shader_parameter/floor_color = Color(0.24, 0.24, 0.23, 1)
+shader_parameter/panel_color = Color(0.714, 0.702, 0.643, 1)
+shader_parameter/kick_top = 0.12
+shader_parameter/olive_top = 1.0
+shader_parameter/rail_top = 1.06
+shader_parameter/panel_top = 3.6
+shader_parameter/plate_nor = ExtResource("11_gv0lo")
+shader_parameter/plate_rough = ExtResource("12_ke4qw")
+shader_parameter/plate_detail = ExtResource("10_343wc")
+shader_parameter/green_nor = ExtResource("7_mcmdd")
+shader_parameter/green_rough = ExtResource("8_4k08s")
+shader_parameter/green_detail = ExtResource("6_endtc")
+shader_parameter/shutter_nor = ExtResource("21_6atyy")
+shader_parameter/shutter_rough = ExtResource("22_lfhol")
+shader_parameter/shutter_detail = ExtResource("20_46myc")
+shader_parameter/green_albedo = ExtResource("5_2c715")
+shader_parameter/shutter_albedo = ExtResource("19_ndpck")
+shader_parameter/plate_albedo = ExtResource("9_aniop")
+shader_parameter/rusty_albedo = ExtResource("15_if2k6")
+shader_parameter/rusty_nor = ExtResource("17_c8man")
+shader_parameter/rusty_rough = ExtResource("18_5ymfn")
+shader_parameter/rusty_metal = ExtResource("16_f7jxt")
+shader_parameter/rusty_tile = 1.5
+shader_parameter/ceil_nor = ExtResource("3_c48i6")
+shader_parameter/ceil_metal = ExtResource("2_1f84o")
+shader_parameter/ceil_rough = ExtResource("4_ounyb")
+shader_parameter/ceil_tile = 2.2
+shader_parameter/ceil_steel = Color(0.34, 0.36, 0.4, 1)
+shader_parameter/ceil_rust = Color(0.25, 0.26, 0.29, 1)
+shader_parameter/deck_light = Color(0.6, 0.56, 0.48, 1)
+shader_parameter/deck_dark = Color(0.38, 0.35, 0.3, 1)
+shader_parameter/dark_paint = Color(0.2, 0.195, 0.185, 1)
+shader_parameter/worn_edge = Color(0.46, 0.44, 0.4, 1)
+shader_parameter/quilt = Color(0.13, 0.125, 0.12, 1)
+shader_parameter/quilt_size = 0.55
+shader_parameter/rubber_nor = ExtResource("13_u3dgs")
+shader_parameter/rubber_rough = ExtResource("14_1h45v")
+shader_parameter/mat_start = 4.3
+shader_parameter/rubber_tile = 1.3
+shader_parameter/rubber_color = Color(0.3, 0.31, 0.32, 1)
+shader_parameter/plate_tile = 3.0
+shader_parameter/green_tile = 1.6
+shader_parameter/shutter_tile = 1.0
+shader_parameter/normal_strength = 1.3
+shader_parameter/detail_amount = 0.6
+shader_parameter/doors = [Vector4(-2.3, -3, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(0, 0, 0, 0), Vector4(0, 0, 0, 0)]
+shader_parameter/hand_wear = 0.6

@@ -1,4 +1,5 @@
 shader_type spatial;
+render_mode cull_disabled;
 
 // The corridor (central deck) materials: walls, floor and ceiling, after the
 // interior art direction (painted aluminium and composite panels, warm
@@ -57,6 +58,15 @@ uniform sampler2D ceil_rough : hint_default_white, filter_linear_mipmap, repeat_
 uniform float ceil_tile = 2.2;
 uniform vec3 ceil_steel : source_color = vec3(0.34, 0.36, 0.4);
 uniform vec3 ceil_rust : source_color = vec3(0.25, 0.26, 0.29);
+// Reference look (Outlaws-style): light worn metal deck plates, dark worn
+// painted metal walls and frames with brighter worn edges, dark quilted
+// insulation on the ceiling.
+uniform vec3 deck_light : source_color = vec3(0.78, 0.73, 0.63);
+uniform vec3 deck_dark : source_color = vec3(0.55, 0.51, 0.44);
+uniform vec3 dark_paint : source_color = vec3(0.2, 0.195, 0.185);
+uniform vec3 worn_edge : source_color = vec3(0.46, 0.44, 0.4);
+uniform vec3 quilt : source_color = vec3(0.12, 0.12, 0.125);
+uniform float quilt_size = 0.55;
 // Rubber tile mats (the user's rubber_tiles set) over the aft third of the
 // floor, from the boarding ramp in: z > mat_start.
 uniform sampler2D rubber_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -148,32 +158,48 @@ void fragment() {
 		rough = mix(rough, 0.45, path * 0.35);
 		metal = 0.0;
 	} else if (s == 1) {
-		// Floor: dark anti-slip ribs across the walkway.
-		vec2 fuv = vec2(v_pos.z, v_pos.x) / shutter_tile;
-		tn = unpack_n(texture(shutter_nor, fuv), normal_strength * 0.8);
-		col = texture(shutter_albedo, fuv).rgb * 1.15;
-		rough = mix(0.55, 0.9, texture(shutter_rough, fuv).r);
-		metal = 0.35;
-		// Darker gunmetal border along the walls; a polished walking line
-		// down the middle where boots go.
+		// Floor: light, worn, slightly glossy metal deck plates (the
+		// metal_plate_02 set's plates), scuffed darker along the walls.
+		vec2 fuv = vec2(v_pos.x, v_pos.z) / 2.4;
+		tn = unpack_n(texture(ceil_nor, fuv), normal_strength * 1.2);
+		float m = texture(ceil_metal, fuv).r;
+		float g = texture(rusty_albedo, fuv * 1.3).g;
+		col = mix(deck_dark, deck_light, m) * (0.82 + 0.35 * g);
+		rough = mix(0.25, 0.75, texture(ceil_rough, fuv).r);
+		metal = 0.35 + 0.35 * m;
 		float edge = min(v_pos.x + 2.3, 2.0 - v_pos.x);
-		col = mix(gunmetal * 0.85, col, smoothstep(0.18, 0.32, edge));
-		float path = 1.0 - smoothstep(0.25, 0.75, abs(v_pos.x + 0.15));
-		path *= 0.6 + 0.4 * vnoise(v_pos.xz * 1.7);
-		col = mix(col, col * 1.18, path * 0.5);
-		rough = mix(rough, 0.35, path * 0.45);
+		col = mix(col * 0.55, col, smoothstep(0.05, 0.45, edge));
+		// Boot-polished walking line.
+		float path = 1.0 - smoothstep(0.3, 0.9, abs(v_pos.x + 0.15));
+		rough = mix(rough, 0.2, path * 0.5);
+		col = mix(col, col * 1.1, path * 0.4);
 	} else if (s == 2) {
-		// Ceiling: dark rusted steel plates.
-		vec2 cuv = uv / ceil_tile;
-		tn = unpack_n(texture(ceil_nor, cuv), normal_strength);
-		float m = texture(ceil_metal, cuv).r;
-		float v = texture(rusty_albedo, cuv * 0.7).r;
-		// Gunmetal: the rust map only darkens a little, no brown.
-		col = mix(ceil_rust, ceil_steel, m) * (0.85 + 0.3 * v);
-		rough = texture(ceil_rough, cuv).r;
-		// Mostly diffuse: reflections are off in this renderer, so high
-		// metalness just reads black (and picks up the warm light).
-		metal = 0.15 + m * 0.2;
+		// Ceiling: dark quilted insulation blankets: diamond-stitched puffs,
+		// soft sheen on the bulges, dark seams.
+		vec2 q = mat2(vec2(0.7071, 0.7071), vec2(-0.7071, 0.7071)) * uv / quilt_size;
+		vec2 f = fract(q) - 0.5;
+		vec2 c = cos(f * 3.14159);
+		float puff = c.x * c.y;                       // 1 at the centre, 0 at seams
+		vec2 grad = -vec2(sin(f.x * 3.14159) * c.y, c.x * sin(f.y * 3.14159)) * 0.9;
+		grad = mat2(vec2(0.7071, -0.7071), vec2(0.7071, 0.7071)) * grad;
+		tn = normalize(vec3(grad, 1.0));
+		float wrinkle = vnoise(uv * 9.0) * 0.5 + vnoise(uv * 23.0) * 0.5;
+		tn = normalize(tn + vec3((wrinkle - 0.5) * 0.35, (vnoise(uv * 11.0 + 3.0) - 0.5) * 0.35, 0.0));
+		col = quilt * (0.55 + 0.6 * puff) * (0.85 + 0.3 * wrinkle);
+		rough = mix(0.65, 0.35, puff);
+		metal = 0.25;
+	} else if (s == 7) {
+		// Dark worn painted metal (frames, beams, upper walls): plate
+		// normals, paint worn back to brighter metal where the rusty set's
+		// metal map says so.
+		vec2 puv = uv / 1.8;
+		tn = unpack_n(texture(ceil_nor, puv), normal_strength);
+		float wm = texture(rusty_metal, puv * 0.8).r;
+		float g = texture(green_albedo, puv).g;
+		col = dark_paint * (0.8 + 0.5 * g);
+		col = mix(col, worn_edge, smoothstep(0.45, 0.85, wm) * 0.7);
+		rough = mix(0.55, 0.3, wm);
+		metal = mix(0.2, 0.75, wm);
 	} else if (s == 5) {
 		// Blue metal plate, its own colour (equipment housings, cabinets).
 		vec2 puv = uv / 1.2;
@@ -189,7 +215,17 @@ void fragment() {
 		col = texture(rusty_albedo, ruv).rgb;
 		rough = texture(rusty_rough, ruv).r;
 		metal = texture(rusty_metal, ruv).r;
-	} else if (s == 2 || s == 3 || (s == 0 && y > rail_top && y < panel_top)) {
+	} else if (s == 0 && y > rail_top && y < panel_top) {
+		// Upper walls: dark worn painted metal (as surface 7), a touch lighter.
+		vec2 puv = uv / 1.8;
+		tn = unpack_n(texture(plate_nor, uv / plate_tile), normal_strength);
+		float wm = texture(rusty_metal, puv * 0.8).r;
+		float g = texture(green_albedo, puv).g;
+		col = dark_paint * 1.35 * (0.8 + 0.5 * g);
+		col = mix(col, worn_edge, smoothstep(0.5, 0.9, wm) * 0.5);
+		rough = mix(0.6, 0.35, wm);
+		metal = mix(0.15, 0.6, wm);
+	} else if (s == 3) {
 		// Painted aluminium panels (plate set): off-white walls / ceiling.
 		vec2 puv = uv / plate_tile;
 		tn = unpack_n(texture(plate_nor, puv), normal_strength);
