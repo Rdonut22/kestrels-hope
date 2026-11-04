@@ -55,6 +55,8 @@ func _ready() -> void:
 	_labels()
 	_fixtures()
 	_tool_cart()
+	_rug()
+	_mat_edge()
 
 
 # ---------- materials ----------
@@ -304,3 +306,27 @@ func _tool_cart() -> void:
 	else:
 		cart.position = Vector3(X_R - 0.3, 0.0, 5.3)
 		cart.rotation.y = PI
+
+
+## A big rug at the lounge entrance (ship/models/rug/rug.fbx, about
+## 2.2 x 3.5 m here), its long side running from the corridor into the
+## lounge doorway. Kicked askew after the crash.
+func _rug() -> void:
+	var scene: PackedScene = load("res://ship/models/rug/rug.fbx")
+	var rug: Node3D = scene.instantiate()
+	rug.name = "LoungeRug"
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://ship/rug.gdshader")
+	for n in rug.find_children("*", "MeshInstance3D", true, false):
+		(n as MeshInstance3D).material_override = mat
+		(n as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(rug)
+	rug.scale = Vector3.ONE * 1.6
+	# The model's long side runs along its z: turn it to run along x.
+	rug.rotation.y = PI * 0.5 + (0.22 if crashed else 0.0)
+	rug.position = Vector3(0.55, 0.02, 1.4 + (0.3 if crashed else 0.0))
+
+
+## An aluminium transition strip where the rubber mats start (aft third).
+func _mat_edge() -> void:
+	_box("MatEdge", Vector3((X_L + X_R) * 0.5, 0.028, 4.3), Vector3(X_R - X_L, 0.012, 0.05), _alu())

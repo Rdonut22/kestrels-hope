@@ -38,6 +38,13 @@ uniform sampler2D green_detail : hint_default_white, filter_linear_mipmap, repea
 uniform sampler2D shutter_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D shutter_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D shutter_detail : hint_default_white, filter_linear_mipmap, repeat_enable;
+// Rubber tile mats (the user's rubber_tiles set) over the aft third of the
+// floor, from the boarding ramp in: z > mat_start.
+uniform sampler2D rubber_nor : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rubber_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform float mat_start = 4.3;
+uniform float rubber_tile = 2.0;
+uniform vec3 rubber_color : source_color = vec3(0.075, 0.08, 0.09);
 
 // Texture tile sizes (metres).
 uniform float plate_tile = 2.4;
@@ -104,7 +111,19 @@ void fragment() {
 	float metal = 0.15;
 	int s = surface;
 
-	if (s == 1) {
+	if (s == 1 && v_pos.z > mat_start) {
+		// Rubber tile mats near the ship's entrance.
+		vec2 ruv = vec2(v_pos.x, v_pos.z) / rubber_tile;
+		tn = unpack_n(texture(rubber_nor, ruv), normal_strength);
+		float r0 = texture(rubber_rough, ruv).r;
+		col = rubber_color * (0.9 + 0.2 * vnoise(ruv * 7.0));
+		// Seams between tiles read darker; boots polish the middle a little.
+		col *= mix(0.6, 1.0, smoothstep(0.55, 0.8, r0));
+		rough = mix(0.55, 0.92, r0);
+		float path = 1.0 - smoothstep(0.25, 0.8, abs(v_pos.x + 0.15));
+		rough = mix(rough, 0.6, path * 0.35);
+		metal = 0.0;
+	} else if (s == 1) {
 		// Floor: dark anti-slip ribs across the walkway.
 		vec2 fuv = vec2(v_pos.z, v_pos.x) / shutter_tile;
 		tn = unpack_n(texture(shutter_nor, fuv), normal_strength * 0.8);

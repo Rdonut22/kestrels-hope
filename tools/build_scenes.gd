@@ -137,6 +137,7 @@ func _make_materials() -> void:
 		"green_detail": load(tex + "green_metal_detail.png"),
 		"shutter_nor": load(tex + "shutter_nor.png"), "shutter_rough": load(tex + "shutter_rough.png"),
 		"shutter_detail": load(tex + "shutter_detail.png"),
+		"rubber_nor": load(tex + "rubber_nor.png"), "rubber_rough": load(tex + "rubber_rough.png"),
 		# Bathroom and engineering doorways on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(), Vector4()]})
 	_mat("corridor_frame", Color("343A3B"), 0.5, 0.6)
