@@ -40,7 +40,7 @@ func _next_step() -> String:
 	if not gs.power_restored:
 		return "The power junction in engineering, next to the power panel. I'll jack in and we'll route the backup cell around the damage.\n\nYou do the routing. I'll do the worrying."
 	if not gs.has_flag("hud_all_seen"):
-		return "The cockpit's awake now. Flip the switches and check every screen on the glass.\n\nThen get some coffee. You look like a man who's been drinking reactor coolant."
+		return "The cockpit's awake now. Flip the switches and check every screen on the glass."
 	return "Everything that can be fixed from up here is fixed.\n\nThere's the landing option on nav, when you're ready. No rush. I'll be right here."
 
 

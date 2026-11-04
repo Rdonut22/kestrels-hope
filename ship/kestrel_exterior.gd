@@ -74,6 +74,8 @@ const ROOMS := [[2.4, 5.6, -6.8, -3.4], [2.4, 5.6, -9.95, -6.8], [-2.3, 2.0, -5.
 const LOUNGE := Vector3(2.4, 1.6, 4.75)
 # The one porthole with a room behind it: the gunner's station (y, z).
 const GUNNER_WINDOW := Vector2(2.0, 5.5)
+# Fuselage skin cut away outside the galley windows (see ship/galley_windows.gd).
+const GALLEY_CUT := AABB(Vector3(5.4, 0.85, -6.8), Vector3(4.0, 2.4, 3.4))
 
 var _paint: Shader
 var _plating: Texture2D = preload("res://ship/textures/hull_plating.png")
@@ -180,9 +182,16 @@ func _ready() -> void:
 	# starboard side, the fuselage skin is cut away so it shows (and the
 	# lounge looks out).
 	var cuts := [AABB(Vector3(5.4, 0.85, -2.6), Vector3(3.0, 1.85, 8.4))]
+
 	if crashed:
 		cuts.append(BREACH_BOX)
 	var fus := _cut(parts["fuselage"], xf, cuts)
+	# The galley's panoramic windows (ship/galley_windows.gd) look out
+	# through a clean-edged bay in the skin: clipped exactly to the bay,
+	# its cut ends closed with bulkhead plates and a sill.
+	if _has_ship:
+		_galley_caps(fus, xf)
+		fus = _clip_out(fus, xf, GALLEY_CUT)
 	var fus_mi := _mesh("Fuselage", fus, xf)
 	_two_tone(fus_mi)
 	# You walk around inside its nose now.
@@ -199,9 +208,11 @@ func _ready() -> void:
 		var z0: float = plate_c.z - half_len
 		var z1: float = plate_c.z + half_len
 		var spans := [[z0, z1]] if side < 0.0 else [[z0, -2.6], [5.8, z1]]
-		if crashed and side > 0.0:
-			spans = [[z0, -2.6], [5.8, z1]]
+		if _has_ship and side > 0.0:
+			spans = [[z0, GALLEY_CUT.position.z], [GALLEY_CUT.end.z, -2.6], [5.8, z1]]
 		for sp in spans:
+			if sp[1] <= sp[0]:
+				continue
 			var plate := BoxMesh.new()
 			plate.size = Vector3(0.12, 0.12 * fuselage_scale_y, sp[1] - sp[0])
 			_mesh("SidePlate", plate, Transform3D(Basis.IDENTITY, Vector3(px, plate_c.y, (sp[0] + sp[1]) * 0.5)))
@@ -1040,3 +1051,136 @@ func _mesh(n: String, m: Mesh, xf: Transform3D) -> MeshInstance3D:
 	mi.material_override = _mat()
 	add_child(mi)
 	return mi
+
+
+# ---------- the galley bay ----------
+
+## The mesh (model frame, drawn with xf) with everything inside `box` (ship
+## space) removed, triangles split exactly at the box's faces.
+func _clip_out(m: Mesh, xf: Transform3D, box: AABB) -> ArrayMesh:
+	var inv := xf.affine_inverse()
+	var out := ArrayMesh.new()
+	for sidx in m.get_surface_count():
+		var a := m.surface_get_arrays(sidx)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var nrm = a[Mesh.ARRAY_NORMAL]
+		var idx = a[Mesh.ARRAY_INDEX]
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var count: int = (idx.size() if idx != null else v.size()) / 3
+		for t in count:
+			var poly: Array = []
+			for k in 3:
+				var i: int = idx[t * 3 + k] if idx != null else t * 3 + k
+				poly.append([xf * v[i], nrm[i] if nrm != null else Vector3.UP])
+			var tb := AABB(poly[0][0], Vector3.ZERO).expand(poly[1][0]).expand(poly[2][0])
+			if not tb.intersects(box):
+				_emit(st, poly, inv)
+				continue
+			# Peel off the parts outside each face of the box in turn; what's
+			# left at the end is inside, and goes.
+			var rest := poly
+			for axis in 3:
+				for side in [-1.0, 1.0]:
+					if rest.is_empty():
+						break
+					var c: float = box.position[axis] if side < 0.0 else box.end[axis]
+					var parts := _split(rest, axis, c, side)
+					_emit(st, parts[0], inv)
+					rest = parts[1]
+		st.commit(out)
+	return out
+
+
+## Splits a convex polygon ([pos, normal] pairs) by the plane p[axis] = c:
+## [outside, inside], outside being where side * (p[axis] - c) > 0.
+func _split(poly: Array, axis: int, c: float, side: float) -> Array:
+	var outside: Array = []
+	var inside: Array = []
+	for i in poly.size():
+		var a: Array = poly[i]
+		var b: Array = poly[(i + 1) % poly.size()]
+		var da: float = side * ((a[0] as Vector3)[axis] - c)
+		var db: float = side * ((b[0] as Vector3)[axis] - c)
+		if da > 0.0:
+			outside.append(a)
+		else:
+			inside.append(a)
+		if (da > 0.0) != (db > 0.0):
+			var t := da / (da - db)
+			var q := [(a[0] as Vector3).lerp(b[0], t), (a[1] as Vector3).lerp(b[1], t)]
+			outside.append(q)
+			inside.append(q)
+	return [outside if outside.size() >= 3 else [], inside if inside.size() >= 3 else []]
+
+
+func _emit(st: SurfaceTool, poly: Array, inv: Transform3D) -> void:
+	for i in range(1, poly.size() - 1):
+		for p in [poly[0], poly[i], poly[i + 1]]:
+			st.set_normal((p[1] as Vector3).normalized())
+			st.add_vertex(inv * (p[0] as Vector3))
+
+
+## Bulkhead plates closing the fuselage's cut ends at the bay's fore and aft
+## faces: the fuselage's own section there (its outline sliced at that
+## plane), so no gap shows past the galley's flush wall.
+func _galley_caps(m: Mesh, xf: Transform3D) -> void:
+	var b := GALLEY_CUT
+	var tris := PackedVector3Array()
+	for sidx in m.get_surface_count():
+		var a := m.surface_get_arrays(sidx)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var idx = a[Mesh.ARRAY_INDEX]
+		if idx == null:
+			for p in v:
+				tris.append(xf * p)
+		else:
+			for i in idx:
+				tris.append(xf * v[i])
+	var paint := _mat()
+	# Each just outside the bay (into the fuselage that carries on), so the
+	# bay's own end faces win where they overlap.
+	for e in [[b.position.z, -0.004], [b.end.z, 0.004]]:
+		var z: float = e[0]
+		var pts := _slice(tris, 2, z, func(p: Vector3) -> bool:
+			return p.x > 5.9 and p.y >= b.position.y - 0.01 and p.y <= b.end.y + 0.01)
+		var flat := PackedVector2Array([Vector2(5.9, b.position.y), Vector2(5.9, b.end.y)])
+		for p in pts:
+			flat.append(Vector2(p.x, p.y))
+		var poly := PackedVector3Array()
+		for q in Geometry2D.convex_hull(flat):
+			poly.append(Vector3(q.x, q.y, z + e[1]))
+		_cap_mesh("GalleyBayEnd", poly, paint)
+
+
+## Points where the triangles' edges cross the plane p[axis] = c.
+func _slice(tris: PackedVector3Array, axis: int, c: float, keep: Callable) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for t in range(0, tris.size(), 3):
+		for e in 3:
+			var a := tris[t + e]
+			var bb := tris[t + (e + 1) % 3]
+			var da := a[axis] - c
+			var db := bb[axis] - c
+			if (da > 0.0) != (db > 0.0):
+				var p := a.lerp(bb, da / (da - db))
+				if keep.call(p):
+					out.append(p)
+	return out
+
+
+func _cap_mesh(n: String, poly: PackedVector3Array, mat: Material) -> void:
+	if poly.size() < 3:
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(1, poly.size() - 1):
+		st.add_vertex(poly[0])
+		st.add_vertex(poly[i])
+		st.add_vertex(poly[i + 1])
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	add_child(mi)

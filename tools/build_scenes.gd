@@ -571,14 +571,6 @@ func _build_ship() -> void:
 		chair.rotation.y = seat_pos[1]
 		_add(scene_root, chair, seat_pos[2])
 
-	var kitchen := _furniture("KitchenFurniture")
-	_box(kitchen, "CounterSide", Vector3(5.0, 0, -6.6), Vector3(5.6, 0.92, -3.6), "trim")
-	_box(kitchen, "CounterBack", Vector3(3.2, 0, -4.0), Vector3(5.0, 0.92, -3.4), "trim")
-	_box(kitchen, "CountertopSide", Vector3(4.95, 0.92, -6.65), Vector3(5.6, 0.97, -3.55), "counter")
-	_box(kitchen, "CountertopBack", Vector3(3.15, 0.92, -4.05), Vector3(4.95, 0.97, -3.4), "counter")
-	_box(kitchen, "Cabinets", Vector3(5.2, 1.8, -6.6), Vector3(5.6, 2.5, -3.6), "trim")
-	_box(kitchen, "FoodDispenser", Vector3(5.15, 0.97, -5.3), Vector3(5.6, 1.6, -4.7), "metal_dark")
-
 	_lounge()
 	_lounge_entrance()
 	_bookshelf()
@@ -655,16 +647,6 @@ func _build_ship() -> void:
 	var screen := _mesh_box(computer, "Screen", Vector3(0.1, 0.75, 0), Vector3(0.04, 0.45, 1.0), "screen_cyan")
 	screen.rotation.z = 0.17
 
-	var coffee := _interactable(use, "CoffeeMachine", "coffee_machine", Vector3(5.3, 0.97, -6.1), {"needs_power": true})
-	_box(_own_csg(coffee, "Body"), "Shell", Vector3(-0.18, 0, -0.18), Vector3(0.18, 0.45, 0.18), "counter")
-	var lamp := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.05
-	sphere.height = 0.1
-	lamp.mesh = sphere
-	lamp.position = Vector3(-0.19, 0.36, 0)
-	_add(coffee, lamp, "Lamp")
-
 	var log_terminal := _interactable(use, "LogTerminal", "log_terminal", Vector3(1.55, 0.8, -7.4), {"prompt": "Read personal log", "needs_power": true})
 	_mesh_box(log_terminal, "Screen", Vector3(0.22, 0.65, 0), Vector3(0.04, 0.5, 0.75), "screen_amber")
 
@@ -704,8 +686,6 @@ func _build_ship() -> void:
 		_interactable(use, "JackSocket", "jack_socket", Vector3(-3.6, 1.2, -1.0),
 			{"interact_range": 1.7, "socket_path": NodePath("../../JackSocket")})
 		_thought_zones()
-	_inspect(use, "FoodDispenser", Vector3(5.35, 1.2, -5.0), "Food dispenser",
-		"Ration paste. Today's flavor: 'savory'.", 1.6)
 	_inspect(use, "LoungeWindow", Vector3(6.6, 1.6, 1.6), "Look outside",
 		"Stars. A lot of them, and none of them any closer than yesterday.", 2.2)
 	_inspect(use, "Shower", Vector3(-5.5, 1.0, -3.9), "Shower",
@@ -741,6 +721,12 @@ func _build_ship() -> void:
 	dressing.set("crashed", crashed)
 	scene_root.add_child(dressing)
 	dressing.owner = scene_root
+	# Panoramic galley windows (real openings in the starboard hull).
+	var galley := Node3D.new()
+	galley.name = "GalleyWindows"
+	galley.set_script(load("res://ship/galley_windows.gd"))
+	scene_root.add_child(galley)
+	galley.owner = scene_root
 	var ext := Node3D.new()
 	ext.name = "KestrelExterior"
 	ext.set_script(load("res://ship/kestrel_exterior.gd"))
@@ -2663,12 +2649,6 @@ func _ship_hoses() -> void:
 	eng_runs.append(_hose_run([Vector3(-3.55, 0.12, -0.55), Vector3(-4.0, 0.05, -0.3), Vector3(-4.68, 0.05, -0.32),
 		Vector3(-4.84, 0.07, -0.75), Vector3(-4.8, 0.4, -1.1), Vector3(-4.78, 0.84, -1.24)], 0.05, c2))
 	_hoses(root, "EngineeringHoses", eng_runs)
-
-	# Galley: three along the ceiling corner over the cabinets.
-	var galley := []
-	for z in [-6.8, -5.7, -4.5, -3.4]:
-		galley.append(_anchor(Vector3(5.5, 2.86, z), Vector3(-B, -B, 0)))
-	_hoses(root, "GalleyHoses", _hose_bundle(galley, 3, 41, 0.025, 0.045))
 
 	# Cockpit: a bundle along the leaning right wall, one hose dropping into
 	# the computer bench.

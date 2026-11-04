@@ -85,15 +85,6 @@ func _run() -> void:
 	await _walk_check(Vector3(-1.0, 1.1, 1.1), PI / 2, 0.8, func(p): return p.x < -3.0, "deck -> engineering")
 	await _walk_check(Vector3(-4.0, 1.1, 2.2), PI, 0.9, func(p): return p.z > 4.2, "engineering -> gunner")
 
-	# Coffee.
-	await _place(Vector3(4.4, 1.1, -6.1), -PI / 2)
-	_check(hud.prompt_label.text == "[E] Make coffee", "coffee prompt: '%s'" % hud.prompt_label.text)
-	await _press("interact")
-	await _shot("05_kitchen_brewing")
-	await _wait(270)
-	await _press("interact")
-	_check(player.has_coffee, "got coffee")
-
 	# Computer, log, bed, ramp.
 	# The computer is up on the flight deck (ship/kestrel_exterior.gd).
 	await _place(Vector3(4.3, 1.1 + KestrelExterior.FLIGHT_DECK_Y, -10.4), -PI / 2)
