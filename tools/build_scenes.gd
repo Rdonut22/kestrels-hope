@@ -714,6 +714,11 @@ func _build_ship() -> void:
 	# The exterior (fuselage, hull cladding, wings, fans) and the flight deck
 	# in the fuselage's nose are built at runtime by ship/kestrel_exterior.gd.
 	# (The old box exterior, _exterior(), is no longer used.)
+	var floors := Node3D.new()
+	floors.name = "RoomFloors"
+	floors.set_script(load("res://ship/room_floors.gd"))
+	scene_root.add_child(floors)
+	floors.owner = scene_root
 	var dressing := Node3D.new()
 	dressing.name = "CorridorDressing"
 	dressing.set_script(load("res://ship/corridor_dressing.gd"))
