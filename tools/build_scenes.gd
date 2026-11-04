@@ -527,13 +527,15 @@ func _build_ship() -> void:
 	# Corridor: soft ivory light under the broad luminous ceiling panels
 	# (ship/corridor_dressing.gd draws them), darker at the structure, and a
 	# warmer light at the lounge entrance.
-	for d in [["DeckFore", -3.6], ["DeckMid", 0.8], ["DeckPoolD", 4.3], ["DeckAft", 7.2]]:
+	# Brighter under the light panels (quarters end, lounge entrance), dimmer
+	# between them and toward the ramp: [name, z, energy].
+	for d in [["DeckFore", -3.6, 1.1], ["DeckMid", 0.8, 1.0], ["DeckPoolD", 4.3, 0.35], ["DeckAft", 7.2, 0.6]]:
 		var pool := OmniLight3D.new()
 		pool.position = Vector3(-0.15, 2.6, d[1])
 		# Kitchen-like: bright, even, warm white.
 		pool.light_color = Color(1.0, 0.95, 0.88)
-		pool.light_energy = 1.1
-		pool.omni_range = 6.5
+		pool.light_energy = d[2]
+		pool.omni_range = 5.5 if d[2] > 0.8 else 4.5
 		pool.omni_attenuation = 0.7
 		_add(lights, pool, d[0])
 	var lounge_warm := OmniLight3D.new()
