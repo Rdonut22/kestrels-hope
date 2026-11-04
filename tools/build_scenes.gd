@@ -146,7 +146,7 @@ func _make_materials() -> void:
 		"ceil_rough": load(tex + "ceilplate_rough.png"),
 		# Bathroom and engineering doorways on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(), Vector4()]})
-	_mat("corridor_frame", Color("484641"), 0.55, 0.5)
+	_mat("corridor_frame", Color(0.27, 0.28, 0.3), 0.5, 0.35)
 	var rusty: ShaderMaterial = mats["corridor_wall"].duplicate()
 	rusty.set_shader_parameter("surface", 6)
 	ResourceSaver.save(rusty, "res://ship/materials/corridor_rusty.tres")
@@ -530,11 +530,11 @@ func _build_ship() -> void:
 	for d in [["DeckFore", -3.6], ["DeckMid", 0.8], ["DeckPoolD", 4.3], ["DeckAft", 7.2]]:
 		var pool := OmniLight3D.new()
 		pool.position = Vector3(-0.15, 2.6, d[1])
-		# Dim, warm and broad: soft fill rather than spots.
-		pool.light_color = Color(1.0, 0.86, 0.7)
-		pool.light_energy = 0.55
+		# Kitchen-like: bright, even, warm white.
+		pool.light_color = Color(1.0, 0.95, 0.88)
+		pool.light_energy = 1.1
 		pool.omni_range = 6.5
-		pool.omni_attenuation = 0.55
+		pool.omni_attenuation = 0.7
 		_add(lights, pool, d[0])
 	var lounge_warm := OmniLight3D.new()
 	lounge_warm.position = Vector3(1.2, 2.2, 1.4)
@@ -1524,7 +1524,7 @@ func _update_main() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	# Soft ivory, not orange (the interior art direction).
-	env.ambient_light_color = Color(0.64, 0.57, 0.48)
+	env.ambient_light_color = Color(0.66, 0.62, 0.55)
 	env.ambient_light_energy = 0.8
 	env.tonemap_exposure = 1.05
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED

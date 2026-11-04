@@ -50,13 +50,13 @@ uniform sampler2D rusty_rough : hint_default_white, filter_linear_mipmap, repeat
 uniform sampler2D rusty_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
 uniform float rusty_tile = 1.5;
 // Ceiling: the user's metal_plate_02 set (normal, metalness, roughness): dark,
-// rust-stained steel plates. Colour from its metal map (bare steel vs rust).
+// gunmetal steel plates. Colour from its metal map.
 uniform sampler2D ceil_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D ceil_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
 uniform sampler2D ceil_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform float ceil_tile = 2.2;
-uniform vec3 ceil_steel : source_color = vec3(0.32, 0.31, 0.29);
-uniform vec3 ceil_rust : source_color = vec3(0.22, 0.15, 0.1);
+uniform vec3 ceil_steel : source_color = vec3(0.34, 0.36, 0.4);
+uniform vec3 ceil_rust : source_color = vec3(0.25, 0.26, 0.29);
 // Rubber tile mats (the user's rubber_tiles set) over the aft third of the
 // floor, from the boarding ramp in: z > mat_start.
 uniform sampler2D rubber_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -168,9 +168,12 @@ void fragment() {
 		tn = unpack_n(texture(ceil_nor, cuv), normal_strength);
 		float m = texture(ceil_metal, cuv).r;
 		float v = texture(rusty_albedo, cuv * 0.7).r;
-		col = mix(ceil_rust, ceil_steel, m) * (0.75 + 0.5 * v);
+		// Gunmetal: the rust map only darkens a little, no brown.
+		col = mix(ceil_rust, ceil_steel, m) * (0.85 + 0.3 * v);
 		rough = texture(ceil_rough, cuv).r;
-		metal = m * 0.8;
+		// Mostly diffuse: reflections are off in this renderer, so high
+		// metalness just reads black (and picks up the warm light).
+		metal = 0.15 + m * 0.2;
 	} else if (s == 5) {
 		// Blue metal plate, its own colour (equipment housings, cabinets).
 		vec2 puv = uv / 1.2;

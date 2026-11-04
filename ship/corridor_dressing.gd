@@ -35,7 +35,7 @@ const DOORS := [[X_L, -3.0, 1.156], [X_L, 1.1, 1.156]]
 const CEILING_PANELS := [[-4.7, -2.5], [-0.2, 2.4], [5.9, 7.9]]
 const PANEL_W := 1.5
 
-const GUNMETAL := Color("484641")     # charcoal structure
+const GUNMETAL := Color(0.27, 0.28, 0.3)  # gunmetal structure
 const IVORY := Color("C5B9A5")
 const ALUMINIUM := Color("8E958F")    # brushed steel
 const WALNUT := Color("957456")
@@ -326,7 +326,7 @@ func _labels() -> void:
 ## frame and a soft ivory diffuser (dark after the crash, but for one dim
 ## panel near the quarters).
 func _fixtures() -> void:
-	var lit := _std("diffuser", LIGHT.darkened(0.08), 0.5, 0.0, 0.3)
+	var lit := _std("diffuser", LIGHT.lightened(0.3), 0.5, 0.0, 0.85)
 	var dark := _std("diffuser_dark", Color(0.3, 0.29, 0.27), 0.6, 0.0)
 	var dim := _std("diffuser_dim", LIGHT, 0.5, 0.0, 0.25)
 	for i in CEILING_PANELS.size():
