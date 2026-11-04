@@ -42,7 +42,7 @@ func _run(out: String) -> void:
 		["5_cart", Vector3(0.0, 1.3, 3.8), Vector3(1.7, 0.6, 5.3)],
 		["6_handrail", Vector3(1.0, 1.4, 3.0), Vector3(-2.3, 0.9, 6.5)],
 		["7_rug", Vector3(-1.8, 2.0, -1.4), Vector3(1.0, 0.0, 1.6)],
-		["8_entrance", Vector3(-0.15, 1.7, 2.5), Vector3(-0.15, 0.0, 8.5)], ["9_mats", Vector3(-0.15, 1.3, 5.0), Vector3(-0.15, 0.0, 6.6)], ["a_quarters", Vector3(1.3, 1.6, -6.2), Vector3(-2.0, 0.3, -8.8)], ["b_kitchen", Vector3(4.0, 1.6, -3.6), Vector3(3.5, 0.2, -6.5)]]
+		["8_entrance", Vector3(-0.15, 1.7, 2.5), Vector3(-0.15, 0.0, 8.5)], ["9_mats", Vector3(-0.15, 1.3, 5.0), Vector3(-0.15, 0.0, 6.6)], ["a_quarters", Vector3(1.3, 1.6, -6.2), Vector3(-2.0, 0.3, -8.8)], ["b_kitchen", Vector3(4.0, 1.6, -3.6), Vector3(3.5, 0.2, -6.5)], ["c_ceiling", Vector3(-0.15, 1.5, 7.5), Vector3(-0.15, 3.0, 2.0)]]
 	for v in views:
 		cam.position = v[1]
 		cam.look_at(ship.to_global(v[2]))

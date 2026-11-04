@@ -11,7 +11,7 @@ shader_type spatial;
 //              then aged-ivory painted panels (plate set normals) above.
 //   surface 1: floor: dark anti-slip (worn shutter set, fine ribs), darker
 //              border along the walls, a worn walking line down the middle
-//   surface 2: ceiling: off-white panels (plate set)
+//   surface 2: ceiling: dark rusted steel plates (metal_plate_02 set)
 //   surface 3: a single painted panel in `panel_color` (plate set)
 //   surface 4: a rubber tile mat (rubber_tiles set)
 //   surface 5: blue metal plate in its own colour
@@ -49,6 +49,14 @@ uniform sampler2D rusty_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
 uniform float rusty_tile = 1.5;
+// Ceiling: the user's metal_plate_02 set (normal, metalness, roughness): dark,
+// rust-stained steel plates. Colour from its metal map (bare steel vs rust).
+uniform sampler2D ceil_nor : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D ceil_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
+uniform sampler2D ceil_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform float ceil_tile = 2.2;
+uniform vec3 ceil_steel : source_color = vec3(0.32, 0.31, 0.29);
+uniform vec3 ceil_rust : source_color = vec3(0.22, 0.15, 0.1);
 // Rubber tile mats (the user's rubber_tiles set) over the aft third of the
 // floor, from the boarding ramp in: z > mat_start.
 uniform sampler2D rubber_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -154,6 +162,15 @@ void fragment() {
 		path *= 0.6 + 0.4 * vnoise(v_pos.xz * 1.7);
 		col = mix(col, col * 1.18, path * 0.5);
 		rough = mix(rough, 0.35, path * 0.45);
+	} else if (s == 2) {
+		// Ceiling: dark rusted steel plates.
+		vec2 cuv = uv / ceil_tile;
+		tn = unpack_n(texture(ceil_nor, cuv), normal_strength);
+		float m = texture(ceil_metal, cuv).r;
+		float v = texture(rusty_albedo, cuv * 0.7).r;
+		col = mix(ceil_rust, ceil_steel, m) * (0.75 + 0.5 * v);
+		rough = texture(ceil_rough, cuv).r;
+		metal = m * 0.8;
 	} else if (s == 5) {
 		// Blue metal plate, its own colour (equipment housings, cabinets).
 		vec2 puv = uv / 1.2;

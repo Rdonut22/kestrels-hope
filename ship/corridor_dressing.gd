@@ -29,9 +29,11 @@ const LEFT_SPANS := [[-5.55, -4.25], [-1.75, -0.15], [2.35, 9.15]]
 const RIGHT_SPANS := [[-3.75, -0.45], [2.45, 6.5]]
 # Doorways [wall x, centre z, half width] for the surrounds and hand wear.
 const DOORS := [[X_L, -3.0, 1.156], [X_L, 1.1, 1.156]]
-# Broad luminous ceiling panels between the structural beams (z ranges;
-# beams at z -1.6, 3.2, 5.4, 8.9).
-const CEILING_PANELS := [[-5.3, -1.95], [-1.25, 2.85], [3.55, 5.05], [5.75, 8.55]]
+# Luminous ceiling panels in a few places only (z ranges; beams at z -1.6,
+# 3.2, 5.4, 8.9): by the quarters, at the lounge entrance, near the ramp.
+# Between them the ceiling is dark rusted steel with pipe runs.
+const CEILING_PANELS := [[-4.7, -2.5], [-0.2, 2.4], [5.9, 7.9]]
+const PANEL_W := 1.5
 
 const GUNMETAL := Color("484641")     # charcoal structure
 const IVORY := Color("C5B9A5")
@@ -332,11 +334,43 @@ func _fixtures() -> void:
 		var z1: float = CEILING_PANELS[i][1]
 		var zc := (z0 + z1) * 0.5
 		var len := z1 - z0
-		_box("PanelRecess%d" % i, Vector3(-0.15, 2.968, zc), Vector3(2.7, 0.012, len + 0.12), _gunmetal())
+		_box("PanelRecess%d" % i, Vector3(-0.15, 2.968, zc), Vector3(PANEL_W + 0.16, 0.012, len + 0.16), _gunmetal())
 		var mat: Material = lit
 		if crashed:
 			mat = dim if i == 0 else dark
-		_box("LightPanel%d" % i, Vector3(-0.15, 2.958, zc), Vector3(2.5, 0.012, len - 0.1), mat)
+		_box("LightPanel%d" % i, Vector3(-0.15, 2.958, zc), Vector3(PANEL_W, 0.012, len), mat)
+	_ceiling_pipes()
+
+
+## Pipe runs along the ceiling either side of the light panels: two dark
+## steel lines and a thinner brushed one, on clamp brackets.
+func _ceiling_pipes() -> void:
+	var dark_pipe := _std("pipe_dark", Color(0.17, 0.165, 0.16), 0.5, 0.7)
+	var runs := [[-1.35, 2.8, 0.075, dark_pipe], [-1.6, 2.83, 0.05, _alu()], [1.05, 2.8, 0.085, dark_pipe]]
+	var z0 := Z_F + 0.1
+	var z1 := Z_A - 0.15
+	for i in runs.size():
+		var r: Array = runs[i]
+		var c := CylinderMesh.new()
+		c.top_radius = r[2]
+		c.bottom_radius = r[2]
+		c.height = z1 - z0
+		c.radial_segments = 12
+		var mi := MeshInstance3D.new()
+		mi.name = "CeilingPipe%d" % i
+		mi.mesh = c
+		mi.material_override = r[3]
+		mi.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(r[0], r[1], (z0 + z1) * 0.5))
+		add_child(mi)
+	# Clamp brackets hanging from the ceiling every ~1.8 m.
+	var z := z0 + 0.6
+	var k := 0
+	while z < z1:
+		for x in [-1.47, 1.05]:
+			_box("PipeHanger%d_%d" % [k, int(x * 10)], Vector3(x, 2.9, z), Vector3(0.36 if x < 0.0 else 0.22, 0.03, 0.06), _gunmetal())
+			_box("PipeHangerRod%d_%d" % [k, int(x * 10)], Vector3(x, 2.94, z), Vector3(0.02, 0.07, 0.02), _gunmetal())
+		z += 1.8
+		k += 1
 
 
 ## A personal niche near the quarters (left wall, forward stretch): a small

@@ -142,6 +142,8 @@ func _make_materials() -> void:
 		"plate_albedo": load(tex + "plate_color.png"), "rusty_albedo": load(tex + "rusty_color.png"),
 		"rusty_nor": load(tex + "rusty_nor.png"), "rusty_rough": load(tex + "rusty_rough.png"),
 		"rusty_metal": load(tex + "rusty_metal.png"),
+		"ceil_nor": load(tex + "ceilplate_nor.png"), "ceil_metal": load(tex + "ceilplate_metal.png"),
+		"ceil_rough": load(tex + "ceilplate_rough.png"),
 		# Bathroom and engineering doorways on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(), Vector4()]})
 	_mat("corridor_frame", Color("484641"), 0.55, 0.5)
