@@ -29,17 +29,19 @@ const LEFT_SPANS := [[-5.55, -4.25], [-1.75, -0.15], [2.35, 9.15]]
 const RIGHT_SPANS := [[-3.75, -0.45], [2.45, 6.5]]
 # Doorways [wall x, centre z, half width] for the surrounds and hand wear.
 const DOORS := [[X_L, -3.0, 1.156], [X_L, 1.1, 1.156]]
-# Light pools down the corridor (z), recessed in the ceiling.
-const FIXTURES := [-3.4, -0.8, 1.8, 4.4, 6.9]
+# Broad luminous ceiling panels between the structural beams (z ranges;
+# beams at z -1.6, 3.2, 5.4, 8.9).
+const CEILING_PANELS := [[-5.3, -1.95], [-1.25, 2.85], [3.55, 5.05], [5.75, 8.55]]
 
-const GUNMETAL := Color("343A3B")
-const ALUMINIUM := Color("929A98")
-const WALNUT := Color("805638")
+const GUNMETAL := Color("484641")     # charcoal structure
+const IVORY := Color("C5B9A5")
+const ALUMINIUM := Color("8E958F")    # brushed steel
+const WALNUT := Color("957456")
+const LIGHT := Color("F0D6AD")
 const AMBER := Color("E6B978")
 const CYAN := Color("A4C6C4")
 const RED := Color("A8493D")
-const STEEL_BLUE := Color("354B5A")
-const OLIVE := Color("52634D")
+const OLIVE := Color("6B725D")
 
 var _wall: ShaderMaterial
 var _mats := {}
@@ -54,6 +56,7 @@ func _ready() -> void:
 	_walnut()
 	_labels()
 	_fixtures()
+	_niche_and_storage()
 	_tool_cart()
 	_rug()
 	_mat_edge()
@@ -152,24 +155,58 @@ func _slab(n: String, r: Rect2, y: float, dir: float, mat: Material) -> void:
 
 # ---------- walls ----------
 
-## Rails along the panel band edges and mullions between panels, standing
-## proud of the wall so the off-white and olive panels read as recessed.
+## Large recessed wall panels: each solid wall stretch is divided into a
+## few broad ivory panels (about 1.8-2.4 m) by a frame that stands slightly
+## proud in a darker ivory, so the panels read as set in. A curved cove
+## softens the wall-to-ceiling joint.
 func _panel_framing() -> void:
-	var g := _gunmetal()
+	var frame := _std("panel_frame", IVORY.darkened(0.22), 0.6, 0.15)
+	var cove := _surface(3, IVORY.darkened(0.05))
 	for side in [[X_L, LEFT_SPANS], [X_R, RIGHT_SPANS]]:
 		var wx: float = side[0]
 		for sp in side[1]:
 			var z0: float = sp[0]
 			var z1: float = sp[1]
 			var tag := "%s%d" % ["L" if wx < 0.0 else "R", int(z0 * 10)]
-			_on_wall("RailLow" + tag, wx, z0, z1, 0.85, 0.95, 0.045, g)
-			_on_wall("RailHigh" + tag, wx, z0, z1, 2.33, 2.4, 0.045, g)
-			_on_wall("Kick" + tag, wx, z0, z1, 0.0, 0.12, 0.03, g)
-			# Mullions every ~1.2 m between the rails.
-			var count := int(floor((z1 - z0) / 1.2))
-			for k in range(1, count + 1):
-				var z := z0 + (z1 - z0) * float(k) / float(count + 1)
-				_on_wall("Mullion%s_%d" % [tag, k], wx, z - 0.025, z + 0.025, 0.95, 2.33, 0.03, g)
+			_on_wall("Kick" + tag, wx, z0, z1, 0.0, 0.12, 0.025, _gunmetal())
+			# Frame: top and bottom rails, then a stile between panels.
+			_on_wall("FrameLow" + tag, wx, z0, z1, 0.3, 0.36, 0.02, frame)
+			_on_wall("FrameHigh" + tag, wx, z0, z1, 2.28, 2.34, 0.02, frame)
+			var count := maxi(1, int(round((z1 - z0) / 2.1)))
+			for k in range(1, count):
+				var z := z0 + (z1 - z0) * float(k) / float(count)
+				_on_wall("Stile%s_%d" % [tag, k], wx, z - 0.035, z + 0.035, 0.36, 2.28, 0.02, frame)
+			# Cove: a soft curved strip along the top of the wall.
+			_cove("Cove" + tag, wx, z0, z1, cove)
+
+
+## A quarter-round cove along a wall's top edge (radius 0.22 m), from z0 to z1.
+func _cove(n: String, wx: float, z0: float, z1: float, mat: Material) -> void:
+	var inward := 1.0 if wx < 0.0 else -1.0
+	var r := 0.22
+	var top := 2.97
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segs := 6
+	for i in segs:
+		var a0 := PI * 0.5 * float(i) / segs
+		var a1 := PI * 0.5 * float(i + 1) / segs
+		# Centre of the arc at (wall + r, top - r); arc from the wall up to the ceiling.
+		var p0 := Vector2(wx + inward * (r - r * cos(a0)), top - r + r * sin(a0))
+		var p1 := Vector2(wx + inward * (r - r * cos(a1)), top - r + r * sin(a1))
+		var n0 := Vector3(inward * cos(a0), -sin(a0), 0)
+		var n1 := Vector3(inward * cos(a1), -sin(a1), 0)
+		var q := [[p0, n0, z0], [p1, n1, z0], [p1, n1, z1], [p0, n0, z1]]
+		var order := [0, 1, 2, 0, 2, 3] if inward < 0.0 else [0, 2, 1, 0, 3, 2]
+		for k in order:
+			var e: Array = q[k]
+			st.set_normal(e[1])
+			st.add_vertex(Vector3(e[0].x, e[0].y, e[2]))
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	add_child(mi)
 
 
 ## Gunmetal surrounds on the corridor side of the side doors, so the existing
@@ -230,16 +267,16 @@ func _utilities() -> void:
 	_on_wall("HatchPull", X_L, hatch_z - 0.12, hatch_z + 0.12, 0.66, 0.7, 0.05, _alu())
 	# Utility locker (right wall): a steel-blue housing with an amber
 	# indicator and a small cyan readout.
-	_on_wall("LockerBody", X_R, 3.0, 3.9, 0.95, 2.05, 0.06, _std("steel_blue", STEEL_BLUE, 0.55, 0.4))
+	_on_wall("LockerBody", X_R, 3.0, 3.9, 0.95, 2.05, 0.06, _surface(3, OLIVE))
 	_on_wall("LockerHandle", X_R, 3.78, 3.83, 1.35, 1.65, 0.09, _alu())
 	_on_wall("LockerLamp", X_R, 3.1, 3.14, 1.9, 1.94, 0.07, _std("amber", AMBER, 0.3, 0.0, 2.2 if not crashed else 0.0))
 	_on_wall("LockerReadout", X_R, 3.2, 3.5, 1.82, 1.96, 0.065, _std("cyan_screen", CYAN, 0.3, 0.0, 0.9 if not crashed else 0.0))
 	# One replacement panel in a slightly different off-white, between two
 	# mullions on the right wall; missing after the crash.
 	if not crashed:
-		_on_wall("ReplacementPanel", X_R, -2.55, -1.55, 0.98, 2.3, 0.012, _surface(3, Color("BDB59B")))
+		_on_wall("ReplacementPanel", X_R, -2.55, -1.55, 0.4, 2.26, 0.012, _surface(3, Color("CFC6AE")))
 	else:
-		_on_wall("MissingPanel", X_R, -2.55, -1.55, 0.98, 2.3, 0.008, dark)
+		_on_wall("MissingPanel", X_R, -2.55, -1.55, 0.4, 2.26, 0.008, dark)
 
 
 ## Walnut: one narrow handrail on aluminium brackets along the long left
@@ -283,15 +320,55 @@ func _labels() -> void:
 		add_child(l)
 
 
-## Recessed fixtures in the ceiling over each light pool: a gunmetal trim
-## ring and a warm diffuser (dark after the crash).
+## Broad luminous ceiling panels between the beams: a charcoal recess
+## frame and a soft ivory diffuser (dark after the crash, but for one dim
+## panel near the quarters).
 func _fixtures() -> void:
-	var diffuser := _std("diffuser", Color(1.0, 0.93, 0.82), 0.4, 0.0, 1.6 if not crashed else 0.0)
-	if crashed:
-		diffuser.albedo_color = Color(0.25, 0.25, 0.24)
-	for z in FIXTURES:
-		_box("FixtureTrim%d" % int(z * 10), Vector3(-0.15, 2.965, z), Vector3(0.62, 0.02, 0.62), _gunmetal())
-		_box("FixtureLens%d" % int(z * 10), Vector3(-0.15, 2.955, z), Vector3(0.5, 0.02, 0.5), diffuser)
+	var lit := _std("diffuser", LIGHT, 0.5, 0.0, 0.5)
+	var dark := _std("diffuser_dark", Color(0.3, 0.29, 0.27), 0.6, 0.0)
+	var dim := _std("diffuser_dim", LIGHT, 0.5, 0.0, 0.25)
+	for i in CEILING_PANELS.size():
+		var z0: float = CEILING_PANELS[i][0]
+		var z1: float = CEILING_PANELS[i][1]
+		var zc := (z0 + z1) * 0.5
+		var len := z1 - z0
+		_box("PanelRecess%d" % i, Vector3(-0.15, 2.968, zc), Vector3(2.7, 0.012, len + 0.12), _gunmetal())
+		var mat: Material = lit
+		if crashed:
+			mat = dim if i == 0 else dark
+		_box("LightPanel%d" % i, Vector3(-0.15, 2.958, zc), Vector3(2.5, 0.012, len - 0.1), mat)
+
+
+## A personal niche near the quarters (left wall, forward stretch): a small
+## recess with a walnut shelf, a mug, a framed photo and a tin.
+## Beside it, built-in storage: two flush ivory cabinet doors with steel pulls.
+func _niche_and_storage() -> void:
+	var recess := _std("niche_back", IVORY.darkened(0.35), 0.7, 0.0)
+	var zc := -4.9
+	_on_wall("NicheBack", X_L, zc - 0.45, zc + 0.45, 1.25, 1.75, 0.005, recess)
+	_on_wall("NicheFrame", X_L, zc - 0.5, zc + 0.5, 1.2, 1.24, 0.05, _gunmetal())
+	_on_wall("NicheFrameTop", X_L, zc - 0.5, zc + 0.5, 1.76, 1.8, 0.05, _gunmetal())
+	var shelf := _std("walnut", WALNUT.darkened(0.15), 0.75, 0.0)
+	_on_wall("NicheShelf", X_L, zc - 0.45, zc + 0.45, 1.24, 1.27, 0.16, shelf)
+	if not crashed:
+		var mug := CylinderMesh.new()
+		mug.top_radius = 0.035
+		mug.bottom_radius = 0.032
+		mug.height = 0.09
+		var mm := MeshInstance3D.new()
+		mm.name = "NicheMug"
+		mm.mesh = mug
+		mm.material_override = _std("mug", Color(0.55, 0.62, 0.6), 0.5, 0.0)
+		mm.position = Vector3(X_L + 0.09, 1.315, zc - 0.22)
+		add_child(mm)
+		var photo := _box("NichePhoto", Vector3(X_L + 0.04, 1.36, zc + 0.05), Vector3(0.015, 0.18, 0.13), _std("photo_frame", Color(0.2, 0.19, 0.17), 0.6, 0.2))
+		photo.rotation.z = -0.12
+		_box("NicheTin", Vector3(X_L + 0.08, 1.31, zc + 0.3), Vector3(0.08, 0.08, 0.08), _std("tin", OLIVE.darkened(0.1), 0.5, 0.4))
+	# Built-in storage on the right wall, forward stretch (near the quarters).
+	for k in 2:
+		var z0 := -3.65 + k * 0.56
+		_on_wall("CabinetDoor%d" % k, X_R, z0, z0 + 0.53, 0.42, 1.2, 0.025, _surface(3, IVORY.lightened(0.04)))
+		_on_wall("CabinetPull%d" % k, X_R, z0 + 0.4, z0 + 0.44, 0.95, 1.12, 0.05, _alu())
 
 
 ## The tool cart against the right wall, mid-corridor, aft of the locker.

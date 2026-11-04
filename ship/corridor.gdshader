@@ -7,9 +7,10 @@ shader_type spatial;
 // supply normal and roughness detail, their colour maps only light/dark
 // detail (the palette sets the hue).
 //
-//   surface 0: wall, zoned by height: gunmetal kick strip, olive lower
-//              panels (green metal set), off-white inset panels (blue metal
-//              plate set: its seams make the panel joints), gunmetal upper band
+//   surface 0: wall: a charcoal kick strip, then aged-ivory painted panels
+//              (blue metal plate set); the panel layout itself is geometry
+//              (corridor_dressing.gd). The olive band / upper band zones are
+//              still there (olive_top, rail_top, panel_top) but off by default.
 //   surface 1: floor: dark anti-slip (worn shutter set, fine ribs), darker
 //              border along the walls, a worn walking line down the middle
 //   surface 2: ceiling: off-white panels (plate set)
@@ -18,17 +19,17 @@ shader_type spatial;
 
 uniform int surface = 0;
 
-uniform vec3 off_white : source_color = vec3(0.714, 0.702, 0.643);   // #B6B3A4
-uniform vec3 olive : source_color = vec3(0.322, 0.388, 0.302);       // #52634D
-uniform vec3 gunmetal : source_color = vec3(0.204, 0.227, 0.231);    // #343A3B
-uniform vec3 floor_color : source_color = vec3(0.3, 0.31, 0.3);
+uniform vec3 off_white : source_color = vec3(0.773, 0.725, 0.647);   // #C5B9A5 aged ivory
+uniform vec3 olive : source_color = vec3(0.42, 0.447, 0.365);        // #6B725D
+uniform vec3 gunmetal : source_color = vec3(0.282, 0.275, 0.255);    // #484641 charcoal
+uniform vec3 floor_color : source_color = vec3(0.24, 0.24, 0.23);
 uniform vec3 panel_color : source_color = vec3(0.714, 0.702, 0.643);
 
 // Wall zone heights (metres, ship space).
 uniform float kick_top = 0.12;
-uniform float olive_top = 0.85;
-uniform float rail_top = 0.95;
-uniform float panel_top = 2.35;
+uniform float olive_top = 0.12;
+uniform float rail_top = 0.12;
+uniform float panel_top = 3.6;
 
 uniform sampler2D plate_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D plate_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
@@ -48,11 +49,11 @@ uniform float rubber_tile = 1.3;
 uniform vec3 rubber_color : source_color = vec3(0.3, 0.31, 0.32);
 
 // Texture tile sizes (metres).
-uniform float plate_tile = 2.4;
+uniform float plate_tile = 3.0;
 uniform float green_tile = 1.6;
 uniform float shutter_tile = 1.0;
-uniform float normal_strength : hint_range(0.0, 2.0) = 0.8;
-uniform float detail_amount : hint_range(0.0, 1.0) = 0.35;
+uniform float normal_strength : hint_range(0.0, 2.0) = 1.3;
+uniform float detail_amount : hint_range(0.0, 1.0) = 0.6;
 
 // Doorway jambs on the walls, where hands and shoulders wear the paint:
 // (wall x, door centre z, half width, 0). Corridor-local (ship space).
@@ -151,7 +152,9 @@ void fragment() {
 		tn = unpack_n(texture(plate_nor, puv), normal_strength);
 		float d = texture(plate_detail, puv).r;
 		vec3 base = s == 3 ? panel_color : off_white;
-		col = base * mix(1.0, 0.75 + d * 0.5, detail_amount * 0.8);
+		col = base * mix(1.0, 0.8 + d * 0.4, detail_amount);
+		// Aged paint: faint warm grime gathering low, cleaner high up.
+		col *= mix(0.9, 1.0, smoothstep(0.1, 1.2, y)) * (0.96 + 0.06 * vnoise(uv * 0.8));
 		rough = mix(0.45, 0.8, texture(plate_rough, puv).r);
 		metal = 0.1;
 		if (s == 2) {

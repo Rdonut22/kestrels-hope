@@ -140,9 +140,9 @@ func _make_materials() -> void:
 		"rubber_nor": load(tex + "rubber_nor.png"), "rubber_rough": load(tex + "rubber_rough.png"),
 		# Bathroom and engineering doorways on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(), Vector4()]})
-	_mat("corridor_frame", Color("343A3B"), 0.5, 0.6)
+	_mat("corridor_frame", Color("484641"), 0.55, 0.5)
 	# Low amber guide lights instead of the cool-white strips.
-	_mat("corridor_guide", Color("E6B978"), 0.5, 0.0, 0.45)
+	_mat("corridor_guide", Color("F0D6AD"), 0.5, 0.0, 0.3)
 	_mat("fixture_warm", Color(1.0, 0.6, 0.25), 0.5, 0.0, 1.4)
 	_mat("screen_cyan", Color(0.1, 0.55, 0.9), 0.3, 0.0, 1.2)
 	_mat("screen_amber", Color(1.0, 0.6, 0.15), 0.3, 0.0, 1.2)
@@ -481,7 +481,8 @@ func _build_ship() -> void:
 		bevel.size = Vector3(0.55, 0.55, 14.8)
 		bevel.position = Vector3(side[0], 2.89, 1.8)
 		bevel.rotation.z = PI / 4
-		bevel.material = mats["ceiling"]
+		# Painted like the corridor walls: a soft wall-to-ceiling transition.
+		bevel.material = mats["corridor_wall"]
 		_add(hull, bevel, "DeckBevelLeft" if side[1] > 0 else "DeckBevelRight")
 
 	# Rib frames around the doorways (the "entrance lines").
@@ -513,21 +514,28 @@ func _build_ship() -> void:
 	_add(lights, canopy_fill, "CanopyFill")
 	_light(lights, "Kitchen", Vector3(4.0, 2.75, -5.1), Color(1.0, 0.85, 0.65), 1.1, 4.0)
 	_light(lights, "Lounge", Vector3(3.6, 2.75, 1.6), Color(1.0, 0.68, 0.42), 0.9, 6.0)
-	# Corridor: pools of warm-neutral light from recessed fixtures
-	# (ship/corridor_dressing.gd draws them), darker between.
-	for d in [["DeckFore", -3.4], ["DeckPoolB", -0.8], ["DeckMid", 1.8], ["DeckPoolD", 4.4], ["DeckAft", 6.9]]:
+	# Corridor: soft ivory light under the broad luminous ceiling panels
+	# (ship/corridor_dressing.gd draws them), darker at the structure, and a
+	# warmer light at the lounge entrance.
+	for d in [["DeckFore", -3.6], ["DeckMid", 0.8], ["DeckPoolD", 4.3], ["DeckAft", 7.2]]:
 		var pool := OmniLight3D.new()
-		pool.position = Vector3(-0.15, 2.8, d[1])
-		pool.light_color = Color(1.0, 0.9, 0.78)
-		pool.light_energy = 0.75
-		pool.omni_range = 4.2
-		pool.omni_attenuation = 1.1
+		pool.position = Vector3(-0.15, 2.6, d[1])
+		pool.light_color = Color(1.0, 0.93, 0.83)
+		pool.light_energy = 0.95
+		pool.omni_range = 5.5
+		pool.omni_attenuation = 0.85
 		_add(lights, pool, d[0])
+	var lounge_warm := OmniLight3D.new()
+	lounge_warm.position = Vector3(1.2, 2.2, 1.4)
+	lounge_warm.light_color = Color(1.0, 0.82, 0.62)
+	lounge_warm.light_energy = 0.5
+	lounge_warm.omni_range = 3.2
+	_add(lights, lounge_warm, "DeckLoungeWarm")
 	_light(lights, "Quarters", Vector3(-0.4, 2.75, -7.7), Color(1.0, 0.8, 0.6), 1.0, 4.5)
 	_light(lights, "Bathroom", Vector3(-4.3, 2.75, -3.0), Color(0.95, 0.97, 1.0), 0.8, 3.5)
 	_light(lights, "Engineering", Vector3(-4.6, 2.75, 1.4), Color(1.0, 0.65, 0.4), 0.9, 4.5)
 	_light(lights, "Gunner", Vector3(-5.0, 2.75, 5.5), Color(1.0, 0.35, 0.3), 0.8, 4.0)
-	_glow(lights, "RampGlow", Vector3(0.0, 0.6, 8.7), 0.9, 4.0)
+	_glow(lights, "RampGlow", Vector3(0.0, 0.6, 8.7), 0.25, 2.5)
 	_glow(lights, "EngineeringGlow", Vector3(-3.0, 0.5, 1.1), 0.6, 2.5)
 	_glow(lights, "KitchenGlow", Vector3(3.6, 2.2, -5.2), 0.5, 2.5)
 
@@ -563,7 +571,9 @@ func _build_ship() -> void:
 	var deck := _furniture("DeckFurniture")
 	_box(deck, "SuitLocker", Vector3(1.45, 0, 6.6), Vector3(2.0, 2.1, 7.6), "metal_dark")
 	_box(deck, "ArmoryLocker", Vector3(1.45, 0, 7.8), Vector3(2.0, 2.1, 8.8), "barrel")
-	_box(deck, "RampDoor", Vector3(-1.4, 0, 9.12), Vector3(1.4, 2.5, 9.2), "hazard")
+	# Boarding ramp door: charcoal, with a hazard band along its foot only.
+	_box(deck, "RampDoor", Vector3(-1.4, 0, 9.12), Vector3(1.4, 2.5, 9.2), "corridor_frame")
+	_box(deck, "RampDoorHazard", Vector3(-1.4, 0.05, 9.1), Vector3(1.4, 0.3, 9.12), "hazard")
 	_box(deck, "CrateA", Vector3(-2.3, 0, 7.6), Vector3(-1.5, 0.8, 8.4), "crate")
 	_box(deck, "CrateB", Vector3(-2.3, 0, 8.4), Vector3(-1.6, 0.7, 9.1), "crate")
 
@@ -1497,7 +1507,8 @@ func _update_main() -> void:
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.66, 0.5, 0.4)
+	# Soft ivory, not orange (the interior art direction).
+	env.ambient_light_color = Color(0.62, 0.6, 0.56)
 	env.ambient_light_energy = 0.8
 	env.tonemap_exposure = 1.05
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
@@ -2945,7 +2956,7 @@ func _apply_crash_damage() -> void:
 
 	# Lights: mostly dead or dim, red emergency lights, one flickering.
 	var lights := R.get_node("Lights")
-	var dead := ["DeckMid", "DeckPoolB", "DeckPoolD", "Kitchen", "Gunner", "Bathroom", "CanopyFill"]
+	var dead := ["DeckMid", "DeckPoolD", "DeckLoungeWarm", "Kitchen", "Gunner", "Bathroom", "CanopyFill"]
 	for l in lights.get_children():
 		if l is OmniLight3D:
 			if l.name in dead:
