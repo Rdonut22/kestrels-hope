@@ -527,19 +527,20 @@ func _build_ship() -> void:
 	_add(lights, canopy_fill, "CanopyFill")
 	_light(lights, "Kitchen", Vector3(4.0, 2.75, -5.1), Color(1.0, 0.85, 0.65), 1.1, 4.0)
 	_light(lights, "Lounge", Vector3(3.6, 2.75, 1.6), Color(1.0, 0.68, 0.42), 0.9, 6.0)
-	# Corridor: soft ivory light under the broad luminous ceiling panels
-	# (ship/corridor_dressing.gd draws them), darker at the structure, and a
-	# warmer light at the lounge entrance.
-	# Brighter under the light panels (quarters end, lounge entrance), dimmer
-	# between them and toward the ramp: [name, z, energy].
-	for d in [["DeckFore", -3.6, 1.1], ["DeckMid", 0.8, 1.0], ["DeckPoolD", 4.3, 0.35], ["DeckAft", 7.2, 0.6]]:
+	# Corridor: each light hangs just under one of the luminous ceiling
+	# panels (ship/corridor_dressing.gd CEILING_PANELS) and falls off
+	# steeply, so the light pools beneath the panels and the stretches of
+	# ceiling between them stay dark. They cast shadows (pipes, frames,
+	# cart). DeckPoolD is only a faint fill in the dark gap near the mats.
+	# [name, z, energy, range]
+	for d in [["DeckFore", -3.6, 2.0, 3.8], ["DeckMid", 1.1, 1.9, 3.8], ["DeckPoolD", 4.3, 0.12, 2.0], ["DeckAft", 6.9, 1.4, 3.6]]:
 		var pool := OmniLight3D.new()
-		pool.position = Vector3(-0.15, 2.6, d[1])
-		# Kitchen-like: bright, even, warm white.
+		pool.position = Vector3(-0.15, 2.85, d[1])
 		pool.light_color = Color(1.0, 0.95, 0.88)
 		pool.light_energy = d[2]
-		pool.omni_range = 5.5 if d[2] > 0.8 else 4.5
-		pool.omni_attenuation = 0.7
+		pool.omni_range = d[3]
+		pool.omni_attenuation = 1.8
+		pool.shadow_enabled = d[2] > 0.5
 		_add(lights, pool, d[0])
 	var lounge_warm := OmniLight3D.new()
 	lounge_warm.position = Vector3(1.2, 2.2, 1.4)
@@ -1530,7 +1531,8 @@ func _update_main() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	# Soft ivory, not orange (the interior art direction).
 	env.ambient_light_color = Color(0.66, 0.62, 0.55)
-	env.ambient_light_energy = 0.8
+	# Low, so unlit stretches of the corridor stay in shadow.
+	env.ambient_light_energy = 0.25
 	env.tonemap_exposure = 1.05
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX

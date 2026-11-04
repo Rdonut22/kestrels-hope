@@ -7,12 +7,12 @@ render_mode cull_disabled;
 // Projected in ship space (the hull is CSG, no UVs). The user's PBR sets
 // are applied with their own colour, normal, roughness (and metal) maps.
 //
-//   surface 0: wall: a rusty-metal kick strip, the green painted metal
-//              (its own colour) up to the chair rail at 1 m, a gunmetal rail,
-//              then aged-ivory painted panels (plate set normals) above.
+//   surface 0: wall: smooth dark metal in large sections with seams,
+//              grooves and inset panels (procedural relief)
 //   surface 1: floor: dark anti-slip (worn shutter set, fine ribs), darker
 //              border along the walls, a worn walking line down the middle
-//   surface 2: ceiling: dark rusted steel plates (metal_plate_02 set)
+//   surface 2: ceiling: dark glossy quilted padding
+//   surface 7: frames and beams: the wall metal with seams only
 //   surface 3: a single painted panel in `panel_color` (plate set)
 //   surface 4: a rubber tile mat (rubber_tiles set)
 //   surface 5: blue metal plate in its own colour
@@ -65,7 +65,11 @@ uniform vec3 deck_light : source_color = vec3(0.78, 0.73, 0.63);
 uniform vec3 deck_dark : source_color = vec3(0.55, 0.51, 0.44);
 uniform vec3 dark_paint : source_color = vec3(0.2, 0.195, 0.185);
 uniform vec3 worn_edge : source_color = vec3(0.46, 0.44, 0.4);
-uniform vec3 quilt : source_color = vec3(0.12, 0.12, 0.125);
+uniform vec3 quilt : source_color = vec3(0.05, 0.048, 0.046);
+// Walls and frames: smooth dark metal in large sections, with seams,
+// grooves and inset panels (procedural relief), no rust or paint colour.
+uniform vec3 wall_metal : source_color = vec3(0.085, 0.08, 0.074);
+uniform float bay = 1.6;
 uniform float quilt_size = 0.55;
 // Rubber tile mats (the user's rubber_tiles set) over the aft third of the
 // floor, from the boarding ramp in: z > mat_start.
@@ -110,6 +114,39 @@ float vnoise(vec2 p) {
 	vec2 f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y);
+}
+
+// Relief of the smooth wall metal: 0 flat, negative in grooves, positive
+// on raised panels. p = (along the wall, height).
+float groove(float d, float w) {
+	return 1.0 - smoothstep(w * 0.3, w, d);
+}
+
+float wall_relief(vec2 p, bool panels) {
+	float r = 0.0;
+	// Vertical seams between the large sections.
+	float du = abs(fract(p.x / bay + 0.5) - 0.5) * bay;
+	r -= groove(du, 0.022);
+	if (!panels) {
+		return r;
+	}
+	// Horizontal grooves: above the kick band, a pair framing the rail
+	// band, and a high one.
+	r -= groove(abs(p.y - 0.16), 0.018);
+	r -= groove(abs(p.y - 0.9), 0.022);
+	r -= groove(abs(p.y - 1.16), 0.022);
+	r -= groove(abs(p.y - 2.3), 0.018);
+	// An inset rounded panel in each section, with a soft bevelled edge,
+	// and a second, slimmer one below the rail band.
+	vec2 c = vec2((floor(p.x / bay) + 0.5) * bay, 1.72);
+	vec2 q = abs(p - c) - vec2(bay * 0.5 - 0.16, 0.38) + 0.08;
+	float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 0.08;
+	r += 0.6 * (1.0 - smoothstep(-0.03, 0.0, sd)) - 0.6 * groove(abs(sd), 0.018);
+	vec2 c2 = vec2(c.x, 0.53);
+	vec2 q2 = abs(p - c2) - vec2(bay * 0.5 - 0.22, 0.22) + 0.05;
+	float sd2 = length(max(q2, 0.0)) + min(max(q2.x, q2.y), 0.0) - 0.05;
+	r -= 0.5 * groove(abs(sd2), 0.016);
+	return r;
 }
 
 void fragment() {
@@ -174,32 +211,51 @@ void fragment() {
 		rough = mix(rough, 0.2, path * 0.5);
 		col = mix(col, col * 1.1, path * 0.4);
 	} else if (s == 2) {
-		// Ceiling: dark quilted insulation blankets: diamond-stitched puffs,
-		// soft sheen on the bulges, dark seams.
+		// Ceiling: dark glossy quilted padding: diamond-stitched puffs,
+		// creases pulled toward the stitched seams, dark seams.
 		vec2 q = mat2(vec2(0.7071, 0.7071), vec2(-0.7071, 0.7071)) * uv / quilt_size;
 		vec2 f = fract(q) - 0.5;
 		vec2 c = cos(f * 3.14159);
 		float puff = c.x * c.y;                       // 1 at the centre, 0 at seams
-		vec2 grad = -vec2(sin(f.x * 3.14159) * c.y, c.x * sin(f.y * 3.14159)) * 0.9;
-		grad = mat2(vec2(0.7071, -0.7071), vec2(0.7071, 0.7071)) * grad;
+		vec2 grad = -vec2(sin(f.x * 3.14159) * c.y, c.x * sin(f.y * 3.14159)) * 1.4;
+		// Creases: ridges running across each puff toward its corners,
+		// wobbled per cell so no two puffs match.
+		vec2 cell = floor(q);
+		float ph = h(cell) * 6.28;
+		float wob = vnoise(q * 3.0 + cell * 1.7) * 2.0;
+		float along = (f.x + f.y) * 0.7071;
+		float across = (f.x - f.y) * 0.7071;
+		float cr = sin(across * 26.0 + wob * 2.5 + ph) * smoothstep(0.0, 0.25, puff);
+		float cr2 = sin(along * 18.0 + wob * 3.0 + ph * 1.3) * smoothstep(0.1, 0.5, puff) * 0.5;
+		vec2 crease = vec2(0.7071, -0.7071) * cr * 0.45 + vec2(0.7071, 0.7071) * cr2 * 0.35;
+		grad = mat2(vec2(0.7071, -0.7071), vec2(0.7071, 0.7071)) * (grad + crease);
 		tn = normalize(vec3(grad, 1.0));
-		float wrinkle = vnoise(uv * 9.0) * 0.5 + vnoise(uv * 23.0) * 0.5;
-		tn = normalize(tn + vec3((wrinkle - 0.5) * 0.35, (vnoise(uv * 11.0 + 3.0) - 0.5) * 0.35, 0.0));
-		col = quilt * (0.55 + 0.6 * puff) * (0.85 + 0.3 * wrinkle);
-		rough = mix(0.65, 0.35, puff);
-		metal = 0.25;
-	} else if (s == 7) {
-		// Dark worn painted metal (frames, beams, upper walls): plate
-		// normals, paint worn back to brighter metal where the rusty set's
-		// metal map says so.
-		vec2 puv = uv / 1.8;
-		tn = unpack_n(texture(ceil_nor, puv), normal_strength);
-		float wm = texture(rusty_metal, puv * 0.8).r;
-		float g = texture(green_albedo, puv).g;
-		col = dark_paint * (0.8 + 0.5 * g);
-		col = mix(col, worn_edge, smoothstep(0.45, 0.85, wm) * 0.7);
-		rough = mix(0.55, 0.3, wm);
-		metal = mix(0.2, 0.75, wm);
+		float seam = 1.0 - smoothstep(0.0, 0.08, min(0.5 - abs(f.x), 0.5 - abs(f.y)));
+		col = quilt * (0.55 + 0.7 * puff) * (0.9 + 0.2 * cr) * mix(1.0, 0.35, seam);
+		rough = mix(0.5, 0.14, puff);
+		metal = 0.0;
+	} else if (s == 7 || s == 0) {
+		// Smooth dark metal in large sections (walls, frames, beams):
+		// seams, grooves and inset panels as relief, soft sheen, faint
+		// smudges. Frames get only the seams.
+		vec2 p = vec2(uv.x, y);
+		bool panels = s == 0;
+		float e = 0.004;
+		float r0 = wall_relief(p, panels);
+		float rx = wall_relief(p + vec2(e, 0.0), panels);
+		float ry = wall_relief(p + vec2(0.0, e), panels);
+		vec2 grad = vec2(rx - r0, ry - r0) / e;
+		tn = normalize(vec3(-grad * 0.012, 1.0));
+		float smudge = vnoise(uv * 1.3) * 0.6 + vnoise(uv * 5.0 + 9.0) * 0.4;
+		float big = vnoise(uv * 0.35 + 4.0);
+		col = wall_metal * (0.85 + 0.35 * big);
+		col *= mix(1.0, 0.3, clamp(-r0, 0.0, 1.0));    // grooves darker
+		col *= 1.0 + 0.25 * clamp(r0, 0.0, 1.0);       // raised panels lighter
+		if (panels && y <= kick_top + 0.04) {
+			col *= 0.7;                                  // darker kick band
+		}
+		rough = 0.28 + 0.22 * smudge;
+		metal = 0.6;
 	} else if (s == 5) {
 		// Blue metal plate, its own colour (equipment housings, cabinets).
 		vec2 puv = uv / 1.2;
@@ -207,7 +263,7 @@ void fragment() {
 		col = texture(plate_albedo, puv).rgb * 1.2;
 		rough = mix(0.35, 0.8, texture(plate_rough, puv).r);
 		metal = 0.3;
-	} else if (s == 6 || (s == 0 && y <= kick_top)) {
+	} else if (s == 6) {
 		// Rusty metal, its own colour, metalness and roughness (kick strip,
 		// ramp door, worn and damaged spots).
 		vec2 ruv = uv / rusty_tile;
@@ -215,16 +271,6 @@ void fragment() {
 		col = texture(rusty_albedo, ruv).rgb;
 		rough = texture(rusty_rough, ruv).r;
 		metal = texture(rusty_metal, ruv).r;
-	} else if (s == 0 && y > rail_top && y < panel_top) {
-		// Upper walls: dark worn painted metal (as surface 7), a touch lighter.
-		vec2 puv = uv / 1.8;
-		tn = unpack_n(texture(plate_nor, uv / plate_tile), normal_strength);
-		float wm = texture(rusty_metal, puv * 0.8).r;
-		float g = texture(green_albedo, puv).g;
-		col = dark_paint * 1.35 * (0.8 + 0.5 * g);
-		col = mix(col, worn_edge, smoothstep(0.5, 0.9, wm) * 0.5);
-		rough = mix(0.6, 0.35, wm);
-		metal = mix(0.15, 0.6, wm);
 	} else if (s == 3) {
 		// Painted aluminium panels (plate set): off-white walls / ceiling.
 		vec2 puv = uv / plate_tile;
@@ -239,14 +285,6 @@ void fragment() {
 		if (s == 2) {
 			col *= 0.92;
 		}
-	} else if (s == 0 && y > kick_top && y <= olive_top) {
-		// Olive utility panels low on the walls (green metal set).
-		vec2 guv = uv / green_tile;
-		tn = unpack_n(texture(green_nor, guv), normal_strength);
-		col = texture(green_albedo, guv).rgb * 1.1;
-		rough = mix(0.4, 0.85, texture(green_rough, guv).r);
-		metal = 0.15;
-
 	} else {
 		// Gunmetal structure: kick strip, rail band, upper band.
 		vec2 puv = uv / plate_tile;
@@ -276,7 +314,7 @@ void fragment() {
 	ALBEDO = col;
 	ROUGHNESS = rough;
 	METALLIC = metal;
-	SPECULAR = 0.45;
+	SPECULAR = s == 2 ? 0.8 : 0.5;
 	vec3 pn = normalize(T * tn.x + B * tn.y + n * tn.z);
 	NORMAL = normalize((VIEW_MATRIX * MODEL_MATRIX * vec4(pn, 0.0)).xyz);
 }

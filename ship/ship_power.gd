@@ -1,7 +1,7 @@
 extends Node
 
 ## Emergency power until Meki reroutes the backup cell: the ship's lights
-## run dim and red and the hum is faint. Then the rooms come back one at a
+## run dim and slightly red and the hum is faint. Then the rooms come back one at a
 ## time, each with a relay clunk.
 
 @export var lights_path: NodePath
@@ -23,7 +23,7 @@ func _ready() -> void:
 		l.set_meta("energy", l.light_energy)
 		l.set_meta("color", l.light_color)
 		l.light_energy *= 0.22
-		l.light_color = l.light_color.lerp(Color(1.0, 0.25, 0.18), 0.75)
+		l.light_color = l.light_color.lerp(Color(1.0, 0.45, 0.35), 0.3)
 		var fixture := l.get_node_or_null("Fixture") as MeshInstance3D
 		if fixture:
 			fixture.set_meta("mat", fixture.material_override)

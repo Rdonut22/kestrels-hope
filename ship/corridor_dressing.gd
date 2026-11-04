@@ -172,7 +172,7 @@ func _panel_framing() -> void:
 			var z0: float = sp[0]
 			var z1: float = sp[1]
 			var tag := "%s%d" % ["L" if wx < 0.0 else "R", int(z0 * 10)]
-			_on_wall("Kick" + tag, wx, z0, z1, 0.0, 0.12, 0.025, _surface(6))
+			_on_wall("Kick" + tag, wx, z0, z1, 0.0, 0.12, 0.025, _surface(7))
 			# Frame: top and bottom rails, then a stile between panels.
 			_on_wall("ChairRail" + tag, wx, z0, z1, 1.0, 1.06, 0.03, _gunmetal())
 			_on_wall("FrameHigh" + tag, wx, z0, z1, 2.28, 2.34, 0.02, frame)
@@ -263,7 +263,7 @@ func _utilities() -> void:
 	# seam, an aluminium pull and a stencilled label.
 	var hatch_z := 6.6
 	_on_wall("HatchSeam", X_L, hatch_z - 0.42, hatch_z + 0.42, 0.18, 0.8, 0.012, dark)
-	var hatch := _on_wall("Hatch", X_L, hatch_z - 0.4, hatch_z + 0.4, 0.2, 0.78, 0.03, _surface(6))
+	var hatch := _on_wall("Hatch", X_L, hatch_z - 0.4, hatch_z + 0.4, 0.2, 0.78, 0.03, _surface(7))
 	if crashed:
 		# Shaken loose in the crash: hangs open from its bottom hinge.
 		hatch.rotation = Vector3(0, 0, -0.5)

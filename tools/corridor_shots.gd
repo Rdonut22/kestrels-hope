@@ -3,6 +3,7 @@ extends SceneTree
 ## Renders the ship's corridor (the central deck) from player height.
 ##   godot --path . --script tools/corridor_shots.gd -- <out_dir> [scene]
 ## scene: res://main.tscn (default, the ship in space) or res://crash_site.tscn.
+## Set POWER=1 in the environment to render with the ship's power restored.
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -20,6 +21,9 @@ func _frames(n: int) -> void:
 
 func _run(out: String) -> void:
 	await _frames(20)
+	if OS.get_environment("POWER") == "1":
+		Game.state().power_restored = true
+		await create_timer(4.0).timeout
 	var scene := current_scene
 	var player: Node = scene.get_node_or_null("Player")
 	if player:
