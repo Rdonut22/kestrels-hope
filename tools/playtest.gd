@@ -80,14 +80,14 @@ func _run() -> void:
 	await _walk_check(Vector3(-0.15, 1.1, 8.0), 0.0, 2.6, func(p): return p.z < -3.0, "ramp end -> front of deck")
 	await _walk_check(Vector3(0.0, 1.1, 1.0), -PI / 2, 1.0, func(p): return p.x > 3.0, "deck -> lounge arch")
 	await _walk_check(Vector3(0.5, 1.1, -4.9), -PI / 2, 0.8, func(p): return p.x > 3.0, "deck -> kitchen")
-	await _walk_check(Vector3(4.0, 1.1, -5.5), 0.0, 2.6, func(p): return p.z < -9.8 and p.y > 1.3, "kitchen -> up the steps -> cockpit")
+	await _walk_check(Vector3(4.0, 1.1, -5.5), 0.0, 2.6, func(p): return p.z < -10.2, "kitchen -> passage -> cockpit in the nose")
 	await _walk_check(Vector3(-1.0, 1.1, -3.0), PI / 2, 0.8, func(p): return p.x < -3.0, "deck -> bathroom")
 	await _walk_check(Vector3(-1.0, 1.1, 1.1), PI / 2, 0.8, func(p): return p.x < -3.0, "deck -> engineering")
 	await _walk_check(Vector3(-4.0, 1.1, 2.2), PI, 0.9, func(p): return p.z > 4.2, "engineering -> gunner")
 
 	# Computer, log, bed, ramp.
-	# The computer is up on the flight deck (ship/kestrel_exterior.gd).
-	await _place(Vector3(4.3, 1.1 + KestrelExterior.FLIGHT_DECK_Y, -10.4), -PI / 2)
+	# The computer is in the passage to the cockpit (ship/kestrel_exterior.gd).
+	await _place(Vector3(4.3, 1.1, -8.4), -PI / 2)
 	_check(hud.prompt_label.text == "[E] Use ship computer", "computer prompt: '%s'" % hud.prompt_label.text)
 	await _press("interact")
 	_check(hud.screen.visible, "computer opens")
@@ -104,7 +104,7 @@ func _run() -> void:
 	await _shot("02_from_ramp")
 	await _place(Vector3(3.0, 1.1, 1.0), -PI / 2, -0.15)
 	await _shot("03_lounge")
-	await _place(Vector3(4.0, 1.1 + KestrelExterior.FLIGHT_DECK_Y, -9.6), 0.0, -0.1)
+	await _place(Vector3(4.0, 1.1, -9.4), 0.0, -0.1)
 	await _shot("04_cockpit")
 	await _place(Vector3(-2.9, 1.1, 1.6), PI / 2, -0.2)
 	await _shot("06_engineering")

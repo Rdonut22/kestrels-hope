@@ -90,8 +90,8 @@ func _run() -> void:
 	await _wait(150)
 	_check(music._music.playing and music._music.volume_db < -15.0, "wind fades down back inside (%.1f dB)" % music._music.volume_db)
 
-	# The computer is up on the flight deck (ship/kestrel_exterior.gd).
-	await _place(Vector3(4.3, 1.1 + KestrelExterior.FLIGHT_DECK_Y, -10.4), -PI / 2)
+	# The computer is in the passage to the cockpit (ship/kestrel_exterior.gd).
+	await _place(Vector3(4.3, 1.1, -8.4), -PI / 2)
 	_check(hud.prompt_label.text == "[E] Use ship computer", "computer prompt: '%s'" % hud.prompt_label.text)
 	await _place(Vector3(0.9, 1.1, 0.6), 0.0)
 	_check(hud.prompt_label.text.begins_with("[E]"), "fallen panel prompt: '%s'" % hud.prompt_label.text)

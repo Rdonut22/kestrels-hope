@@ -57,15 +57,14 @@ const CENTRE_X := -0.15
 const GEAR_GROUND := -3.4
 # The crash site's hull breach (tools/build_scenes.gd BREACH), with margin.
 const BREACH_BOX := AABB(Vector3(5.0, -0.6, -0.3), Vector3(5.5, 3.6, 5.2))
-# The flight deck (the old cockpit, raised into the fuselage's nose).
-const FLIGHT_DECK_Y := 1.35
-const DECK_Z := Vector2(-9.6, -13.3)      # back edge, front edge
-# Steps start clear of the door lintel (the door is at z -6.9).
-const STAIR_Z := Vector2(-7.5, -9.6)
-# Everything of the old cockpit that moves up onto the flight deck.
+# The cockpit is at deck level in the fuselage's nose (ship/nose_cockpit.gd);
+# there's no raised flight deck any more (kept at 0 for code that adds it).
+const FLIGHT_DECK_Y := 0.0
+# Everything of the old cockpit moves forward into the nose by this much.
+const COCKPIT_SHIFT := -0.8
 const COCKPIT_NODES := ["CockpitFurniture", "ConsoleScreenLeft", "ConsoleScreenRight", "PilotChair",
-	"CopilotChair", "CockpitPanel", "Lights/Cockpit", "Lights/CanopyFill", "Interactables/ShipComputer",
-	"Interactables/PilotSeat", "FlexHoses/CockpitHoses", "Clutter/BarrelC"]
+	"CopilotChair", "CockpitPanel", "Lights/Cockpit", "Lights/CanopyFill",
+	"Interactables/PilotSeat", "Clutter/BarrelC"]
 # Interior rooms (tools/build_scenes.gd), floor 0 to ceiling 3: exterior
 # geometry poking into them is removed. [x0, x1, z0, z1]
 const ROOMS := [[2.4, 5.6, -6.8, -3.4], [2.4, 5.6, -9.95, -6.8], [-2.3, 2.0, -5.6, 9.2],
@@ -128,7 +127,7 @@ func _ready() -> void:
 					box.size.y += 0.15
 					box.position.y += 0.075
 			_round_corner(hull)
-			_raise_cockpit(ship, hull)
+			_ground_cockpit(ship, hull)
 			# The lounge's round outer wall shows through the fuselage's
 			# window cut-out: paint it like the hull.
 			var lounge_outer := hull.get_node_or_null("LoungeOuter") as CSGShape3D
@@ -192,6 +191,8 @@ func _ready() -> void:
 	if _has_ship:
 		_stair_cover()
 		_galley_caps(fus, xf)
+		# The cockpit in the nose: windshield cut, insides cleared.
+		fus = NoseCockpit.new().build(self, fus, xf)
 		fus = _clip_out(fus, xf, GALLEY_CUT)
 	var fus_mi := _mesh("Fuselage", fus, xf)
 	_two_tone(fus_mi)
@@ -203,8 +204,6 @@ func _ready() -> void:
 		for cs in b.get_children():
 			if cs is CollisionShape3D and cs.shape is ConcavePolygonShape3D:
 				(cs.shape as ConcavePolygonShape3D).backface_collision = true
-	if _has_ship:
-		_flight_deck()
 	# Close the slots left where the nacelle mounts were cut away.
 	# (in world space; the starboard one leaves a gap for the lounge window).
 	var plate_c := xf * Vector3(0.0, 0.11, -0.08)
@@ -617,7 +616,11 @@ func _two_tone(mi: MeshInstance3D) -> void:
 	mi.material_override = null
 	mi.set_surface_override_material(0, paint)
 	mi.set_surface_override_material(1, _window_glass())
-	if mi.mesh.get_surface_count() > 2:
+	if mi.mesh.get_surface_count() > 2 and _has_ship:
+		# The marauder's own glass canopy over the nose is painted hull now:
+		# the cockpit looks out through its windshield (nose_cockpit.gd).
+		mi.set_surface_override_material(2, paint)
+	elif mi.mesh.get_surface_count() > 2:
 		var canopy := _clear_glass()
 		canopy.set_shader_parameter("mullion_spacing", Vector2(0.045, 0.055))
 		# Thin metal frame bars.
@@ -741,90 +744,39 @@ func _build_top_wing() -> void:
 		_ram("Ram", roof_pt, wing_pt)
 
 
-## The old cockpit goes: its box walls, nose, floor and glass canopy are
-## removed (the fuselage's hollow nose replaces them) and everything in it
-## moves up onto the flight deck.
-func _raise_cockpit(ship: Node3D, hull: CSGCombiner3D) -> void:
+## The old box cockpit goes (its walls, nose, floor and glass canopy); a
+## passage at deck level leads from the kitchen's cockpit door into the
+## fuselage's nose, where ship/nose_cockpit.gd builds the cockpit. The old
+## cockpit's furniture, panel, seats and lights move forward with it.
+func _ground_cockpit(ship: Node3D, hull: CSGCombiner3D) -> void:
 	for n in ["NoseLower", "CockpitNose", "FloorNose", "Cockpit", "CanopyRearFrame", "CockpitHullBevel"]:
 		var c := hull.get_node_or_null(n)
 		if c:
 			c.free()
-	# The hull box's forward end beside the kitchen (z -9.9..-7.05) opens up.
-	var open := CSGBox3D.new()
-	open.name = "CockpitOpen"
-	open.size = Vector3(4.0, 3.8, 2.9)
-	open.position = Vector3(4.0, 1.6, -8.5)
-	open.operation = CSGShape3D.OPERATION_SUBTRACTION
-	hull.add_child(open)
-	# The old glass canopy goes; its overhead console moves up with the rest.
+	var passage := CSGBox3D.new()
+	passage.name = "CockpitPassage"
+	var r: Rect2 = NoseCockpit.PASSAGE
+	passage.size = Vector3(r.size.x, r.size.y, 3.4)
+	passage.position = Vector3(r.get_center().x, r.get_center().y, -8.5)
+	passage.material = load("res://ship/materials/corridor_frame.tres")
+	passage.operation = CSGShape3D.OPERATION_SUBTRACTION
+	hull.add_child(passage)
+	# The old glass canopy goes; its overhead console moves with the rest.
 	var canopy := ship.get_node_or_null("Canopy") as Node3D
 	if canopy:
 		for c in canopy.get_children():
 			var cn := String(c.name)
 			if not (cn.begins_with("Overhead") or cn.begins_with("Cable")):
 				c.free()
-		canopy.position.y += FLIGHT_DECK_Y
+		canopy.position.z += COCKPIT_SHIFT
 	for path in COCKPIT_NODES:
 		var nd := ship.get_node_or_null(path) as Node3D
 		if nd:
-			nd.position.y += FLIGHT_DECK_Y
-	# The computer bench stood where the stairs go: move it beside them.
-	var bench := ship.get_node_or_null("CockpitFurniture/ComputerBench") as Node3D
-	var comp := ship.get_node_or_null("Interactables/ShipComputer") as Node3D
-	for nd in [bench, comp]:
-		if nd:
-			nd.position.z -= 2.0
-
-
-## The flight deck floor inside the fuselage's nose and the steps up to it
-## from the kitchen door, painted and with collision.
-func _flight_deck() -> void:
-	var body := StaticBody3D.new()
-	body.name = "FlightDeck"
-	add_child(body)
-	var deck_mat := _dark_metal()
-	deck_mat.albedo_color = Color(0.36, 0.36, 0.37)
-	# Floor: tapers with the nose.
-	var hw_back := 2.2
-	var hw_front := 1.6
-	var y := FLIGHT_DECK_Y
-	var pts := PackedVector2Array([Vector2(fuselage_x - hw_back, DECK_Z.x), Vector2(fuselage_x + hw_back, DECK_Z.x),
-		Vector2(fuselage_x + hw_front, DECK_Z.y), Vector2(fuselage_x - hw_front, DECK_Z.y)])
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_smooth_group(-1)
-	_slab_into(st, pts, 0.2, 0.02, y - 0.1)
-	st.generate_normals()
-	var fm := MeshInstance3D.new()
-	fm.name = "DeckFloor"
-	fm.mesh = st.commit()
-	fm.material_override = deck_mat
-	body.add_child(fm)
-	var fc := CollisionShape3D.new()
-	fc.shape = fm.mesh.create_convex_shape()
-	body.add_child(fc)
-	# Steps from the kitchen door (floor 0) up to the deck.
-	var n := 6
-	var run := (STAIR_Z.x - STAIR_Z.y) / n
-	for i in n:
-		var top := y * float(i + 1) / n
-		var b := BoxMesh.new()
-		b.size = Vector3(2.0, top, run)
-		var mi := MeshInstance3D.new()
-		mi.name = "Step%d" % i
-		mi.mesh = b
-		mi.material_override = deck_mat
-		mi.position = Vector3(fuselage_x, top * 0.5, STAIR_Z.x - run * (i + 0.5))
-		body.add_child(mi)
-	# The player doesn't climb steps: one smooth ramp collider under them.
-	var length := Vector2(STAIR_Z.x - STAIR_Z.y, y).length()
-	var ramp := CollisionShape3D.new()
-	var rs := BoxShape3D.new()
-	rs.size = Vector3(2.0, 0.1, length)
-	ramp.shape = rs
-	var ang := atan2(y, STAIR_Z.x - STAIR_Z.y)
-	ramp.transform = Transform3D(Basis(Vector3.RIGHT, ang), Vector3(fuselage_x, y * 0.5 - 0.05, (STAIR_Z.x + STAIR_Z.y) * 0.5))
-	body.add_child(ramp)
+			nd.position.z += COCKPIT_SHIFT
+	# The old cockpit's hose bundle ran down its leaning wall, which is gone.
+	var hoses := ship.get_node_or_null("FlexHoses/CockpitHoses")
+	if hoses:
+		hoses.free()
 
 
 ## A copy of a mesh without the triangles whose centre (in world space,
@@ -1061,11 +1013,24 @@ func _mesh(n: String, m: Mesh, xf: Transform3D) -> MeshInstance3D:
 	return mi
 
 
-# ---------- the galley bay ----------
-
 ## The mesh (model frame, drawn with xf) with everything inside `box` (ship
 ## space) removed, triangles split exactly at the box's faces.
 func _clip_out(m: Mesh, xf: Transform3D, box: AABB) -> ArrayMesh:
+	return _clip_planes(m, xf, [[Vector3(1, 0, 0), box.position.x], [Vector3(-1, 0, 0), -box.end.x],
+		[Vector3(0, 1, 0), box.position.y], [Vector3(0, -1, 0), -box.end.y],
+		[Vector3(0, 0, 1), box.position.z], [Vector3(0, 0, -1), -box.end.z]])
+
+
+## The mesh with everything inside a convex region removed, triangles split
+## exactly at its faces. The region (ship space): every [n, d] with n.p > d.
+func _clip_planes(m: Mesh, xf: Transform3D, planes: Array) -> ArrayMesh:
+	return _clip_regions(m, xf, [[planes, AABB()]])
+
+
+## Like _clip_planes for several convex regions in one pass: [[planes,
+## bounds], ...]. Triangles that don't touch a region's bounds (ship space;
+## a zero-size AABB means unbounded) skip it.
+func _clip_regions(m: Mesh, xf: Transform3D, regions: Array) -> ArrayMesh:
 	var inv := xf.affine_inverse()
 	var out := ArrayMesh.new()
 	for sidx in m.get_surface_count():
@@ -1077,45 +1042,53 @@ func _clip_out(m: Mesh, xf: Transform3D, box: AABB) -> ArrayMesh:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		var count: int = (idx.size() if idx != null else v.size()) / 3
 		for t in count:
-			var poly: Array = []
+			var tri: Array = []
 			for k in 3:
 				var i: int = idx[t * 3 + k] if idx != null else t * 3 + k
-				poly.append([xf * v[i], nrm[i] if nrm != null else Vector3.UP])
-			var tb := AABB(poly[0][0], Vector3.ZERO).expand(poly[1][0]).expand(poly[2][0])
-			if not tb.intersects(box):
+				tri.append([xf * v[i], nrm[i] if nrm != null else Vector3.UP])
+			var tb := AABB(tri[0][0], Vector3.ZERO).expand(tri[1][0]).expand(tri[2][0]).grow(0.001)
+			var pieces: Array = [tri]
+			for reg in regions:
+				var bounds: AABB = reg[1]
+				if bounds.size != Vector3.ZERO and not tb.intersects(bounds):
+					continue
+				var kept: Array = []
+				for poly in pieces:
+					# Peel off the parts outside each plane in turn; what's
+					# left at the end is inside the region, and goes.
+					var rest: Array = poly
+					for pl in reg[0]:
+						if rest.is_empty():
+							break
+						var parts := _split(rest, pl[0], pl[1])
+						if not (parts[0] as Array).is_empty():
+							kept.append(parts[0])
+						rest = parts[1]
+				pieces = kept
+				if pieces.is_empty():
+					break
+			for poly in pieces:
 				_emit(st, poly, inv)
-				continue
-			# Peel off the parts outside each face of the box in turn; what's
-			# left at the end is inside, and goes.
-			var rest := poly
-			for axis in 3:
-				for side in [-1.0, 1.0]:
-					if rest.is_empty():
-						break
-					var c: float = box.position[axis] if side < 0.0 else box.end[axis]
-					var parts := _split(rest, axis, c, side)
-					_emit(st, parts[0], inv)
-					rest = parts[1]
 		st.commit(out)
 	return out
 
 
-## Splits a convex polygon ([pos, normal] pairs) by the plane p[axis] = c:
-## [outside, inside], outside being where side * (p[axis] - c) > 0.
-func _split(poly: Array, axis: int, c: float, side: float) -> Array:
+## Splits a convex polygon ([pos, normal] pairs) by the plane n.p = d:
+## [outside (n.p <= d), inside (n.p > d)].
+func _split(poly: Array, n: Vector3, d: float) -> Array:
 	var outside: Array = []
 	var inside: Array = []
 	for i in poly.size():
 		var a: Array = poly[i]
 		var b: Array = poly[(i + 1) % poly.size()]
-		var da: float = side * ((a[0] as Vector3)[axis] - c)
-		var db: float = side * ((b[0] as Vector3)[axis] - c)
-		if da > 0.0:
+		var fa: float = n.dot(a[0]) - d
+		var fb: float = n.dot(b[0]) - d
+		if fa <= 0.0:
 			outside.append(a)
 		else:
 			inside.append(a)
-		if (da > 0.0) != (db > 0.0):
-			var t := da / (da - db)
+		if (fa <= 0.0) != (fb <= 0.0):
+			var t := fa / (fa - fb)
 			var q := [(a[0] as Vector3).lerp(b[0], t), (a[1] as Vector3).lerp(b[1], t)]
 			outside.append(q)
 			inside.append(q)
@@ -1223,7 +1196,9 @@ func _stair_cover() -> void:
 ## it (wings, struts, engines, pylons, gear, dome, dish...). The fuselage
 ## and the plated skin over the hull already collide (trimesh / the hull's
 ## CSG); glass and porthole covers sit in the hull.
-const NO_SOLID := ["Fuselage", "HullWalls", "HullRoof", "HullLedge", "HullSkin", "GalleyBay", "Porthole", "Glass", "NavLight"]
+# (The cockpit parts from nose_cockpit.gd carry their own exact collision.)
+const NO_SOLID := ["Fuselage", "HullWalls", "HullRoof", "HullLedge", "HullSkin", "GalleyBay", "Porthole", "Glass", "NavLight",
+	"CockpitLiner", "Dash", "Windshield", "Mullion", "ChinCap"]
 
 
 func _solidify() -> void:

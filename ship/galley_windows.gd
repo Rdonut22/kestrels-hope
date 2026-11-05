@@ -18,7 +18,8 @@ extends Node3D
 ##   - GalleyRoom: the room carved out of it above the sill (ROOM_OUTLINE),
 ##   - GalleyPane*: real openings through its outer wall and sloped top.
 ## And as its own children: the glass (with collision), brushed-steel
-## bezels around each opening, and the steel window counter. The kitchen's
+## bezels around each opening, the coated-pine window counter and a second
+## pine counter on a cabinet along the aft wall. The kitchen's
 ## walls get the blue metal plate (corridor.gdshader surface 5).
 ## Nothing is given an owner, so a saved scene holds only this node.
 ##
@@ -38,6 +39,9 @@ const EXT1 := Vector2(6.3, 3.25)
 const SLOPE_T := 0.2
 const CEIL_Y := 3.0
 const CORNER_R := 0.07
+# The second counter along the aft wall: from here to the window counter.
+const AFT_COUNTER_X0 := 3.1
+const AFT_COUNTER_D := 0.62
 const BEZEL_W := 0.055
 const BEZEL_D := 0.035
 # The bay's solid in (x, y): just inside the fuselage's curve below the
@@ -118,23 +122,31 @@ func _build() -> void:
 	for i in SLOPE_PANES.size():
 		_pane("Slope%d" % i, _slope_frame(), SLOPE_PANES[i], SLOPE_T, hull, to_hull)
 
-	# The deep window counter: brushed steel, over the old wall's top.
-	var counter := MeshInstance3D.new()
-	counter.name = "WindowCounter"
-	var cb := BoxMesh.new()
-	cb.size = Vector3(WALL_IN - 5.52, 0.04, Z_RANGE.y - Z_RANGE.x - 0.04)
-	counter.mesh = cb
-	counter.material_override = _steel
-	counter.position = Vector3((WALL_IN + 5.52) * 0.5, SILL_Y + 0.02, (Z_RANGE.x + Z_RANGE.y) * 0.5)
-	add_child(counter)
-	var lip := MeshInstance3D.new()
-	lip.name = "CounterLip"
-	var lb := BoxMesh.new()
-	lb.size = Vector3(0.05, 0.09, Z_RANGE.y - Z_RANGE.x - 0.04)
-	lip.mesh = lb
-	lip.material_override = _steel
-	lip.position = Vector3(5.53, SILL_Y - 0.005, (Z_RANGE.x + Z_RANGE.y) * 0.5)
-	add_child(lip)
+	# The deep window counter: coated pine, over the old wall's top, its
+	# boards running along it; and a second counter along the aft wall
+	# (to the right, looking out), on a dark cabinet.
+	var pine_z := _pine(true)
+	var pine_x := _pine(false)
+	_slab("WindowCounter", Vector3(5.52, SILL_Y, Z_RANGE.x + 0.02), Vector3(WALL_IN, SILL_Y + 0.04, Z_RANGE.y - 0.02), pine_z)
+	_slab("CounterLip", Vector3(5.505, SILL_Y - 0.05, Z_RANGE.x + 0.02), Vector3(5.555, SILL_Y + 0.04, Z_RANGE.y - 0.02), pine_z)
+	var aft := Z_RANGE.y
+	_slab("AftCounter", Vector3(AFT_COUNTER_X0, SILL_Y, aft - AFT_COUNTER_D), Vector3(5.505, SILL_Y + 0.04, aft), pine_x)
+	_slab("AftCounterLip", Vector3(AFT_COUNTER_X0, SILL_Y - 0.05, aft - AFT_COUNTER_D - 0.02), Vector3(5.505, SILL_Y + 0.04, aft - AFT_COUNTER_D + 0.03), pine_x)
+	_slab("AftCabinet", Vector3(AFT_COUNTER_X0 + 0.02, 0.1, aft - AFT_COUNTER_D + 0.04), Vector3(5.5, SILL_Y, aft), _charcoal)
+	_slab("AftToeKick", Vector3(AFT_COUNTER_X0 + 0.02, 0.0, aft - AFT_COUNTER_D + 0.1), Vector3(5.5, 0.1, aft), _steel)
+	for k in 3:
+		# Cabinet door seams.
+		var x := AFT_COUNTER_X0 + 0.02 + (5.5 - AFT_COUNTER_X0 - 0.02) * float(k + 1) / 4.0
+		_slab("AftCabinetSeam%d" % k, Vector3(x - 0.006, 0.14, aft - AFT_COUNTER_D + 0.035), Vector3(x + 0.006, SILL_Y - 0.04, aft - AFT_COUNTER_D + 0.045), _steel)
+	var body := StaticBody3D.new()
+	body.name = "AftCounterBody"
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(5.505 - AFT_COUNTER_X0, SILL_Y + 0.04, AFT_COUNTER_D)
+	cs.shape = bs
+	cs.position = Vector3((AFT_COUNTER_X0 + 5.505) * 0.5, (SILL_Y + 0.04) * 0.5, aft - AFT_COUNTER_D * 0.5)
+	body.add_child(cs)
+	add_child(body)
 
 	if restyle_walls:
 		# Blue metal plate on the walls (the user's blue_metal_plate set:
@@ -146,6 +158,31 @@ func _build() -> void:
 			m.set_shader_parameter("surface", 5)
 			kitchen.material = m
 			(hull.get_node("GalleyRoom") as CSGShape3D).material = m
+
+
+# ---------- counters ----------
+
+## Coated pine (ship/pine_wood.gdshader), boards along z or along x.
+func _pine(along_z: bool) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://ship/pine_wood.gdshader")
+	m.set_shader_parameter("nor_map", load("res://ship/textures/interior/pine_nor.png"))
+	m.set_shader_parameter("rough_map", load("res://ship/textures/interior/pine_rough.png"))
+	m.set_shader_parameter("along_z", along_z)
+	return m
+
+
+## A box from corner a to corner b (ship space).
+func _slab(n: String, a: Vector3, b: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	var bm := BoxMesh.new()
+	bm.size = (b - a).abs()
+	mi.mesh = bm
+	mi.material_override = mat
+	mi.position = (a + b) * 0.5
+	add_child(mi)
+	return mi
 
 
 # ---------- frames ----------
