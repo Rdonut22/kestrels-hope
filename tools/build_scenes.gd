@@ -2942,8 +2942,8 @@ func _apply_crash_damage() -> void:
 	_make_world_materials()
 	var R := scene_root
 	var hull: CSGCombiner3D = R.get_node("Hull")
-	# Keel: the hull sits buried in the dirt.
-	_box(hull, "Keel", Vector3(-7.7, -1.6, -12.9), Vector3(5.9, -0.19, 9.5), "hull_outer")
+	# (The old rectangular keel box under the hull showed above the ground
+	# as a slab and is gone.) The lounge's round underside sits buried.
 	_ccyl(hull, "LoungeKeel", 4.95, 1.4, Vector3(2.4, -0.9, 1.6), "hull_outer")
 	_add(hull, _breach_cutter(), "Breach")
 	_add(R.get_node("Windows/LoungeGlass"), _breach_cutter(1.15), "Breach")
@@ -3190,6 +3190,31 @@ func _tree(parent: Node, rng: RandomNumberGenerator, pos: Vector3, idx: int) -> 
 			_add(t, blob, "Blob%d" % k)
 
 
+## A solid StaticBody shaped like `mesh` under transform `xf` (the basis
+## baked into convex points, so scaled shapes stay exact).
+func _solid_convex(parent: Node, name: String, mesh: Mesh, xf: Transform3D) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.position = xf.origin
+	_add(parent, body, name)
+	var pts := PackedVector3Array()
+	for v in mesh.get_faces():
+		pts.append(xf.basis * v)
+	var shape := ConvexPolygonShape3D.new()
+	shape.points = pts
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	_add(body, cs, "Shape")
+	return body
+
+
+## Solid bodies for every instance of a multimesh (rocks).
+func _solid_multimesh(parent: Node, name: String, mmi: MultiMeshInstance3D) -> void:
+	var holder := _add(parent, Node3D.new(), name)
+	var mm := mmi.multimesh
+	for i in mm.instance_count:
+		_solid_convex(holder, "R%d" % i, mm.mesh, mmi.transform * mm.get_instance_transform(i))
+
+
 func _blob(parent: Node, name: String, pos: Vector3, size: Vector3, mat: String, rot := 0.0) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var sm := SphereMesh.new()
@@ -3202,7 +3227,10 @@ func _blob(parent: Node, name: String, pos: Vector3, size: Vector3, mat: String,
 	mi.position = pos
 	mi.scale = size
 	mi.rotation.y = rot
-	return _add(parent, mi, name)
+	_add(parent, mi, name)
+	# Solid: mounds of earth you walk over or around, not through.
+	_solid_convex(parent, name + "Body", sm, mi.transform)
+	return mi
 
 
 func _build_crash_site() -> void:
@@ -3588,8 +3616,8 @@ func _build_crash_site() -> void:
 	rock_mesh.height = 1.0
 	rock_mesh.radial_segments = 7
 	rock_mesh.rings = 4
-	_multimesh(site, "Rocks", rock_mesh, rocks, "rock")
-	_multimesh(site, "MossyRocks", rock_mesh, mossy, "moss_rock")
+	_solid_multimesh(site, "RockCollision", _multimesh(site, "Rocks", rock_mesh, rocks, "rock"))
+	_solid_multimesh(site, "MossyRockCollision", _multimesh(site, "MossyRocks", rock_mesh, mossy, "moss_rock"))
 	var reed_mesh := CylinderMesh.new()
 	reed_mesh.top_radius = 0.75
 	reed_mesh.bottom_radius = 1.0
@@ -4937,7 +4965,10 @@ func _ring_hull(ring: Node3D, R: float, T: float, W: float, layout: Dictionary, 
 	var body := StaticBody3D.new()
 	_add(ring, body, "Collision")
 	var cs := CollisionShape3D.new()
-	cs.shape = mi.mesh.create_trimesh_shape()
+	var ring_shape := mi.mesh.create_trimesh_shape()
+	# Both sides (Jolt skips back faces by default).
+	ring_shape.backface_collision = true
+	cs.shape = ring_shape
 	_add(body, cs, "Shape")
 
 
@@ -5387,6 +5418,15 @@ func _ruin_instance(parent: Node, name: String, st: SurfaceTool, xf: Transform3D
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.transform = xf
 	_add(parent, mi, name)
+	# Solid, from both sides (Jolt skips back faces by default).
+	var body := StaticBody3D.new()
+	body.transform = xf
+	_add(parent, body, name + "Body")
+	var shape := mi.mesh.create_trimesh_shape()
+	shape.backface_collision = true
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	_add(body, cs, "Shape")
 
 
 # Rusty lookout platform on top of the Great Ring (menu perch, future quest).

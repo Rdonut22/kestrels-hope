@@ -103,7 +103,9 @@ func _build() -> void:
 	var hb := StaticBody3D.new()
 	hb.name = "HousingBody"
 	var hcs := CollisionShape3D.new()
-	hcs.shape = housing.mesh.create_trimesh_shape()
+	var hshape := housing.mesh.create_trimesh_shape()
+	hshape.backface_collision = true
+	hcs.shape = hshape
 	hb.add_child(hcs)
 	add_child(hb)
 

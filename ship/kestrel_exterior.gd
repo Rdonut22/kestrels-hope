@@ -190,12 +190,19 @@ func _ready() -> void:
 	# through a clean-edged bay in the skin: clipped exactly to the bay,
 	# its cut ends closed with bulkhead plates and a sill.
 	if _has_ship:
+		_stair_cover()
 		_galley_caps(fus, xf)
 		fus = _clip_out(fus, xf, GALLEY_CUT)
 	var fus_mi := _mesh("Fuselage", fus, xf)
 	_two_tone(fus_mi)
 	# You walk around inside its nose now.
 	fus_mi.create_trimesh_collision()
+	# Collide from both sides: Jolt skips a triangle's back face by default,
+	# and from inside the ship the skin's triangles face away.
+	for b in fus_mi.get_children():
+		for cs in b.get_children():
+			if cs is CollisionShape3D and cs.shape is ConcavePolygonShape3D:
+				(cs.shape as ConcavePolygonShape3D).backface_collision = true
 	if _has_ship:
 		_flight_deck()
 	# Close the slots left where the nacelle mounts were cut away.
@@ -283,6 +290,7 @@ func _ready() -> void:
 	_nav_light(_find("WingPortUpper"), Color(1.0, 0.15, 0.1))
 	_nav_light(_find("WingPortLower"), Color(1.0, 0.15, 0.1))
 	_nav_light(_find("WingStarboard"), Color(0.2, 1.0, 0.35))
+	_solidify()
 
 
 ## A wing like the reference: a thick slab with big chamfered edges, and on
@@ -1184,3 +1192,57 @@ func _cap_mesh(n: String, poly: PackedVector3Array, mat: Material) -> void:
 	mi.mesh = st.commit()
 	mi.material_override = mat
 	add_child(mi)
+
+
+## The fuselage has a recess beside the flight-deck stairs that opens
+## straight into the stairwell (its back was inside the room): a hull
+## plate closes it, just inside the skin, with collision.
+func _stair_cover() -> void:
+	var body := StaticBody3D.new()
+	body.name = "StairCover"
+	add_child(body)
+	var size := Vector3(0.3, 1.25, 1.1)
+	var at := Vector3(6.82, 1.45, -7.5)
+	var b := BoxMesh.new()
+	b.size = size
+	var mi := MeshInstance3D.new()
+	mi.name = "Plate"
+	mi.mesh = b
+	mi.material_override = _mat()
+	mi.position = at
+	body.add_child(mi)
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = size
+	cs.shape = bs
+	cs.position = at
+	body.add_child(cs)
+
+
+## Every outside part you could walk into gets a convex collider shaped to
+## it (wings, struts, engines, pylons, gear, dome, dish...). The fuselage
+## and the plated skin over the hull already collide (trimesh / the hull's
+## CSG); glass and porthole covers sit in the hull.
+const NO_SOLID := ["Fuselage", "HullWalls", "HullRoof", "HullLedge", "HullSkin", "GalleyBay", "Porthole", "Glass", "NavLight"]
+
+
+func _solidify() -> void:
+	if Engine.is_editor_hint():
+		return
+	for c in get_children():
+		var mi := c as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var skip := false
+		for n in NO_SOLID:
+			if String(mi.name).begins_with(n):
+				skip = true
+				break
+		if skip or mi.get_child_count() > 0 and mi.get_child(0) is StaticBody3D:
+			continue
+		var body := StaticBody3D.new()
+		body.name = "Solid"
+		var cs := CollisionShape3D.new()
+		cs.shape = mi.mesh.create_convex_shape()
+		body.add_child(cs)
+		mi.add_child(body)
