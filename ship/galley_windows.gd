@@ -18,13 +18,14 @@ extends Node3D
 ##   - GalleyRoom: the room carved out of it above the sill (ROOM_OUTLINE),
 ##   - GalleyPane*: real openings through its outer wall and sloped top.
 ## And as its own children: the glass (with collision), brushed-steel
-## bezels around each opening, and the steel window counter.
+## bezels around each opening, and the steel window counter. The kitchen's
+## walls get the cedar plank material (ship/cedar_wall.gdshader).
 ## Nothing is given an owner, so a saved scene holds only this node.
 ##
 ## Each pane is laid out in a frame (u along the ship's z, v up the wall or
 ## the slope, w into the room); w = 0 is the interior surface.
 
-@export var restyle_walls := true   # aged ivory painted panels in the kitchen
+@export var restyle_walls := true   # cedar plank walls in the kitchen
 
 const Z_RANGE := Vector2(-6.8, -3.4)
 const SILL_Y := 0.95
@@ -57,7 +58,6 @@ const SLOPE_PANES := [
 	[Vector2(-5.64, 0.27), Vector2(-4.56, 0.27), Vector2(-4.41, 1.08), Vector2(-5.79, 1.08)],
 	[Vector2(-4.4, 0.27), Vector2(-3.58, 0.27), Vector2(-3.58, 1.08), Vector2(-4.25, 1.08)]]
 
-const IVORY := Color("C5B9A5")
 
 var _glass: ShaderMaterial
 var _steel: StandardMaterial3D
@@ -137,14 +137,13 @@ func _build() -> void:
 	add_child(lip)
 
 	if restyle_walls:
+		# Japanese cedar planks on the walls, ivory ceiling (the same
+		# material as the quarters, built by tools/build_scenes.gd).
 		var kitchen := hull.get_node_or_null("Kitchen") as CSGShape3D
-		var wall_mat := load("res://ship/materials/corridor_wall.tres") as ShaderMaterial
-		if kitchen and wall_mat:
-			var m := wall_mat.duplicate() as ShaderMaterial
-			m.set_shader_parameter("surface", 3)
-			m.set_shader_parameter("panel_color", IVORY)
-			kitchen.material = m
-			(hull.get_node("GalleyRoom") as CSGShape3D).material = m
+		var cedar := load("res://ship/materials/cedar.tres") as Material
+		if kitchen and cedar:
+			kitchen.material = cedar
+			(hull.get_node("GalleyRoom") as CSGShape3D).material = cedar
 
 
 # ---------- frames ----------

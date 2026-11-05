@@ -1,0 +1,14 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/cedar_wall.gdshader" id="1_rrahj"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_rrahj")
+shader_parameter/tile = 1.6
+shader_parameter/planks_per_tile = 14.5
+shader_parameter/cedar = Color(0.72, 0.4, 0.16, 1)
+shader_parameter/cedar_dark = Color(0.45, 0.22, 0.08, 1)
+shader_parameter/seam_color = Color(0.12, 0.06, 0.03, 1)
+shader_parameter/ceiling = Color(0.77, 0.73, 0.65, 1)
+shader_parameter/darken = 0.15

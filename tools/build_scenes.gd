@@ -59,6 +59,8 @@ func _make_materials() -> void:
 		"metallic_amount": 0.55, "roughness_amount": 0.5})
 	_mat("stripe", Color(0.66, 0.3, 0.14), 0.6, 0.2)
 	_mat("thruster_glow", Color(0.35, 0.7, 1.0), 0.3, 0.0, 5.0)
+	# Japanese cedar plank walls (kitchen and quarters).
+	_shader_mat("cedar", "cedar_wall", {"rough_map": load("res://ship/textures/interior/cedar_rough.png")})
 	_shader_mat("wall", "hull_panel", {"base_color": Color(0.46, 0.51, 0.56), "lower_band": 0.9,
 		"lower_color": Color(0.3, 0.32, 0.34), "panel_size": Vector2(1.2, 0.9)})
 	_shader_mat("floor", "hull_panel", {"base_color": Color(0.64, 0.59, 0.49), "panel_size": Vector2(1.6, 1.2),
@@ -445,6 +447,7 @@ func _build_ship() -> void:
 	_lounge_tube(hull, "LoungeEntranceCollar", LOUNGE_DOOR_R + 0.25, 2.0, 3.4, -0.2, "gunmetal")
 	_box(hull, "Deck", Vector3(-2.3, 0, -5.6), Vector3(2.0, 3.0, 9.2), "corridor_wall", true)
 	_room(hull, "Quarters", -2.6, 1.8, -9.6, -5.9)
+	(hull.get_node("Quarters") as CSGShape3D).material = mats["cedar"]
 	_room(hull, "Bathroom", -6.0, -2.6, -4.4, -1.6)
 	_room(hull, "Engineering", -6.3, -2.6, -1.3, 3.4)
 	_room(hull, "Gunner", -7.4, -2.6, 3.7, 7.3)
