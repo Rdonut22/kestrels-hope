@@ -725,6 +725,12 @@ func _build_ship() -> void:
 	galley.set_script(load("res://ship/galley_windows.gd"))
 	scene_root.add_child(galley)
 	galley.owner = scene_root
+	# A big round window in the quarters' forward wall.
+	var porthole := Node3D.new()
+	porthole.name = "QuartersWindow"
+	porthole.set_script(load("res://ship/round_window.gd"))
+	scene_root.add_child(porthole)
+	porthole.owner = scene_root
 	var ext := Node3D.new()
 	ext.name = "KestrelExterior"
 	ext.set_script(load("res://ship/kestrel_exterior.gd"))
