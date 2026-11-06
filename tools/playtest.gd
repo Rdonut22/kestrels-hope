@@ -93,10 +93,11 @@ func _run() -> void:
 	_check(hud.screen.visible, "computer opens")
 	await _press("ui_cancel")
 	# The personal log needs the ship's power (needs_power): on emergency
-	# power its prompt says so; once the power is back (Meki's reroute,
-	# GameState.power_restored) it can be read.
+	# power its prompt says so and offers no [E] (player.gd _update_target);
+	# once the power is back (Meki's reroute, GameState.power_restored) it
+	# can be read.
 	await _place(Vector3(0.6, 1.1, -7.4), -PI / 2)
-	_check(hud.prompt_label.text == "[E] Read personal log   (no power)", "log prompt on emergency power: '%s'" % hud.prompt_label.text)
+	_check(hud.prompt_label.text == "Read personal log   (no power)", "log prompt on emergency power: '%s'" % hud.prompt_label.text)
 	Game.state().power_restored = true
 	await _place(Vector3(0.6, 1.1, -7.4), -PI / 2)
 	_check(hud.prompt_label.text == "[E] Read personal log", "log prompt with power restored: '%s'" % hud.prompt_label.text)
