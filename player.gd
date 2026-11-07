@@ -126,14 +126,11 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0, SPEED)
 
 	move_and_slide()
-	# Floor snapping doesn't always report a collision, so keep the last
-	# floor we touched until we leave the ground.
-	if not is_on_floor():
-		_floor = null
-	for i in get_slide_collision_count():
-		var c := get_slide_collision(i)
-		if c.get_normal().y > 0.7:
-			_floor = c.get_collider()
+	# What Gana is standing on (for the footstep sounds), looked up every
+	# frame. Floor snapping doesn't always report a slide collision, so a
+	# remembered floor went stale: after stepping on a rock, every later
+	# step still counted as the rock and the grass went silent.
+	_floor = _ground_below() if is_on_floor() else null
 	mesh.set_move(Vector2(velocity.x, velocity.z).length() / SPEED)
 	# Hide the body when a wall shoves the camera right up against it.
 	mesh.visible = spring_arm.get_hit_length() > 0.9
@@ -179,6 +176,21 @@ func _setup_footsteps() -> void:
 	add_child(_steps)
 	if mesh.has_signal("footstep"):
 		mesh.footstep.connect(_on_footstep)
+
+## The collider straight below Gana's feet (the capsule's centre is 1 m
+## above them), else this frame's floor collision, else the last floor.
+func _ground_below() -> Object:
+	var q := PhysicsRayQueryParameters3D.create(global_position, global_position + Vector3.DOWN * 1.3)
+	q.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit:
+		return hit.collider
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		if c.get_normal().y > 0.7:
+			return c.get_collider()
+	return _floor
+
 
 func _on_footstep() -> void:
 	if _floor is Node and (_floor as Node).is_in_group("grass_surface"):
