@@ -2849,6 +2849,23 @@ func _fol_mat(name: String, palette: Array, texel: float, ragged := 0.0, grain :
 	mats[name] = m
 
 
+## The ground of the clearing and the forest: the user's forest_leaves_02
+## set (world/forest_floor.gdshader). The dirt (trail, mounds) still uses
+## the pixel-art terrain shader.
+func _forest_floor_mat(name: String) -> void:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://world/forest_floor.gdshader")
+	const TEX := "res://world/textures/forest_floor/"
+	m.set_shader_parameter("color_map", load(TEX + "color.jpg"))
+	m.set_shader_parameter("normal_map", load(TEX + "normal.png"))
+	m.set_shader_parameter("rough_map", load(TEX + "rough.png"))
+	m.set_shader_parameter("height_map", load(TEX + "height.png"))
+	var path := "res://world/materials/%s.tres" % name
+	ResourceSaver.save(m, path)
+	m.take_over_path(path)
+	mats[name] = m
+
+
 func _terrain_mat(name: String, dirt: float) -> void:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://world/terrain.gdshader")
@@ -2897,7 +2914,7 @@ func _make_world_materials() -> void:
 	smoke.albedo_texture = puff
 	smoke.albedo_color = Color(1, 1, 1, 1)
 	ResourceSaver.save(smoke, "res://world/materials/smoke.tres")
-	_terrain_mat("ground", 0.0)
+	_forest_floor_mat("ground")
 	_terrain_mat("dirt", 1.0)
 	mats["leaf_a"] = mats["bush"]
 	mats["leaf_b"] = mats["canopy"]
