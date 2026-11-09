@@ -4223,8 +4223,9 @@ static func _trail_z(x: float) -> float:
 	return -16.0 + 42.0 * sin(x * 0.0085) + 16.0 * sin(x * 0.023 + 1.0)
 
 
-## Where grass grows east of the crash site: patchy and mid-height on the
-## forest floor, fuller in the glades and the village clearing, short and
+## Where grass grows east of the crash site: mostly bare forest floor under
+## the redwoods with grass in sunny gaps, fuller in the glades and the
+## village clearing, short and
 ## worn along the trail, thinning on the climb, none west of the original
 ## field or round trunks. Saved for GrassEast.
 func _grass_map_east(trunks: Array, glades: FastNoiseLite, village: Vector2) -> ImageTexture:
@@ -4240,7 +4241,9 @@ func _grass_map_east(trunks: Array, glades: FastNoiseLite, village: Vector2) -> 
 				img.set_pixel(px, py, Color(0, 0, 0))
 				continue
 			var patch := patches.get_noise_2dv(p) * 0.5 + 0.5
-			var dens := lerpf(0.35, 0.85, smoothstep(0.35, 0.7, patch))
+			# Under the redwoods: mostly bare forest floor, grass in the
+			# sunny gaps (the glades, village and Ring below stay grassy).
+			var dens := lerpf(0.05, 0.85, smoothstep(0.55, 0.7, patch))
 			var tall := lerpf(0.45, 0.85, patch)
 			var open := maxf(smoothstep(0.35, 0.55, glades.get_noise_2dv(p)), 1.0 - smoothstep(16.0, 24.0, p.distance_to(village)))
 			open = maxf(open, 1.0 - smoothstep(40.0, 60.0, p.distance_to(Vector2(RING_POS.x, RING_POS.z))))
@@ -4255,7 +4258,8 @@ func _grass_map_east(trunks: Array, glades: FastNoiseLite, village: Vector2) -> 
 			img.set_pixel(px, py, Color(dens, clampf(tall, 0.0, 1.0), 0.0))
 	for t in trunks:
 		var c: Vector2 = t[0]
-		var r: float = t[1]
+		# Bare round the trunk: roots and deep shade.
+		var r: float = t[1] * 2.5
 		var lo := Vector2i(((c - Vector2.ONE * r - EAST_GRASS_CENTRE) / EAST_GRASS_AREA + Vector2.ONE * 0.5) * SIZE)
 		var hi := Vector2i(((c + Vector2.ONE * r - EAST_GRASS_CENTRE) / EAST_GRASS_AREA + Vector2.ONE * 0.5) * SIZE) + Vector2i.ONE
 		for py in range(maxi(lo.y, 0), mini(hi.y + 1, SIZE)):
@@ -4391,6 +4395,10 @@ func _grass_map(pond_c: Vector2, rocks: Array, trunks: Array) -> ImageTexture:
 	var glades := FastNoiseLite.new()
 	glades.seed = 41
 	glades.frequency = 0.022
+	# Away from the wreck: the sunny gaps in the canopy where grass grows.
+	var sunny_gaps := FastNoiseLite.new()
+	sunny_gaps.seed = 57
+	sunny_gaps.frequency = 0.03
 	for py in SIZE:
 		for px in SIZE:
 			var p := Vector2((px + 0.5) / SIZE - 0.5, (py + 0.5) / SIZE - 0.5) * AREA
@@ -4410,10 +4418,34 @@ func _grass_map(pond_c: Vector2, rocks: Array, trunks: Array) -> ImageTexture:
 				open = maxf(open, 0.35)
 			dens = lerpf(dens, 0.25 + 0.3 * smoothstep(0.45, 0.8, speck * 0.6 + patch * 0.4), open)
 			tall = lerpf(tall, 0.08 + 0.18 * patch, open)
+			# Beyond the crash site (~45 m out), under the redwoods: mostly
+			# bare forest floor, grass in scattered sunny gaps (and far less
+			# grass to draw out there).
+			var far := smoothstep(38.0, 55.0, p.length())
+			var sunny := smoothstep(0.52, 0.66, sunny_gaps.get_noise_2dv(p) * 0.5 + 0.5)
+			dens = lerpf(dens, minf(dens, lerpf(0.05, 0.95, sunny)), far)
 			# Bare round the ship and its dirt, along the furrow, in the pond.
 			if _in_ship_zone(p, 1.5) or (absf(p.x + 0.8) < 7.5 and p.y > 6.0 and p.y < 88.0) or p.distance_to(pond_c) < 5.2:
 				dens = 0.0
 			img.set_pixel(px, py, Color(dens, clampf(tall, 0.0, 1.0), 0.0))
+	# Away from the wreck, the ground round each trunk (roots, deep shade)
+	# is bare floor too.
+	for it in trunks:
+		var xf: Transform3D = it[0]
+		var c := Vector2(xf.origin.x, xf.origin.z)
+		if c.length() < 45.0:
+			continue
+		var r := xf.basis.get_scale().x * 3.0 + 1.5
+		var lo := Vector2i(((c - Vector2.ONE * r) / AREA + Vector2.ONE * 0.5) * SIZE)
+		var hi := Vector2i(((c + Vector2.ONE * r) / AREA + Vector2.ONE * 0.5) * SIZE) + Vector2i.ONE
+		for py in range(maxi(lo.y, 0), mini(hi.y + 1, SIZE)):
+			for px in range(maxi(lo.x, 0), mini(hi.x + 1, SIZE)):
+				var p := Vector2((px + 0.5) / SIZE - 0.5, (py + 0.5) / SIZE - 0.5) * AREA
+				var d := p.distance_to(c)
+				if d < r:
+					var col := img.get_pixel(px, py)
+					col.r *= lerpf(0.15, 1.0, smoothstep(0.3, 1.0, d / r))
+					img.set_pixel(px, py, col)
 	# Rocks and tree trunks punch holes in it.
 	for it in rocks + trunks:
 		var xf: Transform3D = it[0]
