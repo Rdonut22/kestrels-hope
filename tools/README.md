@@ -29,7 +29,9 @@ It:
 4. fails if the tests changed any file in the repository.
 
 Your real save game is backed up before the tests (they autosave) and put
-back afterwards, even if the run is interrupted.
+back afterwards. The backup (`savegame.json.check-backup`) sits next to the
+save, so if a run is killed outright (a crash, a power cut) the next run of
+`check.sh` puts your save back before doing anything else.
 
 Exit codes: `0` all required checks passed, `1` a required check failed,
 `2` the checks can't run here (no Godot, or no display for the renderer).

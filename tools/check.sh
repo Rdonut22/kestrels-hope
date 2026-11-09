@@ -12,7 +12,8 @@
 #   4. Checks the tests left the repository's files as they found them.
 #
 # Your real save game (user://savegame.json) is backed up before the tests
-# (which autosave) and put back afterwards, even if the run is interrupted.
+# (which autosave) and put back afterwards. If a run is killed outright, the
+# next run puts it back before anything else.
 #
 # Usage:
 #   tools/check.sh              # everything
@@ -103,20 +104,31 @@ say "Display: ${RENDER_WRAP:-native}"
 
 kh_godot_headless 60 "$LOG_DIR/userdir.log" --path . --script tools/user_data_dir.gd || true
 USER_DIR="$(sed -n 's/^USER_DATA_DIR=//p' "$LOG_DIR/userdir.log" | head -1)"
-SAVE_BACKUP=""
+# The backup sits next to the save, so if a run is killed outright (a
+# crash, a power cut, kill -9: no trap runs) the next run finds it and puts
+# the save back before doing anything else.
+SAVE_BACKUP="${USER_DIR:+$USER_DIR/savegame.json.check-backup}"
+NO_SAVE_MARK="${USER_DIR:+$USER_DIR/savegame.json.check-nosave}"
 restore_save() {
 	[ -z "$USER_DIR" ] && return 0
-	if [ -n "$SAVE_BACKUP" ] && [ -f "$SAVE_BACKUP" ]; then
-		cp -p "$SAVE_BACKUP" "$USER_DIR/savegame.json"
-	elif [ -z "$SAVE_BACKUP" ]; then
+	if [ -f "$SAVE_BACKUP" ]; then
+		cp -p "$SAVE_BACKUP" "${USER_DIR:?}/savegame.json" && rm -f "${SAVE_BACKUP:?}"
+	elif [ -f "$NO_SAVE_MARK" ]; then
 		# There was no save before the tests: remove any the tests made.
-		rm -f "$USER_DIR/savegame.json"
+		rm -f "${USER_DIR:?}/savegame.json" "${NO_SAVE_MARK:?}"
 	fi
 }
-if [ -n "$USER_DIR" ] && [ -f "$USER_DIR/savegame.json" ]; then
-	SAVE_BACKUP="$LOG_DIR/savegame.json.backup"
-	cp -p "$USER_DIR/savegame.json" "$SAVE_BACKUP"
-	say "Real save backed up: $SAVE_BACKUP"
+if [ -n "$USER_DIR" ]; then
+	if [ -f "$SAVE_BACKUP" ] || [ -f "$NO_SAVE_MARK" ]; then
+		say "A previous check run was interrupted: putting the real save back first."
+		restore_save
+	fi
+	if [ -f "$USER_DIR/savegame.json" ]; then
+		cp -p "$USER_DIR/savegame.json" "$SAVE_BACKUP"
+		say "Real save backed up: $SAVE_BACKUP"
+	else
+		: >"$NO_SAVE_MARK"
+	fi
 fi
 trap restore_save EXIT INT TERM
 
