@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://characters/gana/wrist_terminal/wrist_terminal_preview.gd" id="1_prev"]
+[ext_resource type="PackedScene" path="res://characters/gana/wrist_terminal/wrist_terminal.tscn" id="2_wrist"]
+
+[node name="WristTerminalPreview" type="Node3D"]
+script = ExtResource("1_prev")
+
+[node name="WristTerminal" parent="." instance=ExtResource("2_wrist")]
