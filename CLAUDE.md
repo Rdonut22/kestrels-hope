@@ -79,7 +79,7 @@ The final result should be a functioning, reusable Godot asset that resembles th
 - Make small, isolated changes.
 - Never overwrite working systems without explicit approval.
 - Run the validation suite (`tools/check.sh`) before declaring a task complete, and report its result. If a test fails, investigate and report it; don't rewrite a test to hide a real defect.
-- Do not merge or push without approval.
+- Merge and push only as described in "Keep main up to date" below.
 - For visual changes, provide before-and-after screenshots from comparable camera positions (`tools/corridor_shots.gd`, `tools/ship_shots.gd` and friends).
 - Preserve the established ship architecture and art direction.
 - Never treat a successful script compilation as proof that a visual change is correct.
@@ -93,10 +93,11 @@ The final result should be a functioning, reusable Godot asset that resembles th
 - Explain before acting when the user is only asking a question.
 - Don't build story content past INITIATE LANDING until it has been designed.
 
-## Keep main up to date (with approval)
+## Keep main up to date (required)
 
-New sessions start from `main`, so finished work needs to land there. Work that sits only on a side branch is invisible to the next session.
+New sessions start from `main`, and the user pulls `main` with GitHub Desktop, so finished work needs to land there. Work that sits only on a side branch is invisible to the next session.
 
 - At the start of a session, check whether any `claude/*` branch on origin has commits that `main` lacks. If one does, tell the user before doing anything else and offer to merge it.
-- When a change is finished and `tools/check.sh` passes, commit it on the working branch and ask the user before merging into `main` or pushing anything. Merge and push only once they approve (fast-forward when possible).
+- When a change is finished: run `tools/check.sh`. If it passes, commit on the working branch, merge into `main` (fast-forward when possible) and push `main` without asking, then show the user the result (before/after screenshots for visual changes) so they can discard any `.uid`/`.import` changes and pull.
+- If `tools/check.sh` fails, don't merge: investigate and report it.
 - If the merge has conflicts or pushing `main` is blocked, stop and tell the user plainly. Never leave the session with unmerged work and no warning.
