@@ -39,6 +39,13 @@ float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
+// The normal map is imported in normal-map mode (RGTC: red and green
+// only), so its blue channel reads empty: rebuild z from x and y.
+vec3 unpack_normal(vec4 t) {
+	vec2 xy = t.xy * 2.0 - 1.0;
+	return vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy))));
+}
+
 float noise(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
@@ -58,7 +65,7 @@ void side(vec2 uv, vec3 axis, vec3 t, vec3 b, out vec3 c, out float h, out float
 	c = texture(color_map, uv).rgb;
 	h = texture(height_map, uv).r;
 	r = texture(rough_map, uv).r;
-	vec3 tn = texture(normal_map, uv).xyz * 2.0 - 1.0;
+	vec3 tn = unpack_normal(texture(normal_map, uv));
 	tn.xy *= normal_strength;
 	wn = normalize(t * tn.x + b * tn.y + axis * tn.z);
 }
@@ -78,8 +85,8 @@ void fragment() {
 	vec3 col = mix(texture(color_map, uv1).rgb, texture(color_map, uv2).rgb, w);
 	float h = mix(texture(height_map, uv1).r, texture(height_map, uv2).r, w);
 	float r = mix(texture(rough_map, uv1).r, texture(rough_map, uv2).r, w);
-	vec3 n1 = texture(normal_map, uv1).xyz * 2.0 - 1.0;
-	vec3 n2 = texture(normal_map, uv2).xyz * 2.0 - 1.0;
+	vec3 n1 = unpack_normal(texture(normal_map, uv1));
+	vec3 n2 = unpack_normal(texture(normal_map, uv2));
 	// The second sample's normal back into the base orientation.
 	n2.xy = transpose(rot) * n2.xy;
 	vec3 tn = normalize(mix(n1, n2, w));

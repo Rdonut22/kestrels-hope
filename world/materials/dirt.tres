@@ -1,17 +1,22 @@
 [gd_resource type="ShaderMaterial" format=3]
 
-[ext_resource type="Shader" path="res://world/terrain.gdshader" id="1_sx78g"]
+[ext_resource type="Shader" path="res://world/forest_floor.gdshader" id="1_28v6n"]
+[ext_resource type="Texture2D" path="res://world/textures/forest_floor/color.jpg" id="2_8trpc"]
+[ext_resource type="Texture2D" path="res://world/textures/forest_floor/height.png" id="3_usn5j"]
+[ext_resource type="Texture2D" path="res://world/textures/forest_floor/normal.png" id="4_pskj4"]
+[ext_resource type="Texture2D" path="res://world/textures/forest_floor/rough.png" id="5_1agfu"]
 
 [resource]
 render_priority = 0
-shader = ExtResource("1_sx78g")
-shader_parameter/g_dark = Color(0.13, 0.33, 0.1, 1)
-shader_parameter/g_mid = Color(0.24, 0.5, 0.13, 1)
-shader_parameter/g_light = Color(0.36, 0.6, 0.16, 1)
-shader_parameter/g_high = Color(0.5, 0.7, 0.2, 1)
-shader_parameter/d_dark = Color(0.22, 0.14, 0.09, 1)
-shader_parameter/d_light = Color(0.4, 0.27, 0.16, 1)
-shader_parameter/dirt_amount = 1.0
-shader_parameter/flowers = 0.0
-shader_parameter/texel = 0.12
+shader = ExtResource("1_28v6n")
+shader_parameter/color_map = ExtResource("2_8trpc")
+shader_parameter/normal_map = ExtResource("4_pskj4")
+shader_parameter/rough_map = ExtResource("5_1agfu")
+shader_parameter/height_map = ExtResource("3_usn5j")
+shader_parameter/tile = 2.6
+shader_parameter/breakup = 0.6
+shader_parameter/macro = 0.5
+shader_parameter/normal_strength = 1.0
+shader_parameter/hollow_shade = 0.35
+shader_parameter/tint = Color(0.92, 0.8, 0.7, 1)
 shader_parameter/world_tint = Color(1, 1, 1, 1)
