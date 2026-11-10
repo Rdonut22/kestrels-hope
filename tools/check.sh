@@ -47,7 +47,7 @@ cd "$ROOT"
 
 TEST_TIMEOUT="${KH_TEST_TIMEOUT:-1500}"
 # Required playtests, in order. Each prints PASS/FAIL lines and "FAILS: n".
-TESTS="playtest crash_playtest intro_playtest pause_playtest daynight_playtest footstep_playtest save_playtest nav_compass_playtest"
+TESTS="playtest crash_playtest intro_playtest pause_playtest daynight_playtest footstep_playtest save_playtest nav_compass_playtest wrist_ui_playtest"
 
 LOG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kh-check.XXXXXX")"
 SUMMARY=""

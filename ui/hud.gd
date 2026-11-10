@@ -35,6 +35,8 @@ func _ready() -> void:
 	var compass: Control = (load("res://ui/nav_compass/nav_compass.gd") as GDScript).new()
 	add_child(compass)
 	move_child(compass, fade.get_index())
+	# Gana's wrist computer (Tab), ui/wrist_ui.
+	add_overlay((load("res://ui/wrist_ui/wrist_terminal_view.gd") as GDScript).new())
 
 
 func _input(event: InputEvent) -> void:

@@ -101,6 +101,9 @@ Each prints `PASS ...` / `FAIL ...` lines and ends with `FAILS: n`.
 - `nav_compass_playtest.gd`: the navigation compass at the top of the HUD
   (`ui/nav_compass`): headings, cardinal letters, waypoint bearing and range,
   hiding behind menus. Saves screenshots to its output folder.
+- `wrist_ui_playtest.gd`: Gana's wrist computer (Tab, `ui/wrist_ui`): opening on
+  the G-07 model, home-screen navigation by keys and mouse, Back/Home,
+  reopening the last section, unread markers. Saves screenshots.
 
 ## Other tools
 
