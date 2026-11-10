@@ -1771,20 +1771,23 @@ func _build_character() -> void:
 	_char_mat("cable", Color(0.55, 0.15, 0.1), 0.5)
 	_char_mat("glow", Color(0.3, 0.85, 1.0), 0.3, 0.0, 4.0)
 
-	# Adventurer by Quaternius (CC0), rotated to face -Z like the player.
+	# Gana: a Mixamo-rigged body (character/gana/gana.glb, made from the
+	# downloaded FBX by tools/import_gana.gd), rotated to face -Z like the
+	# player. (The old body, Quaternius' Adventurer, is character/adventurer.glb.)
 	scene_root = Node3D.new()
 	scene_root.name = "Character"
 	scene_root.set_script(load("res://character/character_model.gd"))
-	var model: Node3D = (load("res://character/adventurer.glb") as PackedScene).instantiate()
-	model.name = "Adventurer"
+	var model: Node3D = (load("res://character/gana/gana.glb") as PackedScene).instantiate()
+	model.name = "Gana"
 	model.rotation.y = PI
 	scene_root.add_child(model)
 	model.owner = scene_root
 	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 
 	# Cybernetic right arm, attached to the bones so it follows the animations.
-	# The armature is scaled x100, so each attachment gets a x0.01 holder and
-	# its parts are laid out in metres along the bone (+Y points down the arm).
+	# Each attachment gets a holder that undoes the rig's scale, so its parts
+	# are laid out in metres along the bone (+Y points down the arm). Bone
+	# names are the generic ones in character_model.gd's BONES table.
 	var upper := _bone_holder(skel, "UpperArm.R")
 	_part(upper, "ShoulderPlate", _block(Vector3(0.15, 0.06, 0.15)), "metal", Vector3(0, 0.02, 0), Vector3(0, 0, 0.1))
 	_part(upper, "PlateTrim", _block(Vector3(0.155, 0.015, 0.155)), "metal_dark", Vector3(0, -0.01, 0))
@@ -1810,14 +1813,21 @@ func _build_character() -> void:
 	_save(scene_root, "res://character/character.tscn")
 
 
-func _bone_holder(_skel: Skeleton3D, bone: String) -> Node3D:
+func _bone_holder(skel: Skeleton3D, bone: String) -> Node3D:
 	# Saved under RobotArm; character_model.gd moves it onto the bone at runtime
 	# (nodes added inside an imported model aren't kept when the scene is saved).
 	var arm := scene_root.get_node_or_null("RobotArm")
 	if arm == null:
 		arm = _add(scene_root, Node3D.new(), "RobotArm")
+	# Scale of the skeleton relative to the character (undone by the holder).
+	var rig := 1.0
+	var n: Node = skel
+	while n != null and n != scene_root:
+		if n is Node3D:
+			rig *= (n as Node3D).scale.x
+		n = n.get_parent()
 	var holder := Node3D.new()
-	holder.scale = Vector3.ONE * 0.01
+	holder.scale = Vector3.ONE / rig
 	holder.set_meta("bone", bone)
 	return _add(arm, holder, bone.replace(".", ""))
 

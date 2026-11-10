@@ -1,37 +1,81 @@
 extends Node3D
 
-## Drives the Adventurer model's animations from the player's movement.
-## The player calls set_move() every frame with 0 (still) to 1 (full speed),
-## and play_action() for one-shot gestures like "Interact".
-
-const PREFIX := "CharacterArmature|"
+## Drives Gana's body (character/gana/gana.glb, a Mixamo rig) from the
+## player's movement. The player calls set_move() every frame with 0 (still)
+## to 1 (full speed), and play_action() for one-shot gestures like
+## "Interact" (skipped if the body has no such animation).
+##
+## Animations: "Idle", "Walk", and optionally "Run" and "Interact"
+## (tools/import_gana.gd). Without a Run, the walk is sped up (up to
+## max_walk_rate) at higher speeds.
 
 ## Emitted when a foot touches down during the walk or run animation.
 signal footstep
 
+## Generic bone names used by other scripts (menu.gd's seated pose, the
+## robot arm) and their names on the Mixamo rig.
+const BONES := {
+	"UpperLeg.L": "mixamorig_LeftUpLeg", "UpperLeg.R": "mixamorig_RightUpLeg",
+	"LowerLeg.L": "mixamorig_LeftLeg", "LowerLeg.R": "mixamorig_RightLeg",
+	"Foot.L": "mixamorig_LeftFoot", "Foot.R": "mixamorig_RightFoot",
+	"Abdomen": "mixamorig_Spine", "Hips": "mixamorig_Hips",
+	"UpperArm.R": "mixamorig_RightArm", "LowerArm.R": "mixamorig_RightForeArm", "Wrist.R": "mixamorig_RightHand",
+}
+
 @export var walk_threshold := 0.05
 @export var run_threshold := 0.55
 @export var blend_time := 0.2
+## The player's top speed (player.gd SPEED), m/s, for matching the feet.
+@export var full_speed := 5.0
+## Ground speed the walk animation was made for, m/s (its stride / length).
+@export var walk_speed := 0.99
+## Ground speed of the run animation, if there is one.
+@export var run_speed := 3.6
+## Fastest the walk is played when there's no run (higher slides the feet).
+@export var max_walk_rate := 1.8
 
+var anim: AnimationPlayer
 var _move := 0.0
 var _current := ""
 var _action_left := 0.0
 var _skel: Skeleton3D
-var _feet := []  # [bone index, last height, was descending]
-
-@onready var anim: AnimationPlayer = $Adventurer/AnimationPlayer
+var _feet := []  # [bone index, last height, was descending, contact height]
 
 
 func _ready() -> void:
-	_attach_robot_arm()
+	anim = find_children("*", "AnimationPlayer", true, false)[0]
 	_skel = find_children("*", "Skeleton3D", true, false)[0]
-	for bone in ["Foot.L", "Foot.R"]:
-		_feet.append([_skel.find_bone(bone), 0.0, false])
-	for name in ["Idle", "Walk", "Run"]:
-		var a := anim.get_animation(PREFIX + name)
-		if a:
-			a.loop_mode = Animation.LOOP_LINEAR
+	_attach_robot_arm()
+	for n in ["Idle", "Walk", "Run"]:
+		if anim.has_animation(n):
+			anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+	for side in ["L", "R"]:
+		var b := bone("Foot." + side)
+		if b >= 0:
+			_feet.append([b, 0.0, false, _foot_height(b, true) + 0.05])
 	_play("Idle")
+
+
+## Index of a bone by generic name ("UpperLeg.L", ...) or its own name.
+func bone(name: String) -> int:
+	var i := _skel.find_bone(name)
+	if i < 0 and BONES.has(name):
+		i = _skel.find_bone(BONES[name])
+	return i
+
+
+## Height of the hips above the feet when standing, in metres.
+func hip_height() -> float:
+	var hips := bone("Hips")
+	return _foot_height(hips, true) if hips >= 0 else 0.9
+
+
+## Hold a frame of an animation (posing a still character).
+func hold(name: String, time: float) -> void:
+	if anim.has_animation(name):
+		anim.play(name)
+		anim.seek(time, true)
+		anim.pause()
 
 
 func set_move(amount: float) -> void:
@@ -39,10 +83,11 @@ func set_move(amount: float) -> void:
 
 
 func play_action(name: String) -> void:
-	if anim.has_animation(PREFIX + name):
+	if anim.has_animation(name):
 		_current = name
-		anim.play(PREFIX + name, 0.1)
-		_action_left = anim.get_animation(PREFIX + name).length * 0.8
+		anim.speed_scale = 1.0
+		anim.play(name, 0.1)
+		_action_left = anim.get_animation(name).length * 0.8
 
 
 func _process(delta: float) -> void:
@@ -52,18 +97,22 @@ func _process(delta: float) -> void:
 			return
 		_action_left = 0.0
 	_detect_footsteps()
+	var speed := _move * full_speed
 	if _move < walk_threshold:
 		_play("Idle")
-	elif _move < run_threshold:
-		_play("Walk")
-	else:
+		anim.speed_scale = 1.0
+	elif _move >= run_threshold and anim.has_animation("Run"):
 		_play("Run")
+		anim.speed_scale = clampf(speed / run_speed, 0.7, 1.4)
+	else:
+		_play("Walk")
+		anim.speed_scale = clampf(speed / walk_speed, 0.7, max_walk_rate)
 
 
 func _play(name: String) -> void:
-	if name != _current:
+	if name != _current and anim.has_animation(name):
 		_current = name
-		anim.play(PREFIX + name, blend_time)
+		anim.play(name, blend_time)
 
 
 # Moves each RobotArm part group onto the bone named in its "bone" metadata,
@@ -72,12 +121,17 @@ func _attach_robot_arm() -> void:
 	var arm := get_node_or_null("RobotArm")
 	if arm == null:
 		return
-	var skel: Skeleton3D = find_children("*", "Skeleton3D", true, false)[0]
 	for holder: Node3D in arm.get_children():
 		var att := BoneAttachment3D.new()
-		att.bone_name = holder.get_meta("bone")
-		skel.add_child(att)
+		att.bone_name = _skel.get_bone_name(bone(holder.get_meta("bone")))
+		_skel.add_child(att)
 		holder.reparent(att, false)
+
+
+## A bone's height above the character's feet (origin), in metres.
+func _foot_height(b: int, rest := false) -> float:
+	var pose := _skel.get_bone_global_rest(b) if rest else _skel.get_bone_global_pose(b)
+	return (_skel.global_transform * pose.origin).y - global_position.y
 
 
 # A foot touches down when its height stops falling and starts rising
@@ -85,9 +139,9 @@ func _attach_robot_arm() -> void:
 func _detect_footsteps() -> void:
 	var moving := _move >= walk_threshold and _action_left <= 0.0
 	for foot in _feet:
-		var y: float = _skel.get_bone_global_pose(foot[0]).origin.y
+		var y := _foot_height(foot[0])
 		var descending: bool = y < foot[1]
-		if moving and foot[2] and not descending and y < 0.06:
+		if moving and foot[2] and not descending and y < foot[3]:
 			footstep.emit()
 		foot[1] = y
 		foot[2] = descending

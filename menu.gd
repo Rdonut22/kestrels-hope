@@ -183,24 +183,22 @@ func _place_pilot() -> Transform3D:
 	add_child(pilot)
 	pilot.set_process(false)
 	# Hips sit on the edge; the model's origin is at its feet when standing.
-	pilot.global_transform = Transform3D(basis, top + Vector3(0, -0.82, 0) - basis.z * 0.12)
+	var hips: float = pilot.hip_height() - 0.1
+	pilot.global_transform = Transform3D(basis, top + Vector3(0, -hips, 0) - basis.z * 0.12)
 	_pose_sitting(pilot)
 	return seat
 
 
 func _pose_sitting(pilot: Node3D) -> void:
-	var anim: AnimationPlayer = pilot.get_node("Adventurer/AnimationPlayer")
-	anim.play("CharacterArmature|Idle")
-	anim.seek(0.4, true)
-	anim.pause()
+	pilot.hold("Idle", 0.4)
 	var skel: Skeleton3D = pilot.find_children("*", "Skeleton3D", true, false)[0]
 	# Work in skeleton space: thighs swing forward 90 degrees, shins hang down.
 	var to_skel := skel.global_transform.affine_inverse().basis
 	var forward := (to_skel * -pilot.global_basis.z).normalized()
 	var right := (to_skel * pilot.global_basis.x).normalized()
 	for side in ["L", "R"]:
-		var thigh := skel.find_bone("UpperLeg." + side)
-		var shin := skel.find_bone("LowerLeg." + side)
+		var thigh: int = pilot.bone("UpperLeg." + side)
+		var shin: int = pilot.bone("LowerLeg." + side)
 		var hip := skel.get_bone_global_pose(thigh)
 		var knee := skel.get_bone_global_pose(shin)
 		var down := (knee.origin - hip.origin).normalized()
@@ -211,7 +209,7 @@ func _pose_sitting(pilot: Node3D) -> void:
 		knee2.basis = swing.inverse() * Basis(right, -0.15) * knee2.basis
 		skel.set_bone_global_pose(shin, knee2)
 	# Lean back a touch on straight arms.
-	var spine := skel.find_bone("Abdomen")
+	var spine: int = pilot.bone("Abdomen")
 	var sp := skel.get_bone_global_pose(spine)
 	sp.basis = Basis(right, 0.12) * sp.basis
 	skel.set_bone_global_pose(spine, sp)
