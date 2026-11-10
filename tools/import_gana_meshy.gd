@@ -32,7 +32,7 @@ var _drop_deg := SHOULDER_DROP_DEG
 const EXTRA := {"idle": "Idle", "interact": "Interact"}
 const REMOVED_BONES := ["mixamorig_RightHand"]
 ## Skin colour the generated (pale) skin is shifted to, like the sheet.
-const SKIN := Color(0.56, 0.38, 0.26)
+const SKIN := Color("A6794A")
 ## Face landmarks in the rest pose (metres; he faces +Z here): the face's
 ## middle, and the heights of the chin, mouth, nose and hairline.
 const FACE_X := -0.025
@@ -87,6 +87,7 @@ func _initialize() -> void:
 	for mi: MeshInstance3D in base.find_children("*", "MeshInstance3D", true, false):
 		_cut(mi)
 		_materials(mi, dir)
+		_reshape_face(mi)
 	base.name = "GanaBody"
 	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
 	var doc := GLTFDocument.new()
@@ -211,6 +212,29 @@ func _materials(mi: MeshInstance3D, dir: String) -> void:
 		mi.set_surface_override_material(s, null)
 
 
+## Moves the face's vertices (GanaEyes.reshape_face). After the painting,
+## which places features by the original positions; the paint moves with
+## the surface.
+func _reshape_face(mi: MeshInstance3D) -> void:
+	var src := mi.mesh as ArrayMesh
+	var out := ArrayMesh.new()
+	for s in src.get_surface_count():
+		var arrays := src.surface_get_arrays(s)
+		var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var moved := 0
+		for i in v.size():
+			var q := GanaEyes.reshape_face(v[i])
+			if q != v[i]:
+				v[i] = q
+				moved += 1
+		arrays[Mesh.ARRAY_VERTEX] = v
+		var flags := src.surface_get_format(s) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
+		out.surface_set_material(out.get_surface_count() - 1, src.surface_get_material(s))
+		print("  reshaped the face: %d vertices moved" % moved)
+	mi.mesh = out
+
+
 # ----------------------------------------------------------- face painting
 
 ## Repaints the skin on the texture: warmer, deeper skin on the face, neck
@@ -294,12 +318,12 @@ func _skin_texel(col: Color, p: Vector3, head: bool) -> Variant:
 	out = out.darkened(dark)
 	# Mouth: a short flat line.
 	var my := MOUTH_Y
-	var mouth := (1.0 - smoothstep(0.0028, 0.0048, absf(p.y - my))) * (1.0 - smoothstep(0.015, 0.02, absf(lx)))
+	var mouth := (1.0 - smoothstep(0.0028, 0.0048, absf(p.y - my))) * (1.0 - smoothstep(0.01, 0.014, absf(lx)))
 	out = out.lerp(Color(0.23, 0.13, 0.09), mouth * front * 0.85)
 	# Goatee: a tuft on the chin, narrowing downwards.
 	var gy := clampf((p.y - (CHIN_Y - 0.004)) / 0.026, 0.0, 1.0)
-	var gw := lerpf(0.004, 0.013, gy)
-	var goatee := (1.0 - smoothstep(gw, gw + 0.003, absf(lx))) * (1.0 - smoothstep(0.022, 0.03, p.y - CHIN_Y)) * smoothstep(-0.01, -0.002, p.y - CHIN_Y)
+	var gw := lerpf(0.003, 0.008, gy)
+	var goatee := (1.0 - smoothstep(gw, gw + 0.003, absf(lx))) * (1.0 - smoothstep(0.017, 0.024, p.y - CHIN_Y)) * smoothstep(-0.01, -0.002, p.y - CHIN_Y)
 	out = out.lerp(Color(0.2, 0.13, 0.09), goatee * front)
 	return out
 
