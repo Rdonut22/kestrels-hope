@@ -1,7 +1,7 @@
 class_name GanaEyes
 extends Node3D
 
-## Gana's glowing eyes: two identical pale almonds laid over the painted
+## Gana's glowing eyes: two identical pale ovals laid over the painted
 ## eyes of the generated body (characters/gana/body/gana_body.glb), riding
 ## the head bone. (The painted ones came out different sizes.)
 ##
@@ -16,7 +16,9 @@ const HEAD := "mixamorig_Head"
 
 @export var glow := Color(0.97, 0.95, 0.84)
 @export_range(0.0, 4.0) var energy := 1.6
-@export var size := Vector2(0.028, 0.015)
+@export var size := Vector2(0.032, 0.018)
+## Tilt of each eye (degrees, outer corner up), like the sheet.
+@export var tilt := 0.0
 ## How far the almonds stand off the face (metres).
 @export var lift := 0.0025
 
@@ -43,15 +45,19 @@ func attach(skel: Skeleton3D) -> void:
 		# Almond in the plane facing n, long axis level.
 		var x := Vector3.UP.cross(n).normalized()
 		var y := n.cross(x).normalized()
+		# Outer corner up: the eye on +X (his left) turns one way, -X the other.
+		var roll := deg_to_rad(tilt) * (-1.0 if p.x > -0.025 else 1.0)
+		var rb := Basis(n, roll)
+		x = rb * x
+		y = rb * y
 		var c := p + n * lift
 		var pts := []
-		for k in 8:
-			var a := TAU * k / 8.0
-			var w := size.x * 0.5 * cos(a)
-			var h := size.y * 0.5 * sin(a) * (1.0 - 0.35 * absf(cos(a)))
-			pts.append(c + x * w + y * h)
-		for k in 8:
-			mb.tri("Eye", c, pts[k], pts[(k + 1) % 8], n)
+		# A soft oval, like the sheet.
+		for k in 12:
+			var a := TAU * k / 12.0
+			pts.append(c + x * (size.x * 0.5 * cos(a)) + y * (size.y * 0.5 * sin(a)))
+		for k in 12:
+			mb.tri("Eye", c, pts[k], pts[(k + 1) % 12], n)
 	var mi := MeshInstance3D.new()
 	mi.name = "Almonds"
 	mi.mesh = mb.commit({"Eye": m})

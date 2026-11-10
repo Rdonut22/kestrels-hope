@@ -31,6 +31,15 @@ var _drop_deg := SHOULDER_DROP_DEG
 ## Extra files (any one animation each) -> name.
 const EXTRA := {"idle": "Idle", "interact": "Interact"}
 const REMOVED_BONES := ["mixamorig_RightHand"]
+## Skin colour the generated (pale) skin is shifted to, like the sheet.
+const SKIN := Color(0.56, 0.38, 0.26)
+## Face landmarks in the rest pose (metres; he faces +Z here): the face's
+## middle, and the heights of the chin, mouth, nose and hairline.
+const FACE_X := -0.025
+const CHIN_Y := 1.432
+const MOUTH_Y := 1.468
+const BROW_Y := 1.565
+const HAIRLINE_Y := 1.6
 
 
 func _initialize() -> void:
@@ -182,7 +191,10 @@ func _materials(mi: MeshInstance3D, dir: String) -> void:
 	var stem := dir + "/" + MAIN.get_basename()
 	var m := StandardMaterial3D.new()
 	m.resource_name = "Gana"
-	m.albedo_texture = _tex(stem + "_texture_0.png")
+	var albedo := Image.load_from_file(ProjectSettings.globalize_path(stem + "_texture_0.png"))
+	albedo.resize(TEXTURE_SIZE, TEXTURE_SIZE, Image.INTERPOLATE_LANCZOS)
+	_paint_skin(albedo, mi)
+	m.albedo_texture = ImageTexture.create_from_image(albedo)
 	var nrm := _tex(stem + "_normal.png")
 	if nrm:
 		m.normal_enabled = true
@@ -197,6 +209,113 @@ func _materials(mi: MeshInstance3D, dir: String) -> void:
 	for s in mi.mesh.get_surface_count():
 		mi.mesh.surface_set_material(s, m)
 		mi.set_surface_override_material(s, null)
+
+
+# ----------------------------------------------------------- face painting
+
+## Repaints the skin on the texture: warmer, deeper skin on the face, neck
+## and left forearm/hand, the painted eye blobs covered (the glowing eyes
+## are gana_eyes.gd), and soft painted features placed by where each texel
+## sits on the face in 3D: mouth, goatee, and shadow under the fringe and
+## along the jaw. (No nose, like the sheet.)
+func _paint_skin(img: Image, mi: MeshInstance3D) -> void:
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var w := img.get_width()
+	var h := img.get_height()
+	var done := {}
+	var painted := 0
+	for t in range(0, idx.size(), 3):
+		var p0 := v[idx[t]]
+		var p1 := v[idx[t + 1]]
+		var p2 := v[idx[t + 2]]
+		var c := (p0 + p1 + p2) / 3.0
+		var head := c.y > 1.39 and c.y < 1.7
+		var left_arm := c.x > 0.18 and c.y > 0.7 and c.y < 1.2
+		if not head and not left_arm:
+			continue
+		var u0 := uv[idx[t]] * Vector2(w, h)
+		var u1 := uv[idx[t + 1]] * Vector2(w, h)
+		var u2 := uv[idx[t + 2]] * Vector2(w, h)
+		var lo := u0.min(u1).min(u2).floor() - Vector2.ONE
+		var hi := u0.max(u1).max(u2).ceil() + Vector2.ONE
+		var den := (u1.y - u2.y) * (u0.x - u2.x) + (u2.x - u1.x) * (u0.y - u2.y)
+		if absf(den) < 1e-9:
+			continue
+		for py in range(maxi(int(lo.y), 0), mini(int(hi.y), h - 1) + 1):
+			for px in range(maxi(int(lo.x), 0), mini(int(hi.x), w - 1) + 1):
+				var q := Vector2(px + 0.5, py + 0.5)
+				var b0 := ((u1.y - u2.y) * (q.x - u2.x) + (u2.x - u1.x) * (q.y - u2.y)) / den
+				var b1 := ((u2.y - u0.y) * (q.x - u2.x) + (u0.x - u2.x) * (q.y - u2.y)) / den
+				var b2 := 1.0 - b0 - b1
+				# A little slack so the island edges are covered too.
+				if b0 < -0.08 or b1 < -0.08 or b2 < -0.08:
+					continue
+				var key := py * w + px
+				if done.has(key):
+					continue
+				var col := img.get_pixel(px, py)
+				var out: Variant = _skin_texel(col, p0 * b0 + p1 * b1 + p2 * b2, head)
+				if out != null:
+					img.set_pixel(px, py, out)
+					done[key] = true
+					painted += 1
+	print("  painted %d skin texels" % painted)
+
+
+## New colour for one texel at 3D point p, or null to leave it.
+func _skin_texel(col: Color, p: Vector3, head: bool) -> Variant:
+	var bright := (col.r + col.g + col.b) / 3.0
+	# The painted eyes (and their soft edges) are covered with skin; the
+	# glowing eyes are separate meshes (gana_eyes.gd).
+	var eye := head and p.z > 0.08 and _near_eye(p, 0.032)
+	var skinlike := col.r > 0.5 and col.r > col.g and col.g > col.b and col.r - col.b > 0.18 and col.r - col.b < 0.45 and bright < 0.8
+	if eye:
+		return SKIN.darkened(0.04)
+	if not skinlike:
+		return null
+	# Keep the painted light and shade, at the new colour.
+	var shade := clampf(bright / 0.54, 0.75, 1.15)
+	var out := Color(SKIN.r * shade, SKIN.g * shade, SKIN.b * shade)
+	if eye:
+		out = SKIN
+	if not head:
+		return out
+	var lx := p.x - FACE_X
+	var front := smoothstep(0.07, 0.11, p.z)
+	var dark := 0.0
+	# Shadow under the fringe, deepening up to the hairline.
+	dark = maxf(dark, smoothstep(BROW_Y, HAIRLINE_Y, p.y) * 0.32)
+	# Sides of the face and along the jaw.
+	dark = maxf(dark, smoothstep(0.045, 0.085, absf(lx)) * 0.2)
+	dark = maxf(dark, (1.0 - smoothstep(CHIN_Y, CHIN_Y + 0.03, p.y)) * smoothstep(0.02, 0.05, absf(lx)) * 0.28)
+	out = out.darkened(dark)
+	# Mouth: a short flat line.
+	var my := MOUTH_Y
+	var mouth := (1.0 - smoothstep(0.0028, 0.0048, absf(p.y - my))) * (1.0 - smoothstep(0.015, 0.02, absf(lx)))
+	out = out.lerp(Color(0.23, 0.13, 0.09), mouth * front * 0.85)
+	# Goatee: a tuft on the chin, narrowing downwards.
+	var gy := clampf((p.y - (CHIN_Y - 0.004)) / 0.026, 0.0, 1.0)
+	var gw := lerpf(0.004, 0.013, gy)
+	var goatee := (1.0 - smoothstep(gw, gw + 0.003, absf(lx))) * (1.0 - smoothstep(0.022, 0.03, p.y - CHIN_Y)) * smoothstep(-0.01, -0.002, p.y - CHIN_Y)
+	out = out.lerp(Color(0.2, 0.13, 0.09), goatee * front)
+	return out
+
+
+## True within r of one of the painted eyes (positions as gana_eyes.gd).
+static func _near_eye(p: Vector3, r: float) -> bool:
+	for e in GanaEyes.EYES:
+		if p.distance_to(e[0]) < r:
+			return true
+	return false
+
+
+## 1 inside an ellipse (radii r), fading to 0 just outside.
+static func _ellipse(d: Vector2, r: Vector2) -> float:
+	var k := (d / r).length()
+	return 1.0 - smoothstep(0.7, 1.15, k)
 
 
 func _tex(path: String) -> Texture2D:
