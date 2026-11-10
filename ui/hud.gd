@@ -31,6 +31,10 @@ func _ready() -> void:
 	%CloseButton.pressed.connect(close_screen)
 	_thoughts = (load("res://ui/thought_box.gd") as GDScript).new()
 	add_child(_thoughts)
+	# Navigation compass at the top (ui/nav_compass), under the fade.
+	var compass: Control = (load("res://ui/nav_compass/nav_compass.gd") as GDScript).new()
+	add_child(compass)
+	move_child(compass, fade.get_index())
 
 
 func _input(event: InputEvent) -> void:

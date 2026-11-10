@@ -3370,6 +3370,15 @@ func _build_crash_site() -> void:
 	slope.add_to_group("grass_surface", true)
 	ship.add_child(slope)
 	slope.owner = R
+	# Compass waypoint at the breach (the way back into the ship), shown once
+	# Gana is 30 m or more from it (ui/nav_compass).
+	var ship_wp := Marker3D.new()
+	ship_wp.name = "ShipWaypoint"
+	ship_wp.set_script(load("res://ui/nav_compass/nav_waypoint.gd"))
+	ship_wp.position = Vector3(7.2, 1.3, 2.35)
+	ship_wp.set("hide_within", 30.0)
+	ship.add_child(ship_wp)
+	ship_wp.owner = R
 
 	# Player wakes up in the quarters, facing the hatch.
 	var player: Node3D = R.get_node("Player")

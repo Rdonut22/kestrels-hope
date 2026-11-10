@@ -98,6 +98,9 @@ Each prints `PASS ...` / `FAIL ...` lines and ends with `FAILS: n`.
 - `save_playtest.gd`: a save/load round trip in the ship and at the crash
   site (flag, item, day, player position, time of day), through
   GameState's own API. It deletes the save it made.
+- `nav_compass_playtest.gd`: the navigation compass at the top of the HUD
+  (`ui/nav_compass`): headings, cardinal letters, waypoint bearing and range,
+  hiding behind menus. Saves screenshots to its output folder.
 
 ## Other tools
 
