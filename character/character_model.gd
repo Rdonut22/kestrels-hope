@@ -12,8 +12,8 @@ extends Node3D
 ## Emitted when a foot touches down during the walk or run animation.
 signal footstep
 
-## Generic bone names used by other scripts (menu.gd's seated pose, the
-## robot arm) and their names on the Mixamo rig.
+## Generic bone names used by other scripts (menu.gd's seated pose) and
+## their names on the Mixamo rig.
 const BONES := {
 	"UpperLeg.L": "mixamorig_LeftUpLeg", "UpperLeg.R": "mixamorig_RightUpLeg",
 	"LowerLeg.L": "mixamorig_LeftLeg", "LowerLeg.R": "mixamorig_RightLeg",
@@ -115,17 +115,11 @@ func _play(name: String) -> void:
 		anim.play(name, blend_time)
 
 
-# Moves each RobotArm part group onto the bone named in its "bone" metadata,
-# so the cybernetic arm follows the animations.
+# Gana's mechanical arm (character/gana/robot_arm.gd) rides the skeleton.
 func _attach_robot_arm() -> void:
 	var arm := get_node_or_null("RobotArm")
-	if arm == null:
-		return
-	for holder: Node3D in arm.get_children():
-		var att := BoneAttachment3D.new()
-		att.bone_name = _skel.get_bone_name(bone(holder.get_meta("bone")))
-		_skel.add_child(att)
-		holder.reparent(att, false)
+	if arm and arm.has_method("attach"):
+		arm.attach(_skel)
 
 
 ## A bone's height above the character's feet (origin), in metres.

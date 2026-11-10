@@ -1782,54 +1782,14 @@ func _build_character() -> void:
 	model.rotation.y = PI
 	scene_root.add_child(model)
 	model.owner = scene_root
-	var skel: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 
-	# Cybernetic right arm, attached to the bones so it follows the animations.
-	# Each attachment gets a holder that undoes the rig's scale, so its parts
-	# are laid out in metres along the bone (+Y points down the arm). Bone
-	# names are the generic ones in character_model.gd's BONES table.
-	var upper := _bone_holder(skel, "UpperArm.R")
-	_part(upper, "ShoulderPlate", _block(Vector3(0.15, 0.06, 0.15)), "metal", Vector3(0, 0.02, 0), Vector3(0, 0, 0.1))
-	_part(upper, "PlateTrim", _block(Vector3(0.155, 0.015, 0.155)), "metal_dark", Vector3(0, -0.01, 0))
-	_part(upper, "UpperSleeve", _tube(0.052, 0.046, 0.12), "metal_dark", Vector3(0, 0.12, 0))
-	_part(upper, "Piston", _tube(0.011, 0.011, 0.14), "copper", Vector3(0.045, 0.1, 0.0))
-	var fore := _bone_holder(skel, "LowerArm.R")
-	_part(fore, "Elbow", _ball(0.055, 8, 6), "copper", Vector3(0, 0.0, 0))
-	_part(fore, "Forearm", _tube(0.058, 0.048, 0.2, 8), "metal", Vector3(0, 0.11, 0))
-	_part(fore, "Plate", _tube(0.062, 0.06, 0.06, 8), "metal_dark", Vector3(0, 0.05, 0))
-	_part(fore, "CableA", _tube(0.011, 0.011, 0.18, 5), "cable", Vector3(0.055, 0.11, 0.0))
-	_part(fore, "CableB", _tube(0.011, 0.011, 0.18, 5), "cable", Vector3(-0.02, 0.11, 0.052))
-	_part(fore, "WristGlow", _donut(0.05, 0.011), "glow", Vector3(0, 0.215, 0))
-	var hand := _bone_holder(skel, "Wrist.R")
-	_part(hand, "HandPlate", _block(Vector3(0.075, 0.07, 0.03)), "metal", Vector3(0, 0.045, 0))
-	_part(hand, "Palm", _tube(0.022, 0.022, 0.006, 8), "glow", Vector3(0, 0.05, 0.02), Vector3(PI / 2, 0, 0))
-	var palm_light := OmniLight3D.new()
-	palm_light.position = Vector3(0, 0.06, 0.06)
-	palm_light.light_color = Color(0.3, 0.85, 1.0)
-	palm_light.light_energy = 0.3
-	palm_light.omni_range = 0.6
-	_add(hand, palm_light, "PalmLight")
+	# Mechanical right forearm and hand with the USHIDA wrist terminal, built
+	# on the skeleton at runtime (character/gana/robot_arm.gd).
+	var arm := Node3D.new()
+	arm.set_script(load("res://character/gana/robot_arm.gd"))
+	_add(scene_root, arm, "RobotArm")
 
 	_save(scene_root, "res://character/character.tscn")
-
-
-func _bone_holder(skel: Skeleton3D, bone: String) -> Node3D:
-	# Saved under RobotArm; character_model.gd moves it onto the bone at runtime
-	# (nodes added inside an imported model aren't kept when the scene is saved).
-	var arm := scene_root.get_node_or_null("RobotArm")
-	if arm == null:
-		arm = _add(scene_root, Node3D.new(), "RobotArm")
-	# Scale of the skeleton relative to the character (undone by the holder).
-	var rig := 1.0
-	var n: Node = skel
-	while n != null and n != scene_root:
-		if n is Node3D:
-			rig *= (n as Node3D).scale.x
-		n = n.get_parent()
-	var holder := Node3D.new()
-	holder.scale = Vector3.ONE / rig
-	holder.set_meta("bone", bone)
-	return _add(arm, holder, bone.replace(".", ""))
 
 
 

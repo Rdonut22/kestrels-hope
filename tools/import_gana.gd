@@ -26,6 +26,10 @@ const ROUGHNESS := {"head": 0.62, "body": 0.72, "hand": 0.6, "boot": 0.66}
 ## The download is ~310k triangles (114k of them boots); reduce each part to
 ## about this many triangles. The face keeps the most.
 const TRIANGLES := {"head": 14000, "body": 30000, "hand": 5000, "boot": 7000}
+## Gana's right forearm and hand are mechanical (character/gana/robot_arm.gd):
+## geometry skinned mostly to these bones is removed, so the jacket sleeve
+## ends at the elbow.
+const REMOVED_BONES := ["mixamorig_RightForeArm", "mixamorig_RightHand"]
 
 
 func _initialize() -> void:
@@ -49,6 +53,7 @@ func _initialize() -> void:
 			base = scene
 			_prepare_materials(base, dir, file)
 			for mi: MeshInstance3D in base.find_children("*", "MeshInstance3D", true, false):
+				_cut(mi)
 				_reduce(mi)
 		else:
 			scene.free()
@@ -120,6 +125,9 @@ func _prepare_materials(scene: Node3D, dir: String, file: String) -> void:
 			m.resource_name = key.capitalize()
 			m.roughness = ROUGHNESS.get(key, 0.7)
 			m.metallic = 0.0
+			if key == "body":
+				# The cut-off sleeve shows its inside.
+				m.cull_mode = BaseMaterial3D.CULL_DISABLED
 			if TEXTURES.has(key):
 				var img := Image.load_from_file(ProjectSettings.globalize_path("%s/%s_%d.png" % [dir, file, TEXTURES[key]]))
 				if img:
@@ -224,3 +232,59 @@ func _center_facing(anim: Animation) -> void:
 		for k in anim.track_get_key_count(pos):
 			anim.track_set_key_value(pos, k, fix * (anim.track_get_key_value(pos, k) as Vector3))
 	print("  centred facing: turned %.0f degrees" % rad_to_deg(-mean))
+
+
+## Removes triangles skinned mostly (on average over their corners) to the
+## REMOVED_BONES or their children (the fingers).
+func _cut(mi: MeshInstance3D) -> void:
+	var skel := mi.get_node_or_null(mi.skeleton) as Skeleton3D
+	if skel == null or mi.skin == null:
+		return
+	var gone := {}
+	for i in skel.get_bone_count():
+		var b := i
+		while b >= 0:
+			if skel.get_bone_name(b) in REMOVED_BONES:
+				gone[i] = true
+				break
+			b = skel.get_bone_parent(b)
+	# Skin bind index -> removed?
+	var bind_gone := []
+	for i in mi.skin.get_bind_count():
+		var bone := mi.skin.get_bind_bone(i)
+		if bone < 0:
+			bone = skel.find_bone(mi.skin.get_bind_name(i))
+		bind_gone.append(gone.has(bone))
+	var src := mi.mesh as ArrayMesh
+	var out := ArrayMesh.new()
+	for s in src.get_surface_count():
+		var arrays := src.surface_get_arrays(s)
+		var mat := src.surface_get_material(s)
+		var bones = arrays[Mesh.ARRAY_BONES]
+		var weights = arrays[Mesh.ARRAY_WEIGHTS]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var nv := (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+		var per: int = bones.size() / nv
+		var w_gone := PackedFloat32Array()
+		w_gone.resize(nv)
+		for v in nv:
+			var w := 0.0
+			for c in per:
+				var bi: int = bones[v * per + c]
+				if bi < bind_gone.size() and bind_gone[bi]:
+					w += weights[v * per + c]
+			w_gone[v] = w
+		var keep := PackedInt32Array()
+		for t in range(0, idx.size(), 3):
+			if (w_gone[idx[t]] + w_gone[idx[t + 1]] + w_gone[idx[t + 2]]) / 3.0 < 0.5:
+				keep.append_array([idx[t], idx[t + 1], idx[t + 2]])
+		if keep.size() < idx.size():
+			print("  cut %s: %d -> %d triangles" % [mat.resource_name if mat else "", idx.size() / 3, keep.size() / 3])
+		if keep.is_empty():
+			continue
+		arrays = _compact(arrays, keep)
+		var flags := src.surface_get_format(s) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
+		out.surface_set_material(out.get_surface_count() - 1, mat)
+	out.resource_name = src.resource_name
+	mi.mesh = out

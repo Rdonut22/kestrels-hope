@@ -299,7 +299,7 @@ const XF_ALONG_Z := Transform3D(Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector
 # ------------------------------------------------------------ mesh builders
 
 ## Smooth-shaded triangle (normals given per corner).
-func _tri_n(mb: ProcMesh.Builder, mat: String, a: Vector3, b: Vector3, c: Vector3, na: Vector3, nb: Vector3, nc: Vector3) -> void:
+static func _tri_n(mb: ProcMesh.Builder, mat: String, a: Vector3, b: Vector3, c: Vector3, na: Vector3, nb: Vector3, nc: Vector3) -> void:
 	if (b - a).cross(c - a).dot(na + nb + nc) < 0.0:
 		var t := b
 		b = c
@@ -316,13 +316,13 @@ func _tri_n(mb: ProcMesh.Builder, mat: String, a: Vector3, b: Vector3, c: Vector
 	st.add_vertex(b)
 
 
-func _quad_n(mb: ProcMesh.Builder, mat: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
+static func _quad_n(mb: ProcMesh.Builder, mat: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
 		na: Vector3, nb: Vector3, nc: Vector3, nd: Vector3) -> void:
 	_tri_n(mb, mat, a, b, c, na, nb, nc)
 	_tri_n(mb, mat, a, c, d, na, nc, nd)
 
 
-func _cap(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y: float, up: bool, xf: Transform3D) -> void:
+static func _cap(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y: float, up: bool, xf: Transform3D) -> void:
 	var idx := Geometry2D.triangulate_polygon(poly)
 	var out := xf.basis * Vector3(0, 1 if up else -1, 0)
 	for t in range(0, idx.size(), 3):
@@ -332,7 +332,7 @@ func _cap(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y: float,
 ## Side walls of a polygon from y0 up to y1, the top edge rolled over by a
 ## bevel. inward = walls of a hole (normals face the hole's centre, the
 ## bevel grows outwards). Returns the polygon at the top of the bevel.
-func _walls(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y0: float, y1: float, bevel: float,
+static func _walls(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y0: float, y1: float, bevel: float,
 		xf: Transform3D, inward := false) -> PackedVector2Array:
 	var ccw := _signed_area(poly) > 0.0
 	var top := _inset(poly, -bevel if inward else bevel) if bevel > 0.0 else poly
@@ -352,7 +352,7 @@ func _walls(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y0: flo
 
 
 ## Solid prism of a polygon (XZ) from y0 to y1, top edges bevelled.
-func _prism(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y0: float, y1: float, bevel := 0.0,
+static func _prism(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y0: float, y1: float, bevel := 0.0,
 		xf := Transform3D.IDENTITY, bottom := true, bevel_bottom := 0.0) -> void:
 	var lo := poly
 	var ys := y0
@@ -374,7 +374,7 @@ func _prism(mb: ProcMesh.Builder, mat: String, poly: PackedVector2Array, y0: flo
 
 
 ## Bevelled box from centre and size, optionally placed by xf.
-func _box(mb: ProcMesh.Builder, mat: String, c: Vector3, s: Vector3, bevel := 0.0, xf := Transform3D.IDENTITY) -> void:
+static func _box(mb: ProcMesh.Builder, mat: String, c: Vector3, s: Vector3, bevel := 0.0, xf := Transform3D.IDENTITY) -> void:
 	var ch := minf(bevel, minf(s.x, s.z) * 0.3)
 	var poly := _crect_c(c.x, c.z, s.x, s.z, ch) if ch > 0.0 else PackedVector2Array([
 		Vector2(c.x - s.x * 0.5, c.z - s.z * 0.5), Vector2(c.x + s.x * 0.5, c.z - s.z * 0.5),
@@ -384,7 +384,7 @@ func _box(mb: ProcMesh.Builder, mat: String, c: Vector3, s: Vector3, bevel := 0.
 
 ## Raised frame between an outer and an inner polygon (same vertex count):
 ## outer walls y0..y1, a flat top ring, and the hole's walls down to floor_y.
-func _frame(mb: ProcMesh.Builder, mat: String, outer: PackedVector2Array, inner: PackedVector2Array, y0: float,
+static func _frame(mb: ProcMesh.Builder, mat: String, outer: PackedVector2Array, inner: PackedVector2Array, y0: float,
 		y1: float, floor_y: float, bevel: float, xf := Transform3D.IDENTITY) -> void:
 	var to := _walls(mb, mat, outer, y0, y1, bevel, xf)
 	var ti := _walls(mb, mat, inner, floor_y, y1, bevel * 0.7, xf, true)
@@ -399,7 +399,7 @@ func _frame(mb: ProcMesh.Builder, mat: String, outer: PackedVector2Array, inner:
 ## the axis at the front (-z); the front faces local -Z. section: 2D points
 ## (unit circle = lathe). smooth_around = round section; profile corners
 ## sharper than ~35 degrees stay hard.
-func _revolve(mb: ProcMesh.Builder, mat: String, profile: Array, section: Array, xf: Transform3D,
+static func _revolve(mb: ProcMesh.Builder, mat: String, profile: Array, section: Array, xf: Transform3D,
 		smooth_around := true, mats := []) -> void:
 	var ns := section.size()
 	var segn := []
@@ -448,7 +448,7 @@ static func _axis(origin: Vector3, front: Vector3) -> Transform3D:
 
 
 ## Plain cylinder (with small edge chamfers) from a to b.
-func _cyl(mb: ProcMesh.Builder, mat: String, a: Vector3, b: Vector3, r: float, segs: int, chamfer := 0.0) -> void:
+static func _cyl(mb: ProcMesh.Builder, mat: String, a: Vector3, b: Vector3, r: float, segs: int, chamfer := 0.0) -> void:
 	var l := a.distance_to(b)
 	var c := minf(chamfer, minf(r * 0.4, l * 0.3))
 	var prof := [Vector2(0, 0), Vector2(r - c, 0), Vector2(r, -c), Vector2(r, -l + c), Vector2(r - c, -l), Vector2(0, -l)]
@@ -457,7 +457,7 @@ func _cyl(mb: ProcMesh.Builder, mat: String, a: Vector3, b: Vector3, r: float, s
 
 ## Swept round tube through control points (Catmull-Rom), optional ribs
 ## (alternate rings raised by rib * radius), capped ends.
-func _tube(mb: ProcMesh.Builder, mat: String, pts: Array, radius: float, segs: int, step: float, rib := 0.0) -> void:
+static func _tube(mb: ProcMesh.Builder, mat: String, pts: Array, radius: float, segs: int, step: float, rib := 0.0) -> void:
 	var curve := Curve3D.new()
 	curve.bake_interval = step
 	for i in pts.size():
@@ -511,7 +511,7 @@ static func _cp(x: float, r: float, a: float) -> Vector3:
 ## Cylindrical shell around the forearm (X axis): radii r0..r1, angles
 ## a0..a1 (full ring if the span is TAU), x0..x1. Smooth round surfaces,
 ## flat ends and side faces.
-func _shell(mb: ProcMesh.Builder, mat: String, r0: float, r1: float, a0: float, a1: float, x0: float, x1: float, segs: int) -> void:
+static func _shell(mb: ProcMesh.Builder, mat: String, r0: float, r1: float, a0: float, a1: float, x0: float, x1: float, segs: int) -> void:
 	var full := is_equal_approx(a1 - a0, TAU)
 	for i in segs:
 		var aa := a0 + (a1 - a0) * i / segs
