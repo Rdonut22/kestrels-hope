@@ -22,6 +22,18 @@ extends Node3D
 @export var show_terminal := true
 ## Glowing palm (design: "robotic right arm (glowing palm)").
 @export var palm_glow := Color(0.3, 0.85, 1.0)
+## Build the mechanical forearm (and its terminal). Off when the body's own
+## mesh already has a mechanical forearm and only the hand is replaced.
+@export var build_forearm := true
+@export_group("Colours")
+## Frame / joints and the plates over them.
+@export var frame_color := Color(0.16, 0.155, 0.145)
+@export var plate_color := Color(0.58, 0.56, 0.47)
+## Paint wear on the hand and forearm (0 = clean).
+@export_range(0.0, 1.0) var wear := 1.0
+## Light hand: off-white plates over dark joints (the stylized Gana's arm)
+## instead of the dark frame with cream covers.
+@export var light_hand := false
 
 const FOREARM := "mixamorig_RightForeArm"
 const HAND := "mixamorig_RightHand"
@@ -44,7 +56,8 @@ func attach(skel: Skeleton3D) -> void:
 	if fore < 0 or hand < 0:
 		push_warning("RobotArm: no %s / %s bone" % [FOREARM, HAND])
 		return
-	_build_forearm(_holder(fore, "Forearm"), _length(fore, hand), _dorsal(fore))
+	if build_forearm:
+		_build_forearm(_holder(fore, "Forearm"), _length(fore, hand), _dorsal(fore))
 	_build_hand(_holder(hand, "Hand"), hand)
 
 
@@ -103,13 +116,20 @@ func _make_materials() -> void:
 	glow.emission_energy_multiplier = 3.0
 	_mats = {
 		# Same family as the terminal: graphite frame, cream covers, steel joints.
-		"Graphite": _wear(Color(0.16, 0.155, 0.145), Color(0.5, 0.47, 0.42), 0.6, 0.48, 0.3, 0.35),
-		"Cream": _wear(Color(0.58, 0.56, 0.47), Color(0.13, 0.11, 0.09), 0.12, 0.62, 0.4, 0.6),
+		"Graphite": _wear(frame_color, Color(0.5, 0.47, 0.42), 0.6, 0.48, 0.3 * wear, 0.35 * wear),
+		"Cream": _wear(plate_color, Color(0.13, 0.11, 0.09), 0.12, 0.62, 0.4 * wear, 0.6 * wear),
 		"Steel": _wear(Color(0.46, 0.44, 0.41), Color(0.24, 0.2, 0.15), 0.85, 0.36, 0.25, 0.35),
 		"DarkMetal": _wear(Color(0.07, 0.066, 0.062), Color(0.2, 0.19, 0.17), 0.5, 0.55, 0.1, 0.2),
 		"Copper": _wear(Color(0.5, 0.25, 0.11), Color(0.22, 0.12, 0.06), 0.65, 0.42, 0.25, 0.35),
 		"Glow": glow,
 	}
+
+
+## Hand material: swaps frame and plate colours for a light hand.
+func _hm(m: String) -> String:
+	if not light_hand:
+		return m
+	return {"Graphite": "Cream", "Cream": "Graphite"}.get(m, m)
 
 
 func _part(parent: Node3D, name: String, mb: ProcMesh.Builder) -> MeshInstance3D:
@@ -183,14 +203,15 @@ func _build_hand(h: Node3D, hand: int) -> void:
 		reach = 0.0
 		for k: Vector3 in knuckles:
 			reach += k.y / 4.0
-		width = ((knuckles[0] as Vector3) - (knuckles[3] as Vector3)).length() + 0.024
+		width = ((knuckles[0] as Vector3) - (knuckles[3] as Vector3)).length() + (0.012 if light_hand else 0.024)
+	var thick := 0.022 if light_hand else 0.026
 	var mb := ProcMesh.Builder.new()
-	WristTerminal._box(mb, "Graphite", Vector3(0, reach * 0.5, 0), Vector3(width, reach * 1.02, 0.026), 0.004, bx)
-	WristTerminal._box(mb, "Cream", Vector3(0, reach * 0.6, 0.0145), Vector3(width * 0.62, reach * 0.5, 0.004), 0.0012, bx)
+	WristTerminal._box(mb, _hm("Graphite"), Vector3(0, reach * 0.5, 0), Vector3(width, reach * 1.02, thick), 0.007 if light_hand else 0.004, bx)
+	WristTerminal._box(mb, _hm("Cream"), Vector3(0, reach * 0.6, thick * 0.5 + 0.0015), Vector3(width * 0.62, reach * 0.5, 0.004), 0.0012, bx)
 	for sx in [-0.3, 0.3]:
-		WristTerminal._box(mb, "Steel", Vector3(width * sx, reach * 0.22, 0.0138), Vector3(0.006, 0.006, 0.003), 0.001, bx)
+		WristTerminal._box(mb, "Steel", Vector3(width * sx, reach * 0.22, thick * 0.5 + 0.0008), Vector3(0.006, 0.006, 0.003), 0.001, bx)
 	# Glowing palm, on the palm side.
-	var palm_c := b * Vector3(0, reach * 0.5, -0.0135)
+	var palm_c := b * Vector3(0, reach * 0.5, -(thick * 0.5 + 0.0005))
 	var palm_n := b * Vector3(0, 0, -1)
 	WristTerminal._cyl(mb, "Steel", palm_c - palm_n * 0.0005, palm_c + palm_n * 0.0025, 0.019, 20, 0.0006)
 	WristTerminal._cyl(mb, "Glow", palm_c + palm_n * 0.0024, palm_c + palm_n * 0.0034, 0.013, 20)
@@ -231,6 +252,6 @@ func _build_finger_segment(h: Node3D, len: float, r: float, tip: bool, dorsal: V
 		prof.append_array([Vector2(r * 0.6, -end - r * 0.45), Vector2(0, -end - r * 0.6)])
 	else:
 		prof.append(Vector2(0, -end))
-	WristTerminal._revolve(mb, "Graphite", prof, ProcMesh.circle(8), along, false)
-	WristTerminal._box(mb, "Cream", Vector3(0, len * 0.5, r * 0.85), Vector3(r * 1.3, len * 0.55, r * 0.35), r * 0.15, Transform3D(b, Vector3.ZERO))
+	WristTerminal._revolve(mb, _hm("Graphite"), prof, ProcMesh.circle(8), along, false)
+	WristTerminal._box(mb, _hm("Cream"), Vector3(0, len * 0.5, r * 0.85), Vector3(r * 1.3, len * 0.55, r * 0.35), r * 0.15, Transform3D(b, Vector3.ZERO))
 	_part(h, "Segment", mb)
