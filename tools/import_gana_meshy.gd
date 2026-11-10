@@ -11,7 +11,7 @@ extends SceneTree
 ## - renames the animations it needs and strips any forward root motion,
 ## - adds animations from extra files (idle, interact) when present.
 ##
-##   godot --path . -s tools/import_gana_meshy.gd -- [source dir]
+##   godot --path . -s tools/import_gana_meshy.gd -- [source dir] [shoulder drop deg] [output]
 ## The source GLB/FBX files must be inside the project and imported first
 ## (copy them to res://character/gana_src/meshy/ and run --import); don't
 ## commit them.
@@ -20,14 +20,25 @@ const OUT := "res://characters/gana/body/gana_body.glb"
 const MAIN := "all.glb"
 const TEXTURE_SIZE := 1024
 ## Animation in the main file -> name used by the game.
-const RENAME := {"Walking": "Walk", "Running": "Run", "Regular_Jump": "Jump"}
+const RENAME := {"Idle_3": "Idle", "Walking": "Walk", "Quick_Walk": "QuickWalk", "Running": "Run", "Regular_Jump": "Jump",
+	"Male_Bend_Over_Pick_Up": "PickUp"}
+## Looping animations (the rest play once).
+const LOOPS := ["Idle", "Walk", "QuickWalk", "Run"]
+## The generated rig holds the shoulders high (a shrug); every animation
+## gets each shoulder turned down by this much.
+const SHOULDER_DROP_DEG := 16.0
+var _drop_deg := SHOULDER_DROP_DEG
 ## Extra files (any one animation each) -> name.
 const EXTRA := {"idle": "Idle", "interact": "Interact"}
 const REMOVED_BONES := ["mixamorig_RightHand"]
 
 
 func _initialize() -> void:
-	var dir: String = OS.get_cmdline_user_args()[0] if OS.get_cmdline_user_args().size() > 0 else "res://character/gana_src/meshy"
+	var args := OS.get_cmdline_user_args()
+	var dir: String = args[0] if args.size() > 0 else "res://character/gana_src/meshy"
+	if args.size() > 1:
+		_drop_deg = float(args[1])
+	var out: String = args[2] if args.size() > 2 else OUT
 	var base: Node3D = (load(dir + "/" + MAIN) as PackedScene).instantiate()
 	var player: AnimationPlayer = base.find_children("*", "AnimationPlayer", true, false)[0]
 	var skel: Skeleton3D = base.find_children("*", "Skeleton3D", true, false)[0]
@@ -37,7 +48,8 @@ func _initialize() -> void:
 		if player.has_animation(src):
 			var a := player.get_animation(src).duplicate(true) as Animation
 			_strip_root_motion(a)
-			a.loop_mode = Animation.LOOP_NONE if RENAME[src] == "Jump" else Animation.LOOP_LINEAR
+			_drop_shoulders(a, skel)
+			a.loop_mode = Animation.LOOP_LINEAR if RENAME[src] in LOOPS else Animation.LOOP_NONE
 			lib.add_animation(RENAME[src], a)
 			print("animation %s <- %s (%.2f s)" % [RENAME[src], src, a.length])
 	for file in EXTRA:
@@ -50,6 +62,7 @@ func _initialize() -> void:
 			var a := _longest(ap).duplicate(true) as Animation
 			_retarget(a, skel_path)
 			_strip_root_motion(a)
+			_drop_shoulders(a, skel)
 			a.loop_mode = Animation.LOOP_LINEAR if file == "idle" else Animation.LOOP_NONE
 			lib.add_animation(EXTRA[file], a)
 			print("animation %s <- %s" % [EXTRA[file], path])
@@ -66,13 +79,13 @@ func _initialize() -> void:
 		_cut(mi)
 		_materials(mi, dir)
 	base.name = "GanaBody"
-	DirAccess.make_dir_recursive_absolute(OUT.get_base_dir())
+	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
 	var doc := GLTFDocument.new()
 	var state := GLTFState.new()
 	var err := doc.append_from_scene(base, state)
 	if err == OK:
-		err = doc.write_to_filesystem(state, ProjectSettings.globalize_path(OUT))
-	print("wrote %s: %s" % [OUT, error_string(err)])
+		err = doc.write_to_filesystem(state, ProjectSettings.globalize_path(out))
+	print("wrote %s: %s" % [out, error_string(err)])
 	base.free()
 	quit(0 if err == OK else 1)
 
@@ -109,6 +122,37 @@ func _held_pose(src: Animation, time: float) -> Animation:
 		var k := src.track_find_key(t, time, Animation.FIND_MODE_NEAREST)
 		a.track_insert_key(n, 0.0, src.track_get_key_value(t, maxi(k, 0)))
 	return a
+
+
+## Turns both shoulder bones down by SHOULDER_DROP_DEG in every key (about
+## the axis that swings the arm towards the ground at rest), and the upper
+## arms back by the same amount.
+func _drop_shoulders(a: Animation, skel: Skeleton3D) -> void:
+	for side in ["Left", "Right"]:
+		var sh := skel.find_bone("mixamorig_%sShoulder" % side)
+		var arm := skel.find_bone("mixamorig_%sArm" % side)
+		if sh < 0 or arm < 0:
+			continue
+		var rest := skel.get_bone_global_rest(sh)
+		var d := (skel.get_bone_global_rest(arm).origin - rest.origin).normalized()
+		var axis := rest.basis.inverse() * Vector3.DOWN.cross(d).normalized()
+		var fix := Quaternion(axis.normalized(), deg_to_rad(_drop_deg))
+		var path := ":mixamorig_%sShoulder" % side
+		var found := false
+		for t in a.get_track_count():
+			if a.track_get_type(t) == Animation.TYPE_ROTATION_3D and String(a.track_get_path(t)).ends_with(path):
+				found = true
+				for k in a.track_get_key_count(t):
+					a.track_set_key_value(t, k, (a.track_get_key_value(t, k) as Quaternion) * fix)
+		if not found:
+			continue
+		# Counter-turn the upper arm so the arm still hangs the same way:
+		# only the shoulder joint drops.
+		var arm_path := ":mixamorig_%sArm" % side
+		for t in a.get_track_count():
+			if a.track_get_type(t) == Animation.TYPE_ROTATION_3D and String(a.track_get_path(t)).ends_with(arm_path):
+				for k in a.track_get_key_count(t):
+					a.track_set_key_value(t, k, fix.inverse() * (a.track_get_key_value(t, k) as Quaternion))
 
 
 ## Removes the hips' steady drift across the ground over the clip.

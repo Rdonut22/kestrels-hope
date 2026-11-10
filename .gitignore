@@ -14,3 +14,6 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# Raw character downloads (FBX/GLB from Mixamo, Meshy): the import tools read them, the game uses the built files.
+character/gana_src/

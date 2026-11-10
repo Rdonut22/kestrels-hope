@@ -4,7 +4,8 @@ extends Node3D
 ## (gana_body.glb) with the mechanical right hand (robot_arm.gd, hand
 ## only) and the glowing eyes (gana_eyes.gd), playing its animations.
 ##   Left drag: orbit    Right/middle drag: pan    Wheel: zoom
-##   1-7: views    I/W/R/J: idle/walk/run/jump    Space: pause    T: turntable
+##   1-7: views    I/W/Q/R/J/P: idle/walk/quick walk/run/jump/pick up
+##   Space: pause    T: turntable
 ## Not used by the game yet.
 
 const PRESETS := [
@@ -129,7 +130,7 @@ func _update_help(view := "") -> void:
 	if _help:
 		if view != "":
 			_help.set_meta("view", view)
-		_help.text = "GANA - stylized body   view: %s   animation: %s\n1-7 views | I idle  W walk  R run  J jump  Space pause | drag orbit, wheel zoom | T turntable" % [
+		_help.text = "GANA - stylized body   view: %s   animation: %s\n1-7 views | I idle  W walk  Q quick walk  R run  J jump  P pick up  Space pause | drag orbit, wheel zoom | T turntable" % [
 			_help.get_meta("view", ""), _current]
 
 
@@ -175,6 +176,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_W: play("Walk")
 			KEY_R: play("Run")
 			KEY_J: play("Jump")
+			KEY_Q: play("QuickWalk")
+			KEY_P: play("PickUp")
 			KEY_T: turntable = not turntable
 			KEY_SPACE:
 				if anim:
