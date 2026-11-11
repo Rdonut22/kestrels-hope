@@ -1,10 +1,11 @@
 extends Node3D
 
-## Preview of the stylized Gana body (run with F6): the generated mesh
-## (gana_body.glb) with the mechanical right hand (robot_arm.gd, hand
-## only) and the glowing eyes (gana_eyes.gd), playing its animations.
+## Preview of the stylized Gana body (run with F6): gana_body.glb (made
+## and rigged in Meshy, built by tools/import_gana_meshy.gd) playing its
+## animations.
 ##   Left drag: orbit    Right/middle drag: pan    Wheel: zoom
-##   1-7: views    I/W/Q/R/J/P: idle/walk/quick walk/run/jump/pick up
+##   1-7: views    I/W/Q/R/J/P/C/V/G/U: idle/walk/quick walk/run/jump/
+##   pick up/catch breath/vault/jump grab/climb up
 ##   Space: pause    T: turntable
 ## Not used by the game yet.
 
@@ -15,7 +16,7 @@ const PRESETS := [
 	["Side (his right)", Vector3(0, 0.88, 0), 90.0, 3.0, 3.7],
 	["Back", Vector3(0, 0.88, 0), 180.0, 3.0, 3.7],
 	["Face", Vector3(0, 1.55, 0), 15.0, 2.0, 0.9],
-	["Mechanical hand", Vector3(0.3, 0.85, 0.0), 55.0, 8.0, 0.75],
+	["Mechanical arm", Vector3(0.3, 1.0, 0.0), 55.0, 8.0, 0.9],
 	["Left hand", Vector3(-0.3, 0.85, 0.0), -55.0, 8.0, 0.75],
 ]
 
@@ -80,30 +81,13 @@ func _ready() -> void:
 	apply_preset(0)
 
 
-## The body with its runtime parts, facing -Z like the player.
+## The body, facing -Z like the player.
 static func build_gana() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Gana"
 	var g: Node3D = (load("res://characters/gana/body/gana_body.glb") as PackedScene).instantiate()
 	g.rotation.y = PI
 	root.add_child(g)
-	var skel: Skeleton3D = g.find_children("*", "Skeleton3D", true, false)[0]
-	var arm := RobotArm.new()
-	arm.name = "RobotHand"
-	arm.build_forearm = false
-	arm.show_terminal = false
-	arm.frame_color = Color(0.3, 0.29, 0.29)
-	arm.plate_color = Color(0.88, 0.85, 0.78)
-	arm.wear = 0.4
-	arm.light_hand = true
-	arm.palm_glow = Color(0.98, 0.67, 0.22)
-	root.add_child(arm)
-	var eyes := GanaEyes.new()
-	root.add_child(eyes)
-	# Attach once everything is in the tree (needs global transforms).
-	(func():
-		arm.attach(skel)
-		eyes.attach(skel)).call_deferred()
 	return root
 
 
@@ -130,7 +114,7 @@ func _update_help(view := "") -> void:
 	if _help:
 		if view != "":
 			_help.set_meta("view", view)
-		_help.text = "GANA - stylized body   view: %s   animation: %s\n1-7 views | I idle  W walk  Q quick walk  R run  J jump  P pick up  Space pause | drag orbit, wheel zoom | T turntable" % [
+		_help.text = "GANA - stylized body   view: %s   animation: %s\n1-7 views | I idle  W walk  Q quick walk  R run  J jump  P pick up  C V G U extras  Space pause | drag orbit, wheel zoom | T turntable" % [
 			_help.get_meta("view", ""), _current]
 
 
@@ -178,6 +162,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_J: play("Jump")
 			KEY_Q: play("QuickWalk")
 			KEY_P: play("PickUp")
+			KEY_C: play("CatchBreath")
+			KEY_V: play("Vault")
+			KEY_G: play("JumpGrab")
+			KEY_U: play("ClimbUp")
 			KEY_T: turntable = not turntable
 			KEY_SPACE:
 				if anim:
