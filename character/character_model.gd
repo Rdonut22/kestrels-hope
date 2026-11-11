@@ -39,7 +39,7 @@ var _move := 0.0
 var _current := ""
 var _action_left := 0.0
 var _skel: Skeleton3D
-var _feet := []  # [bone index, last height, was descending, contact height]
+var _feet := []  # [bone index, last height, was descending, lowest height seen]
 
 
 func _ready() -> void:
@@ -52,7 +52,8 @@ func _ready() -> void:
 	for side in ["L", "R"]:
 		var b := bone("Foot." + side)
 		if b >= 0:
-			_feet.append([b, 0.0, false, _foot_height(b, true) + 0.05])
+			_feet.append([b, 0.0, false, INF])
+	_find_contacts()
 	_play("Idle")
 
 
@@ -128,14 +129,56 @@ func _foot_height(b: int, rest := false) -> float:
 	return (_skel.global_transform * pose.origin).y - global_position.y
 
 
-# A foot touches down when its height stops falling and starts rising
-# while it's near the ground.
+## When each foot lands in the walking animations (seconds into the clip),
+## found once by stepping through them: a foot lands where its height is
+## at a low point near the clip's lowest. Footsteps fire as playback
+## passes those times, whatever the frame rate.
+var _contacts := {}  # animation name -> Array[float]
+var _last_pos := -1.0
+var _last_anim := ""
+
+
+func _find_contacts() -> void:
+	var was := anim.current_animation
+	for n in ["Walk", "QuickWalk", "Run"]:
+		if not anim.has_animation(n):
+			continue
+		var length := anim.get_animation(n).length
+		var steps := 90
+		var times: Array[float] = []
+		for foot in _feet:
+			var hs: Array[float] = []
+			anim.play(n)
+			for k in steps:
+				anim.seek(length * k / steps, true)
+				hs.append(_foot_height(foot[0]))
+			var lo: float = hs.min()
+			var hi: float = hs.max()
+			var near := lo + (hi - lo) * 0.25
+			# Landing: the first sample of each stretch spent near the bottom.
+			for k in steps:
+				var prev := hs[(k - 1 + steps) % steps]
+				if hs[k] <= near and prev > near:
+					times.append(length * k / steps)
+		times.sort()
+		_contacts[n] = times
+	anim.stop()
+	if was != "":
+		anim.play(was)
+
+
 func _detect_footsteps() -> void:
 	var moving := _move >= walk_threshold and _action_left <= 0.0
-	for foot in _feet:
-		var y := _foot_height(foot[0])
-		var descending: bool = y < foot[1]
-		if moving and foot[2] and not descending and y < foot[3]:
-			footstep.emit()
-		foot[1] = y
-		foot[2] = descending
+	var n := anim.current_animation
+	var pos := anim.current_animation_position
+	if not moving or not _contacts.has(n):
+		_last_pos = -1.0
+		_last_anim = n
+		return
+	if n == _last_anim and _last_pos >= 0.0:
+		for t: float in _contacts[n]:
+			var crossed := (_last_pos < t and pos >= t) if pos >= _last_pos else (_last_pos < t or pos >= t)
+			if crossed and pos != _last_pos:
+				footstep.emit()
+	_last_pos = pos
+	_last_anim = n
