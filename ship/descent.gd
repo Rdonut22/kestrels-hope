@@ -359,8 +359,8 @@ func _attach_site() -> void:
 		for tree: Node3D in redwoods.get_children():
 			if absf(tree.position.x + 0.8) < 12.0 and tree.position.z > 4.0 and tree.position.z < 110.0:
 				tree.visible = false
-	var bushes := _site.get_node_or_null("Bushes") as MultiMeshInstance3D
-	if bushes:
+	var shrubs := _site.get_node_or_null("Shrubs")
+	for bushes: MultiMeshInstance3D in (shrubs.get_children() if shrubs else []):
 		var mm := bushes.multimesh.duplicate() as MultiMesh
 		for i in mm.instance_count:
 			var xf := mm.get_instance_transform(i)
