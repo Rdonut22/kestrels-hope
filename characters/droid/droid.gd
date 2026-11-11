@@ -34,6 +34,18 @@ const SOUNDS := "res://characters/droid/sounds/"
 const NOTICE := 4.5
 const NOTICE_LEAVE := 6.5
 const HEAD_LIMIT := deg_to_rad(110.0)
+## The head (everything above the wheel bogies) faces forward at rest.
+const HEAD_FORWARD := 0.0
+## How long it stops to watch Gana before it gets on with its pottering,
+## and how long before it'll stop for him again.
+const WATCH_TIME := Vector2(3.5, 6.0)
+const WATCH_AGAIN := 15.0
+## The tip of the planter arm (head space, model units): a warm light
+## shines from it at night.
+const PLANTER_TIP := Vector3(0.0, -0.18, -1.22)
+## Where the lamp sits on the head (head space, model units): just above
+## the eyes, shining forward.
+const LAMP_AT := Vector3(0.0, 0.2, -0.58)
 
 enum State { TURN, DRIVE, PAUSE, REST, WATCH }
 
@@ -55,6 +67,8 @@ var _head_yaw := 0.0
 var _head_goal := 0.0
 var _glance_in := 3.0
 var _greet_cool := 0.0
+var _watch_cool := 0.0
+var _planter_light: OmniLight3D
 var _player: Node3D
 var _eyes: StandardMaterial3D
 var _lamp: SpotLight3D
@@ -75,13 +89,12 @@ func _ready() -> void:
 		aabb = b if first else aabb.merge(b)
 		first = false
 	_model.scale = Vector3.ONE * (height / maxf(aabb.size.y, 0.01))
-	_body = _model.find_child("Body", true, false) as Node3D
+	# The head (everything above the wheel bogies) both turns and settles
+	# down onto the bogies when resting.
+	_head = _model.find_child("Head", true, false) as Node3D
+	_body = _head
 	if _body:
 		_body_rest = _body.position
-	# The head rides on the body (so it settles with it when resting).
-	_head = _model.find_child("Head", true, false) as Node3D
-	if _head and _body:
-		_head.reparent(_body, true)
 	if _head is MeshInstance3D and (_head as MeshInstance3D).mesh.get_surface_count() > 1:
 		var m := (_head as MeshInstance3D).mesh.surface_get_material(1) as StandardMaterial3D
 		if m:
@@ -115,6 +128,7 @@ func _process(delta: float) -> void:
 	_t += delta
 	_chirp_in -= delta
 	_greet_cool -= delta
+	_watch_cool -= delta
 	_watch_for_gana()
 	_move_head(delta)
 	if _chirp_in <= 0.0 and not _chirps.is_empty():
@@ -139,8 +153,12 @@ func _process(delta: float) -> void:
 				global_position += -global_basis.z * speed * delta
 				_snap_to_ground()
 		State.WATCH:
-			# Stay put and keep an eye on Gana (_watch_for_gana lets go).
-			pass
+			# Stay put and keep an eye on Gana for a few seconds, then
+			# carry on (it'll stop for him again a while later).
+			_timer -= delta
+			if _timer <= 0.0:
+				_watch_cool = WATCH_AGAIN
+				_pick_target()
 		State.REST:
 			# A sleepy chirp now and then while it rests.
 			if _timer > 0.0 and _timer - delta <= 0.0 and _rng.randf() < 0.5:
@@ -173,8 +191,9 @@ func _watch_for_gana() -> void:
 	var to := _player.global_position - global_position
 	to.y = 0.0
 	var d := to.length()
-	if _state != State.WATCH and d < NOTICE and _player.is_visible_in_tree():
+	if _state != State.WATCH and _state != State.REST and _watch_cool <= 0.0 and d < NOTICE and _player.is_visible_in_tree():
 		_state = State.WATCH
+		_timer = _rng.randf_range(WATCH_TIME.x, WATCH_TIME.y)
 		if _greet_cool <= 0.0:
 			_greet_cool = 12.0
 			# A beat to look over, then the hello.
@@ -204,7 +223,7 @@ func _move_head(delta: float) -> void:
 	# Servo-like: quick, slowing as it arrives, a slight overshoot.
 	var diff := _head_goal - _head_yaw
 	_head_yaw += clampf(diff * 6.0 * delta, -3.0 * delta, 3.0 * delta)
-	_head.rotation.y = _head_yaw
+	_head.rotation.y = HEAD_FORWARD + _head_yaw
 
 
 ## Headlamp and eye glow at night.
@@ -213,7 +232,7 @@ func _build_lights() -> void:
 	at.name = "LampMount"
 	if _head:
 		_head.add_child(at)
-		at.position = Vector3(0, 0.25, -0.35)
+		at.position = LAMP_AT
 	else:
 		add_child(at)
 		at.position = Vector3(0, height * 0.6, -0.4)
@@ -227,6 +246,17 @@ func _build_lights() -> void:
 	_lamp.rotation.x = -0.25
 	_lamp.visible = false
 	at.add_child(_lamp)
+	# Warm light from the tip of the planter arm.
+	_planter_light = OmniLight3D.new()
+	_planter_light.name = "PlanterLight"
+	_planter_light.light_color = Color(1.0, 0.68, 0.32)
+	_planter_light.light_energy = 0.0
+	_planter_light.omni_range = 3.0
+	_planter_light.omni_attenuation = 1.4
+	_planter_light.shadow_enabled = false
+	_planter_light.visible = false
+	_planter_light.position = PLANTER_TIP
+	(_head if _head else _model).add_child(_planter_light)
 	_glow = OmniLight3D.new()
 	_glow.light_color = Color(1.0, 0.8, 0.35)
 	_glow.light_energy = 0.0
@@ -247,6 +277,9 @@ func _set_night_amount(v: float) -> void:
 	if _lamp:
 		_lamp.visible = v > 0.01
 		_lamp.light_energy = 2.2 * v
+	if _planter_light:
+		_planter_light.visible = v > 0.01
+		_planter_light.light_energy = 1.4 * v
 	if _glow:
 		_glow.visible = v > 0.01
 		_glow.light_energy = 0.6 * v
