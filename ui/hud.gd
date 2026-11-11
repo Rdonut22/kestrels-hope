@@ -55,7 +55,7 @@ func _input(event: InputEvent) -> void:
 ## True while a menu, a book or the sleep fade is up, so the player can't move.
 func is_busy() -> bool:
 	for o in _overlays:
-		if is_instance_valid(o) and o.visible:
+		if is_instance_valid(o) and (o.visible or (o.has_method("is_raising") and o.is_raising())):
 			return true
 	return screen.visible or _sleeping or (_reader != null and _reader.visible)
 

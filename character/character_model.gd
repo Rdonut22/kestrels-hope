@@ -50,6 +50,9 @@ func _ready() -> void:
 	anim = find_children("*", "AnimationPlayer", true, false)[0]
 	_skel = find_children("*", "Skeleton3D", true, false)[0]
 	_attach_robot_arm()
+	_raise = WristRaise.new()
+	_raise.name = "WristRaise"
+	_skel.add_child(_raise)
 	for n in ["Idle", "Walk", "QuickWalk", "Run"]:
 		if anim.has_animation(n):
 			anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
@@ -93,6 +96,8 @@ const ACTIONS := {"Interact": ["PickUp", 2.2]}
 ## After this long running, stopping plays the catch-breath animation.
 @export var winded_after := 8.0
 var _locked := false
+var _raise: WristRaise
+var _raise_tween: Tween
 var _run_time := 0.0
 
 
@@ -104,6 +109,17 @@ func play_action(name: String) -> void:
 		speed = ACTIONS[name][1]
 	if anim.has_animation(a):
 		_start(a, speed, false)
+
+
+## Raise the arm with the wrist terminal (up = true) or lower it, over
+## `secs` seconds, easing in and out.
+func raise_terminal(up: bool, secs := 0.7) -> void:
+	if _raise == null:
+		return
+	if _raise_tween:
+		_raise_tween.kill()
+	_raise_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_raise_tween.tween_property(_raise, "amount", 1.0 if up else 0.0, secs)
 
 
 ## A jump: the vault over an obstacle when running, else the standing

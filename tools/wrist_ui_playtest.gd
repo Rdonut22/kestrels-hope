@@ -33,12 +33,17 @@ func _wait(n: int) -> void:
 
 
 func _key(k: Key) -> void:
+	var opening := k == KEY_TAB and view != null and not view.visible
 	for pressed in [true, false]:
 		var ev := InputEventKey.new()
 		ev.keycode = k
 		ev.physical_keycode = k
 		ev.pressed = pressed
 		Input.parse_input_event(ev)
+		await _wait(2)
+	if opening:
+		# Gana raises his arm first; the screen opens after.
+		await create_timer(WristTerminalView.RAISE_SECS + 0.3).timeout
 		await _wait(2)
 
 
@@ -81,7 +86,9 @@ func _run() -> void:
 	var player: Node = current_scene.get_node("Player")
 
 	await _key(KEY_TAB)
-	_check(view.visible, "Tab opens the terminal")
+	_check(view.visible, "Tab opens the terminal (after Gana raises his arm)")
+	var model = current_scene.get_node("Player").mesh
+	_check(model._raise != null and model._raise.amount > 0.5, "Gana's arm is raised")
 	_check(hud.is_busy(), "the player is frozen while it's open")
 	_check(view.ui.section == -1 and view.ui.selected == 0, "opens on the home screen with MAP selected")
 	_check(view.terminal.get_display().material_override != null, "the UI is on the G-07 model's display")

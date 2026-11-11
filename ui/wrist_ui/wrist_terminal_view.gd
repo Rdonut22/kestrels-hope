@@ -121,6 +121,35 @@ func _frame_camera() -> void:
 
 # ----------------------------------------------------------------- open/close
 
+## Gana lifts his arm to look at the terminal first, then the close-up
+## fades in. (He's frozen meanwhile: the HUD counts this as busy.)
+const RAISE_SECS := 0.7
+var _raising := false
+
+
+func is_raising() -> bool:
+	return _raising
+
+
+func _gana_model() -> Node:
+	var p := get_tree().current_scene.get_node_or_null("Player") if get_tree().current_scene else null
+	return p.get("mesh") if p else null
+
+
+func _raise_then_open() -> void:
+	var m := _gana_model()
+	if m == null or not m.has_method("raise_terminal") or (m as Node3D).get("visible") == false:
+		open()
+		return
+	_raising = true
+	m.raise_terminal(true, RAISE_SECS)
+	await get_tree().create_timer(RAISE_SECS * 0.8).timeout
+	_raising = false
+	open()
+	modulate.a = 0.0
+	create_tween().tween_property(self, "modulate:a", 1.0, 0.25)
+
+
 func open() -> void:
 	if visible:
 		return
@@ -139,6 +168,10 @@ func close() -> void:
 		return
 	last_section = ui.section
 	visible = false
+	modulate.a = 1.0
+	var m := _gana_model()
+	if m and m.has_method("raise_terminal"):
+		m.raise_terminal(false, 0.5)
 	_ui_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_view_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -159,10 +192,10 @@ func _hud_node() -> Node:
 
 func _input(event: InputEvent) -> void:
 	if not visible:
-		if event.is_action_pressed(ACTION) and not event.is_echo():
+		if event.is_action_pressed(ACTION) and not event.is_echo() and not _raising:
 			var hud := _hud_node()
 			if hud == null or not hud.is_busy():
-				open()
+				_raise_then_open()
 				get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouse:
