@@ -17,6 +17,9 @@ extends Node3D
 const OUTLINE := preload("res://interactables/outline.gdshader")
 var _outlines: Array[MeshInstance3D] = []
 var _outline_tween: Tween
+## The small [E] key that floats above the object while it's targeted.
+var _key: Node3D
+static var _key_tex: Texture2D
 
 
 func _enter_tree() -> void:
@@ -39,9 +42,11 @@ func hud() -> Node:
 	return get_tree().get_first_node_in_group("hud")
 
 
-## Turn the glowing outline on or off (the player calls this when it
-## starts or stops looking at this object).
-func set_highlighted(on: bool) -> void:
+## Turn the glowing outline and the [E] key on or off (the player calls
+## this when it starts or stops looking at this object). `usable` = false
+## shows the outline without the key (e.g. no power).
+func set_highlighted(on: bool, usable := true) -> void:
+	_show_key(on and usable)
 	if on and _outlines.is_empty():
 		_build_outlines()
 	if _outlines.is_empty():
@@ -93,3 +98,75 @@ func _build_outlines() -> void:
 			o.visible = false
 			m.add_child(o)
 			_outlines.append(o)
+
+
+## A tiny [E] keycap just above the object (or above this node when it has
+## no meshes), the same size on screen at any distance.
+func _show_key(on: bool) -> void:
+	if not on:
+		if _key:
+			_key.visible = false
+		return
+	if _key == null:
+		_key = Node3D.new()
+		_key.name = "KeyHint"
+		add_child(_key)
+		var cap := Sprite3D.new()
+		cap.texture = _keycap()
+		cap.pixel_size = 0.001
+		cap.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		cap.fixed_size = true
+		cap.no_depth_test = true
+		cap.render_priority = 10
+		cap.modulate = Color(1, 1, 1, 0.92)
+		_key.add_child(cap)
+		var e := Label3D.new()
+		e.text = "E"
+		e.font = preload("res://ui/fonts/JetBrainsMono-Bold.ttf")
+		e.font_size = 34
+		e.pixel_size = 0.001
+		e.outline_size = 0
+		e.modulate = Color(0.12, 0.1, 0.08)
+		e.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		e.fixed_size = true
+		e.no_depth_test = true
+		e.render_priority = 11
+		_key.add_child(e)
+	_key.global_position = _key_spot()
+	_key.visible = true
+
+
+func _key_spot() -> Vector3:
+	var box := AABB()
+	var first := true
+	for t in _targets():
+		var meshes: Array[Node] = t.find_children("*", "MeshInstance3D", true, false)
+		if t is MeshInstance3D:
+			meshes.append(t)
+		for m: MeshInstance3D in meshes:
+			if m.mesh == null or m.name.begins_with("Outline"):
+				continue
+			var b: AABB = m.global_transform * m.get_aabb()
+			box = b if first else box.merge(b)
+			first = false
+	if first:
+		return global_position + Vector3(0, 0.35, 0)
+	return Vector3(box.get_center().x, box.end.y + 0.12, box.get_center().z)
+
+
+## A small rounded keycap: pale fill, soft edge.
+static func _keycap() -> Texture2D:
+	if _key_tex:
+		return _key_tex
+	var n := 48
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var r := 10.0
+	for y in n:
+		for x in n:
+			var dx := maxf(maxf(r + 1.0 - x, x - (n - 2.0 - r)), 0.0)
+			var dy := maxf(maxf(r + 1.0 - y, y - (n - 2.0 - r)), 0.0)
+			var d := sqrt(dx * dx + dy * dy)
+			var a := clampf(r + 0.5 - d, 0.0, 1.0)
+			img.set_pixel(x, y, Color(0.97, 0.94, 0.86, a))
+	_key_tex = ImageTexture.create_from_image(img)
+	return _key_tex

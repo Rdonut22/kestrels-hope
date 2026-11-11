@@ -104,8 +104,11 @@ func _book_reader() -> Control:
 	return _reader
 
 
+## The prompt text is kept (tests read it) but not shown: the targeted
+## object shows a glowing outline and a small [E] instead (interactable.gd).
 func set_prompt(text: String) -> void:
 	prompt_label.text = text
+	prompt_label.visible = false
 
 
 func set_held(text: String) -> void:

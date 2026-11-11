@@ -16,6 +16,7 @@ var held_book := "":
 		_show_held()
 
 var current_target: Interactable
+var _target_usable := false
 var _steps: AudioStreamPlayer
 var _floor: Object
 var _seat: Node3D  # couch seat we're sitting on, if any
@@ -162,12 +163,15 @@ func _update_target(busy: bool) -> void:
 				best_facing = facing
 				current_target = node
 
-	if current_target != previous:
-		# The thing Gana is looking at glows (interactable.gd).
-		if previous and is_instance_valid(previous):
+	# The thing Gana is looking at glows, with a tiny [E] above it when it
+	# can be used (interactable.gd).
+	var usable := current_target != null and current_target.can_interact(self) and _has_power(current_target)
+	if current_target != previous or usable != _target_usable:
+		if previous and is_instance_valid(previous) and previous != current_target:
 			previous.set_highlighted(false)
 		if current_target:
-			current_target.set_highlighted(true)
+			current_target.set_highlighted(true, usable)
+	_target_usable = usable
 	if current_target == null:
 		hud.set_prompt("")
 	elif not _has_power(current_target):
