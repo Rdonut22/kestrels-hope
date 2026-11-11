@@ -20,6 +20,7 @@ func _ready() -> void:
 
 var _glow := 0.0
 var _glow_tween: Tween
+var _light: OmniLight3D
 
 
 func set_night(night: bool) -> void:
@@ -31,6 +32,16 @@ func set_night(night: bool) -> void:
 
 func _set_glow(v: float) -> void:
 	_glow = v
+	# A faint pool of light around it at night.
+	if _light == null and v > 0.0:
+		_light = OmniLight3D.new()
+		_light.light_color = Color(0.85, 0.95, 1.0)
+		_light.omni_range = 1.6
+		_light.shadow_enabled = false
+		add_child(_light)
+	if _light:
+		_light.light_energy = 0.35 * v
+		_light.visible = v > 0.01
 	var body := get_node_or_null("Body") as MeshInstance3D
 	if body == null:
 		return
