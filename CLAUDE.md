@@ -79,7 +79,7 @@ The final result should be a functioning, reusable Godot asset that resembles th
 - Make small, isolated changes.
 - Never overwrite working systems without explicit approval.
 - Run the validation suite (`tools/check.sh`) before declaring a task complete, and report its result. If a test fails, investigate and report it; don't rewrite a test to hide a real defect.
-- Merge and push only as described in "Keep main up to date" below.
+- Push to `main` only as described in "Pushing to main" below.
 - For visual changes, provide before-and-after screenshots from comparable camera positions (`tools/corridor_shots.gd`, `tools/ship_shots.gd` and friends).
 - Preserve the established ship architecture and art direction.
 - Never treat a successful script compilation as proof that a visual change is correct.
@@ -93,11 +93,10 @@ The final result should be a functioning, reusable Godot asset that resembles th
 - Explain before acting when the user is only asking a question.
 - Don't build story content past INITIATE LANDING until it has been designed.
 
-## Keep main up to date (required)
+## Pushing to main (required)
 
-New sessions start from `main`, and the user pulls `main` with GitHub Desktop, so finished work needs to land there. Work that sits only on a side branch is invisible to the next session.
+The user pulls `main` with GitHub Desktop, so that's where finished work has to land, but only when they say so.
 
-- At the start of a session, check whether any `claude/*` branch on origin has commits that `main` lacks. If one does, tell the user before doing anything else and offer to merge it.
-- When a change is finished: run `tools/check.sh`. If it passes, commit on the working branch, merge into `main` (fast-forward when possible) and push `main` without asking, then show the user the result (before/after screenshots for visual changes) so they can discard any `.uid`/`.import` changes and pull.
-- If `tools/check.sh` fails, don't merge: investigate and report it.
-- If the merge has conflicts or pushing `main` is blocked, stop and tell the user plainly. Never leave the session with unmerged work and no warning.
+- When a change is ready: show the user previews (screenshots or renders), then ask whether they want it pushed to `main`. Don't push or merge before they say yes.
+- Commit locally as you go; that needs no approval.
+- If pushing is blocked or the merge has conflicts, tell the user plainly.
