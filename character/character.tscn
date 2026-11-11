@@ -1,14 +1,19 @@
 [gd_scene format=3 uid="uid://bo3unbt4t005f"]
 
 [ext_resource type="Script" path="res://character/character_model.gd" id="1_ugqs2"]
-[ext_resource type="PackedScene" path="res://character/gana/gana.glb" id="2_hx151"]
+[ext_resource type="PackedScene" path="res://characters/gana/body/gana_body.glb" id="2_hx151"]
 [ext_resource type="Script" path="res://character/gana/robot_arm.gd" id="3_0rvpn"]
 
-[node name="Character" type="Node3D" unique_id=1124729095]
+[node name="Character" type="Node3D" unique_id=2063702943]
 script = ExtResource("1_ugqs2")
 
-[node name="Gana" type="Node3D" parent="." unique_id=490057030 instance=ExtResource("2_hx151")]
-transform = Transform3D(-0.91, 0, -7.955473e-08, 0, 0.91, 0, 7.955473e-08, 0, -0.91, 0, 0, 0)
+[node name="Gana" type="Node3D" parent="." unique_id=431275105 instance=ExtResource("2_hx151")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 
-[node name="RobotArm" type="Node3D" parent="." unique_id=319208003]
+[node name="RobotArm" type="Node3D" parent="." unique_id=1710299040]
 script = ExtResource("3_0rvpn")
+palm_glow = Color(0.98, 0.67, 0.22, 1)
+frame_color = Color(0.3, 0.29, 0.28, 1)
+plate_color = Color(0.88, 0.85, 0.78, 1)
+wear = 0.4
+light_hand = true
