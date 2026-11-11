@@ -144,6 +144,7 @@ func _physics_process(delta: float) -> void:
 
 # Picks the in-range interactable closest to where the camera is facing.
 func _update_target(busy: bool) -> void:
+	var previous := current_target
 	current_target = null
 	if not busy:
 		var forward := -pivot.global_transform.basis.z
@@ -161,6 +162,12 @@ func _update_target(busy: bool) -> void:
 				best_facing = facing
 				current_target = node
 
+	if current_target != previous:
+		# The thing Gana is looking at glows (interactable.gd).
+		if previous and is_instance_valid(previous):
+			previous.set_highlighted(false)
+		if current_target:
+			current_target.set_highlighted(true)
 	if current_target == null:
 		hud.set_prompt("")
 	elif not _has_power(current_target):

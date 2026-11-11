@@ -272,8 +272,9 @@ func _thought_zones() -> void:
 
 
 # Like _inspect, but Gana thinks the lines out loud.
-func _thought(parent: Node, name: String, pos: Vector3, prompt: String, lines: Array, rng := 1.6) -> void:
-	_interactable(parent, name, "inspect", pos, {"prompt": prompt, "message": "|".join(lines), "interact_range": rng, "thought": true})
+func _thought(parent: Node, name: String, pos: Vector3, prompt: String, lines: Array, rng := 1.6, glow := PackedStringArray()) -> void:
+	_interactable(parent, name, "inspect", pos, {"prompt": prompt, "message": "|".join(lines), "interact_range": rng, "thought": true,
+		"highlight": glow})
 
 
 # ---------- ship ----------
@@ -651,16 +652,19 @@ func _build_ship() -> void:
 	var log_terminal := _interactable(use, "LogTerminal", "log_terminal", Vector3(1.55, 0.8, -7.4), {"prompt": "Read personal log", "needs_power": true})
 	_mesh_box(log_terminal, "Screen", Vector3(0.22, 0.65, 0), Vector3(0.04, 0.5, 0.75), "screen_amber")
 
-	_interactable(use, "Bed", "bunk", Vector3(-2.75, 1.0, -7.25), {"prompt": "Sleep", "interact_range": 1.8})
+	_interactable(use, "Bed", "bunk", Vector3(-2.75, 1.0, -7.25), {"prompt": "Sleep", "interact_range": 1.8,
+		"highlight": PackedStringArray(["SleepPod1"])})
 
 	_thought(use, "Locker", Vector3(1.45, 1.0, -6.2), "Hale's locker", [
 		"Hale's locker. Pried open.",
 		"They went through his things... and nothing else on the whole ship.",
-		"What were you mixed up in, Hale?"], 1.4)
+		"What were you mixed up in, Hale?"], 1.4, PackedStringArray(["LockerDoor", "LockerInside"]))
 	_interactable(use, "PhotoHale", "photo", Vector3(1.6, 0.9, -7.82), {"prompt": "Look at photo", "interact_range": 1.3,
+		"highlight": PackedStringArray(["PhotoHaleFrame"]),
 		"image": load("res://ship/props/photo_gana_hale.png"),
 		"lines": "Asura, the draft. Hale and me, too young and too stupid to be scared.|He swore we'd always make it out together."})
 	_interactable(use, "PhotoAngel", "photo", Vector3(1.6, 0.9, -6.95), {"prompt": "Look at photo of Angel", "interact_range": 1.3,
+		"highlight": PackedStringArray(["PhotoAngelFrame"]),
 		"image": load("res://ship/props/photo_angel.png"),
 		"lines": "Angel.|Hang on. I'm coming home. I promised."})
 	_thought(use, "CargoCrates", Vector3(1.35, 0.7, 6.05), "Cargo crates", [
