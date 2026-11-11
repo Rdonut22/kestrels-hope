@@ -3363,6 +3363,15 @@ func _build_crash_site() -> void:
 	ship.add_child(ship_wp)
 	ship_wp.owner = R
 
+	# The little farming droid, puttering round the clearing.
+	var droid := Node3D.new()
+	droid.name = "FarmDroid"
+	droid.set_script(load("res://characters/droid/droid.gd"))
+	droid.position = Vector3(15.0, GROUND_Y, 7.0)
+	droid.set("roam_radius", 9.0)
+	R.add_child(droid)
+	droid.owner = R
+
 	# Player wakes up in the quarters, facing the hatch.
 	var player: Node3D = R.get_node("Player")
 	player.position = ship.transform * Vector3(-1.2, 1.1, -7.0)
