@@ -1771,13 +1771,14 @@ func _build_character() -> void:
 	_char_mat("cable", Color(0.55, 0.15, 0.1), 0.5)
 	_char_mat("glow", Color(0.3, 0.85, 1.0), 0.3, 0.0, 4.0)
 
-	# Gana: a Mixamo-rigged body (character/gana/gana.glb, made from the
-	# downloaded FBX by tools/import_gana.gd), rotated to face -Z like the
-	# player. (The old body, Quaternius' Adventurer, is character/adventurer.glb.)
+	# Gana: the stylized body from his character sheet
+	# (characters/gana/body/gana_body.glb, generated and rigged in Meshy,
+	# built by tools/import_gana_meshy.gd), rotated to face -Z like the
+	# player. (Earlier bodies: character/gana/gana.glb, character/adventurer.glb.)
 	scene_root = Node3D.new()
 	scene_root.name = "Character"
 	scene_root.set_script(load("res://character/character_model.gd"))
-	var model: Node3D = (load("res://character/gana/gana.glb") as PackedScene).instantiate()
+	var model: Node3D = (load("res://characters/gana/body/gana_body.glb") as PackedScene).instantiate()
 	model.name = "Gana"
 	model.rotation.y = PI
 	scene_root.add_child(model)
@@ -1785,8 +1786,14 @@ func _build_character() -> void:
 
 	# Mechanical right forearm and hand with the USHIDA wrist terminal, built
 	# on the skeleton at runtime (character/gana/robot_arm.gd).
+	# In his sheet's colours: off-white plates over dark joints, amber palm.
 	var arm := Node3D.new()
 	arm.set_script(load("res://character/gana/robot_arm.gd"))
+	arm.set("light_hand", true)
+	arm.set("frame_color", Color(0.3, 0.29, 0.28))
+	arm.set("plate_color", Color(0.88, 0.85, 0.78))
+	arm.set("wear", 0.4)
+	arm.set("palm_glow", Color(0.98, 0.67, 0.22))
 	_add(scene_root, arm, "RobotArm")
 
 	_save(scene_root, "res://character/character.tscn")
