@@ -32,10 +32,12 @@ func _initialize() -> void:
 		lo = lo.min(p)
 		hi = hi.max(p)
 	print("bounds ", lo, " .. ", hi)
-	# Model faces +X (its hose and lamp at -X are the back). Put the ground
-	# under the middle at the origin and turn it so the front is -Z.
+	# Model faces +X (the head with its lit visor is at +X; the hose and
+	# lamp trail behind at -X). Put the ground under the middle at the
+	# origin and turn it so the front is -Z.
+	var orig := v.duplicate()
 	var centre := Vector3((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5)
-	var turn := Basis(Vector3.UP, -PI / 2)
+	var turn := Basis(Vector3.UP, PI / 2)
 	for i in v.size():
 		v[i] = turn * (v[i] - centre)
 	var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
@@ -57,23 +59,71 @@ func _initialize() -> void:
 	mat.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_BLUE
 	mat.metallic = 1.0
 	mat.roughness = 1.0
-	# Wheels: the four pods below the axle line, out at the sides
-	# (after the turn: sides are +-X, front -Z).
+	# The eyes: the visor's lamp on the head keeps its original yellow and
+	# glows (its own surface); everything else is the grey version.
+	var eye_mat := StandardMaterial3D.new()
+	eye_mat.resource_name = "DroidEyes"
+	var orig_tex := ImageTexture.create_from_image(_orig_albedo())
+	eye_mat.albedo_texture = orig_tex
+	eye_mat.emission_enabled = true
+	eye_mat.emission_texture = orig_tex
+	eye_mat.emission = Color(1, 1, 1)
+	eye_mat.emission_energy_multiplier = 1.2
+	var orig_img := _orig_albedo()
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	# Parts, classified in the model's own coordinates: the head (upper
+	# front block with the tank on top) turns; the four wheel pods; the
+	# rest is the body.
 	var root := Node3D.new()
 	root.name = "Droid"
-	var wheel_y := -0.3 - lo.y
-	var parts := {"Body": PackedInt32Array()}
-	var pods := {}
+	var parts := {"Body": PackedInt32Array(), "Head": PackedInt32Array(), "Eyes": PackedInt32Array()}
 	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var w := orig_img.get_width()
 	for t in range(0, idx.size(), 3):
-		var c := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
+		var c := (orig[idx[t]] + orig[idx[t + 1]] + orig[idx[t + 2]]) / 3.0
 		var key := "Body"
-		if c.y < wheel_y and absf(c.x) > 0.2:
-			key = "Wheel%s%s" % ["L" if c.x < 0.0 else "R", "F" if c.z < 0.0 else "B"]
+		if c.y < -0.3 and absf(c.z) > 0.2:
+			key = "Wheel%s%s" % ["L" if c.z < 0.0 else "R", "F" if c.x > 0.3 else "B"]
+		elif c.x > 0.3 and c.y > -0.05:
+			key = "Head"
+			var u := (uv[idx[t]] + uv[idx[t + 1]] + uv[idx[t + 2]]) / 3.0
+			var col := orig_img.get_pixel(clampi(int(u.x * w), 0, w - 1), clampi(int(u.y * w), 0, w - 1))
+			if col.v > 0.8 and col.s > 0.35 and col.h > 0.06 and col.h < 0.17 and c.y < 0.35:
+				key = "Eyes"
 		if not parts.has(key):
 			parts[key] = PackedInt32Array()
 		parts[key].append_array([idx[t], idx[t + 1], idx[t + 2]])
+	# Head pivot: a vertical axis through the middle of the head.
+	var head_pivot := Vector3.ZERO
+	var hl := Vector3(INF, INF, INF)
+	var hh := -hl
+	for k in ["Head", "Eyes"]:
+		for i in parts[k]:
+			hl = hl.min(v[i])
+			hh = hh.max(v[i])
+	head_pivot = Vector3((hl.x + hh.x) * 0.5, hl.y, (hl.z + hh.z) * 0.5)
 	for key in parts:
+		if key == "Eyes" or (parts[key] as PackedInt32Array).is_empty():
+			continue
+		if key == "Head":
+			# One mesh, two surfaces: the head and its glowing eyes.
+			var am := ArrayMesh.new()
+			for k in ["Head", "Eyes"]:
+				var sub := _compact(arrays, parts[k])
+				var sv: PackedVector3Array = sub[Mesh.ARRAY_VERTEX]
+				for i in sv.size():
+					sv[i] -= head_pivot
+				sub[Mesh.ARRAY_VERTEX] = sv
+				am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, sub)
+				am.surface_set_material(am.get_surface_count() - 1, mat if k == "Head" else eye_mat)
+			var head := MeshInstance3D.new()
+			head.name = "Head"
+			head.mesh = am
+			head.position = head_pivot
+			root.add_child(head)
+			head.owner = root
+			print("Head: %d + %d eye triangles, pivot %s" % [parts["Head"].size() / 3, parts["Eyes"].size() / 3, head_pivot])
+			continue
 		var sub := _compact(arrays, parts[key])
 		var sv: PackedVector3Array = sub[Mesh.ARRAY_VERTEX]
 		var pivot := Vector3.ZERO
@@ -107,6 +157,12 @@ func _initialize() -> void:
 	root.free()
 	src.free()
 	quit(0 if err == OK else 1)
+
+
+func _orig_albedo() -> Image:
+	var img := Image.load_from_file(ProjectSettings.globalize_path("res://character/gana_src/droid/droid_0.png"))
+	img.resize(TEXTURE_SIZE, TEXTURE_SIZE, Image.INTERPOLATE_LANCZOS)
+	return img
 
 
 func _png(n: String) -> Texture2D:
