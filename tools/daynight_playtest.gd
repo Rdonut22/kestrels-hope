@@ -47,17 +47,16 @@ func _run() -> void:
 		root.get_texture().get_image().save_png(OUT + "d_%04.1f_breach.png" % h)
 	clock.skip_to(22.5)
 	await _frames(5)
-	var flies: CPUParticles3D = current_scene.get_node("CrashSite/Fireflies0")
 	var fly: Node3D = current_scene.get_node("CrashSite/Butterfly0")
-	_check(flies.visible and flies.emitting, "fireflies out at night")
-	_check(not fly.visible, "butterflies gone at night")
+	await create_timer(3.5).timeout
+	_check(fly.visible and fly.get("_glow") > 0.9, "butterflies glow at night (%.2f)" % fly.get("_glow"))
 	_check(clock.is_night(), "is_night at 22:30")
 	var bed: Node = current_scene.get_node("Ship/ShipInterior/Interactables/Bed")
 	bed.interact(player)
 	await create_timer(1.6).timeout
 	_check(absf(clock.hour - 7.0) < 0.2, "sleeping skips to morning (hour %.2f)" % clock.hour)
 	await create_timer(5.0).timeout
-	_check(fly.visible and not flies.visible, "butterflies back, fireflies gone in the morning")
+	_check(fly.visible and fly.get("_glow") < 0.1, "butterflies stop glowing in the morning (%.2f)" % fly.get("_glow"))
 	var comp: Node = current_scene.get_node("Ship/ShipInterior/Interactables/ShipComputer")
 	comp.interact(player)
 	await _frames(3)

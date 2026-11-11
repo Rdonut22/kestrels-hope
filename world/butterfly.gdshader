@@ -12,6 +12,8 @@ uniform float flap_speed = 18.0;     // radians per second
 uniform float flap_angle = 0.9;      // radians up and down
 uniform float hinge_x = -0.021;      // body centre line (mesh units)
 uniform float body_half_width = 0.05;
+// 0 by day; at night the wings glow (world/butterfly.gd sets it).
+uniform float glow = 0.0;
 
 varying float v_seed;
 
@@ -40,4 +42,7 @@ void fragment() {
 	}
 	ALBEDO = col;
 	ROUGHNESS = 0.8;
+	// Night: the wings light up in their own colour, softly pulsing.
+	float pulse = 0.7 + 0.3 * sin(TIME * 1.7 + v_seed * 6.283);
+	EMISSION = (col * 0.85 + vec3(0.12)) * glow * 2.4 * pulse;
 }

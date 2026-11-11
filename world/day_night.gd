@@ -130,3 +130,5 @@ func _apply() -> void:
 				n.emitting = night
 		for n in get_tree().get_nodes_in_group("day_only"):
 			n.visible = not night
+		for n in get_tree().get_nodes_in_group("night_glow"):
+			n.set_night(night)

@@ -1,7 +1,8 @@
 extends Node3D
 
 ## Flutters around its starting point. The wings flap in its shader
-## (world/butterfly.gdshader).
+## (world/butterfly.gdshader). At night its wings glow (day_night.gd calls
+## set_night on the "night_glow" group).
 
 @export var wander := 4.0
 @export var speed := 1.2
@@ -15,6 +16,28 @@ func _ready() -> void:
 	_home = position
 	_t = randf() * 10.0
 	_pick()
+
+
+var _glow := 0.0
+var _glow_tween: Tween
+
+
+func set_night(night: bool) -> void:
+	if _glow_tween:
+		_glow_tween.kill()
+	_glow_tween = create_tween()
+	_glow_tween.tween_method(_set_glow, _glow, 1.0 if night else 0.0, 3.0)
+
+
+func _set_glow(v: float) -> void:
+	_glow = v
+	var body := get_node_or_null("Body") as MeshInstance3D
+	if body == null:
+		return
+	for i in body.get_surface_override_material_count():
+		var m := body.get_surface_override_material(i) as ShaderMaterial
+		if m:
+			m.set_shader_parameter("glow", v)
 
 
 func _pick() -> void:
