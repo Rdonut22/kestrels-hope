@@ -16,7 +16,7 @@ extends SceneTree
 const SRC := "res://character/gana_src/droid/droid_low.glb"
 const OUT := "res://characters/droid/droid.glb"
 const TRIANGLES := 24000
-const TEXTURE_SIZE := 1024
+const TEXTURE_SIZE := 2048
 ## The model's light grey plating (sampled from its armour).
 const GREY := Color(0.62, 0.6, 0.57)
 

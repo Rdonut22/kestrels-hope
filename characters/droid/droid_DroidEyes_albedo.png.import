@@ -8,7 +8,7 @@ metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "afaf322c42f871e36b54179de859c9a2"
+"md5": "10c3c8529927f03f1b6a5431156e4552"
 }
 
 [deps]
@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/droid_DroidEyes_albedo.png-436badfbbdd5b88495
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

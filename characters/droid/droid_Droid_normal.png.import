@@ -8,7 +8,7 @@ metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "a02827c64d6ca0ddea0aa4b358032d3e"
+"md5": "ed4af9936a98ceebe25d00c4438c6142"
 }
 
 [deps]
@@ -18,13 +18,13 @@ dest_files=["res://.godot/imported/droid_Droid_normal.png-6947eb0826dd9bca606932
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
