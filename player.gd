@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 const SPEED = 5.0
+const WALK_SPEED = 1.4
 const JUMP_VELOCITY = 4.5
 const MOUSE_SENSITIVITY = 0.003
 
@@ -32,6 +33,7 @@ func _ready() -> void:
 	_add_key("move_left", KEY_A)
 	_add_key("move_right", KEY_D)
 	_add_key("jump", KEY_SPACE)
+	_add_key("walk", KEY_SHIFT)
 	_add_key("interact", KEY_E)
 	_add_key("drink", KEY_F)
 	_add_key("read", KEY_R)
@@ -111,6 +113,8 @@ func _physics_process(delta: float) -> void:
 
 	if not busy and Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
+		if mesh.has_method("play_jump"):
+			mesh.play_jump(Vector2(velocity.x, velocity.z).length() > SPEED * 0.55)
 
 	var input_dir := Vector2.ZERO if busy else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := pivot.global_transform.basis * Vector3(input_dir.x, 0, input_dir.y)
@@ -118,8 +122,10 @@ func _physics_process(delta: float) -> void:
 	direction = direction.normalized()
 
 	if direction:
-		velocity.x = direction.x * SPEED
-		velocity.z = direction.z * SPEED
+		# Shift to walk instead of run.
+		var speed := WALK_SPEED if Input.is_action_pressed("walk") else SPEED
+		velocity.x = direction.x * speed
+		velocity.z = direction.z * speed
 		mesh.rotation.y = lerp_angle(mesh.rotation.y, atan2(-direction.x, -direction.z), 10 * delta)
 	else:
 		velocity.x = move_toward(velocity.x, 0, SPEED)

@@ -24,6 +24,10 @@ const BONES := {
 
 @export var walk_threshold := 0.05
 @export var run_threshold := 0.55
+## Between this and run_threshold he walks briskly (QuickWalk).
+@export var quick_walk_threshold := 0.35
+## Ground speed of the brisk walk, m/s.
+@export var quick_walk_speed := 1.6
 @export var blend_time := 0.2
 ## The player's top speed (player.gd SPEED), m/s, for matching the feet.
 @export var full_speed := 5.0
@@ -46,7 +50,7 @@ func _ready() -> void:
 	anim = find_children("*", "AnimationPlayer", true, false)[0]
 	_skel = find_children("*", "Skeleton3D", true, false)[0]
 	_attach_robot_arm()
-	for n in ["Idle", "Walk", "Run"]:
+	for n in ["Idle", "Walk", "QuickWalk", "Run"]:
 		if anim.has_animation(n):
 			anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 	for side in ["L", "R"]:
@@ -83,31 +87,75 @@ func set_move(amount: float) -> void:
 	_move = clampf(amount, 0.0, 1.0)
 
 
+## Gestures by the names the player uses -> [animation, playback speed].
+## (The body's pick-up is long: it bends, grabs, then looks at the find.)
+const ACTIONS := {"Interact": ["PickUp", 2.2]}
+## After this long running, stopping plays the catch-breath animation.
+@export var winded_after := 8.0
+var _locked := false
+var _run_time := 0.0
+
+
 func play_action(name: String) -> void:
-	if anim.has_animation(name):
-		_current = name
-		anim.speed_scale = 1.0
-		anim.play(name, 0.1)
-		_action_left = anim.get_animation(name).length * 0.8
+	var a: String = name
+	var speed := 1.0
+	if ACTIONS.has(name) and anim.has_animation(ACTIONS[name][0]):
+		a = ACTIONS[name][0]
+		speed = ACTIONS[name][1]
+	if anim.has_animation(a):
+		_start(a, speed, false)
+
+
+## A jump: the vault over an obstacle when running, else the standing
+## jump. Plays through to the landing even while moving.
+func play_jump(running: bool) -> void:
+	var a := "Vault" if running and anim.has_animation("Vault") else "Jump"
+	if anim.has_animation(a):
+		_start(a, 1.3 if a == "Jump" else 1.0, true)
+
+
+func _start(a: String, speed: float, locked: bool) -> void:
+	_current = a
+	anim.play(a, 0.1)
+	anim.speed_scale = speed
+	_action_left = anim.get_animation(a).length / speed * 0.9
+	_locked = locked
 
 
 func _process(delta: float) -> void:
 	if _action_left > 0.0:
 		_action_left -= delta
-		if _move < walk_threshold:
+		if _locked or _move < walk_threshold:
 			return
 		_action_left = 0.0
+	_locked = false
 	_detect_footsteps()
 	var speed := _move * full_speed
+	if _move >= run_threshold:
+		_run_time += delta
+	elif _move < walk_threshold and _run_time > winded_after and anim.has_animation("CatchBreath"):
+		# Stopped after a long run: get his breath back.
+		_run_time = 0.0
+		_start("CatchBreath", 1.0, false)
+		return
+	elif _move >= walk_threshold:
+		_run_time = 0.0
 	if _move < walk_threshold:
 		_play("Idle")
 		anim.speed_scale = 1.0
-	elif _move >= run_threshold and anim.has_animation("Run"):
+	elif _move < quick_walk_threshold or not anim.has_animation("QuickWalk"):
+		if _move >= run_threshold and anim.has_animation("Run"):
+			_play("Run")
+			anim.speed_scale = clampf(speed / run_speed, 0.7, 1.4)
+		else:
+			_play("Walk")
+			anim.speed_scale = clampf(speed / walk_speed, 0.7, max_walk_rate)
+	elif _move < run_threshold:
+		_play("QuickWalk")
+		anim.speed_scale = clampf(speed / quick_walk_speed, 0.7, 1.4)
+	else:
 		_play("Run")
 		anim.speed_scale = clampf(speed / run_speed, 0.7, 1.4)
-	else:
-		_play("Walk")
-		anim.speed_scale = clampf(speed / walk_speed, 0.7, max_walk_rate)
 
 
 func _play(name: String) -> void:
