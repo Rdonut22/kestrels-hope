@@ -3592,12 +3592,7 @@ func _build_crash_site() -> void:
 		bushes.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bsz * 1.4, bsz, bsz * 1.3)),
 			Vector3(p.x, GROUND_Y + bsz * 0.3, p.y)), Color(1, 1, 1) * rng.randf_range(0.85, 1.15)])
 
-	var blob_mesh := SphereMesh.new()
-	blob_mesh.radius = 0.5
-	blob_mesh.height = 1.0
-	blob_mesh.radial_segments = 10
-	blob_mesh.rings = 6
-	_multimesh(site, "Bushes", blob_mesh, bushes, "bush")
+	_build_shrubs(site, bushes)
 	var redwood_trunks := _build_redwoods(site, GROUND_Y)
 
 	# Rocks, some mossy, and a ring of stones and reeds around the pond.
@@ -3617,14 +3612,13 @@ func _build_crash_site() -> void:
 		var a := k * TAU / 26.0 + rng.randf_range(-0.1, 0.1)
 		var e := pond_c + _pond_radius(a) * Vector2(cos(a), sin(a)) * 1.05
 		var rs := rng.randf_range(0.3, 0.7)
-		rocks.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(rs * 1.4, rs * 0.6, rs)),
-			Vector3(e.x, GROUND_Y + 0.05, e.y)), Color(1, 1, 1)])
+		# The pond's ring of stones and reeds is gone; the draws stay so
+		# everything placed after keeps its place.
+		var _stone := [Basis(Vector3.UP, rng.randf() * TAU), rs, e]
 		if k % 2 == 0:
 			for q in 5:
-				var rp := e + Vector2(rng.randf_range(-0.5, 0.5), rng.randf_range(-0.5, 0.5))
-				var rh := rng.randf_range(0.7, 1.4)
-				reeds.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(-0.2, 0.2)).scaled(Vector3(0.04, rh, 0.04)),
-					Vector3(rp.x, GROUND_Y + rh / 2.0, rp.y)), Color(1, 1, 1)])
+				var _reed := [rng.randf_range(-0.5, 0.5), rng.randf_range(-0.5, 0.5), rng.randf_range(0.7, 1.4),
+					rng.randf() * TAU, rng.randf_range(-0.2, 0.2)]
 	var rock_mesh := SphereMesh.new()
 	rock_mesh.radius = 0.5
 	rock_mesh.height = 1.0
@@ -3638,7 +3632,8 @@ func _build_crash_site() -> void:
 	reed_mesh.height = 1.0
 	reed_mesh.radial_segments = 8
 	reed_mesh.rings = 1
-	_multimesh(site, "Reeds", reed_mesh, reeds, "reed")
+	if not reeds.is_empty():
+		_multimesh(site, "Reeds", reed_mesh, reeds, "reed")
 
 	# Pond.
 	var st := SurfaceTool.new()
@@ -4354,6 +4349,70 @@ func _dae_terrain(path: String) -> ArrayMesh:
 func _save_resource(res: Resource, path: String) -> void:
 	ResourceSaver.save(res, path)
 	res.take_over_path(path)
+
+
+## Didelta spinosa shrubs (world/shrubs, from the downloaded Blender file)
+## where the old blob bushes stood: about two in three bush spots keep a
+## shrub, sized like the bush, and some grow into clumps of 3-5. Split
+## into 30 m tiles that stop drawing past SHRUB_RANGE (fog hides them).
+const SHRUB_RANGE := 70.0
+
+
+func _build_shrubs(site: Node, bushes: Array) -> void:
+	var srng := RandomNumberGenerator.new()
+	srng.seed = 4021
+	var meshes := {}
+	for k in ["small", "medium", "large"]:
+		var sc: Node = (load("res://world/shrubs/shrub_%s.glb" % k) as PackedScene).instantiate()
+		meshes[k] = (sc.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+		sc.free()
+	var tiles := {}  # Vector2i -> {kind: [Transform3D]}
+	var add := func(pos: Vector3, size: float) -> void:
+		var kind := "small" if size < 1.1 else ("medium" if size < 1.5 else "large")
+		var h: float = (meshes[kind] as Mesh).get_aabb().size.y
+		var sc := size * 1.5 / h * srng.randf_range(0.85, 1.15)
+		var t := Transform3D(Basis(Vector3.UP, srng.randf() * TAU).scaled(Vector3.ONE * sc), pos)
+		var key := Vector2i(floori(pos.x / 30.0), floori(pos.z / 30.0))
+		if not tiles.has(key):
+			tiles[key] = {"small": [], "medium": [], "large": []}
+		tiles[key][kind].append(t)
+	for b in bushes:
+		var t: Transform3D = b[0]
+		var size := t.basis.get_scale().y
+		var base := t.origin - Vector3(0, size * 0.3, 0)
+		var r := srng.randf()
+		if r < 0.33:
+			continue
+		add.call(base, size)
+		if r > 0.82:
+			# A clump: a few more around it, mostly smaller.
+			for k in srng.randi_range(2, 4):
+				var a := srng.randf() * TAU
+				var d := srng.randf_range(0.5, 1.1) * size
+				add.call(base + Vector3(cos(a) * d, 0, sin(a) * d), size * srng.randf_range(0.6, 1.0))
+	var root := _add(site, Node3D.new(), "Shrubs")
+	var mat: Material = load("res://world/shrubs/shrub_material.tres")
+	var n := 0
+	for key in tiles:
+		for kind in tiles[key]:
+			var list: Array = tiles[key][kind]
+			if list.is_empty():
+				continue
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = meshes[kind]
+			mm.instance_count = list.size()
+			for i in list.size():
+				mm.set_instance_transform(i, list[i])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			mmi.material_override = mat
+			mmi.visibility_range_end = SHRUB_RANGE
+			mmi.visibility_range_end_margin = 8.0
+			mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			_add(root, mmi, "Shrubs_%d_%d_%s" % [key.x, key.y, kind])
+			n += list.size()
+	print("shrubs: %d in %d tiles" % [n, tiles.size()])
 
 
 func _multimesh(parent: Node, name: String, mesh: Mesh, items: Array, mat: String) -> MultiMeshInstance3D:
