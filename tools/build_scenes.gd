@@ -651,7 +651,7 @@ func _build_ship() -> void:
 	var log_terminal := _interactable(use, "LogTerminal", "log_terminal", Vector3(1.55, 0.8, -7.4), {"prompt": "Read personal log", "needs_power": true})
 	_mesh_box(log_terminal, "Screen", Vector3(0.22, 0.65, 0), Vector3(0.04, 0.5, 0.75), "screen_amber")
 
-	_interactable(use, "Bed", "bunk", Vector3(-2.75, 0.85, -7.6), {"prompt": "Sleep", "interact_range": 1.8})
+	_interactable(use, "Bed", "bunk", Vector3(-2.75, 1.0, -7.25), {"prompt": "Sleep", "interact_range": 1.8})
 
 	_thought(use, "Locker", Vector3(1.45, 1.0, -6.2), "Hale's locker", [
 		"Hale's locker. Pried open.",
@@ -991,10 +991,12 @@ func _canopy() -> void:
 
 
 # Sleeping pods: (y, z) centre of each opening on the wall at x = -2.6.
-const POD_CENTERS := [Vector2(0.85, -7.6), Vector2(2.0, -7.6)]
-const POD_W := 1.35
-const POD_H := 0.95
-const POD_R := 0.28
+# Side by side (Hale's towards the window, Gana's by the hatch), each tall
+# enough to sit up in: 1.25 m inside, about 1.1 m above the mattress.
+const POD_CENTERS := [Vector2(1.0, -8.8), Vector2(1.0, -7.25)]
+const POD_W := 1.3
+const POD_H := 1.25
+const POD_R := 0.3
 const POD_X0 := -2.65
 const POD_X1 := -4.75
 
@@ -1064,10 +1066,10 @@ func _pod_fittings(index: int, c: Vector2) -> void:
 	var corners := [Vector3(fx, y0 - band, z0 - band), Vector3(fx, y0 - band, z1 + band),
 		Vector3(fx, y1 + band, z1 + band), Vector3(fx, y1 + band, z0 - band)]
 	_frame_ring(pod, "Frame", corners, Vector3(0.0, c.x, c.y), band, POD_R + 0.02, 0.08)
-	# Little control panel beside the opening.
-	_mesh_box(pod, "Panel", Vector3(-2.58, c.x + 0.15, z1 + 0.32), Vector3(0.04, 0.22, 0.14), "metal_dark")
-	_mesh_box(pod, "PanelScreen", Vector3(-2.555, c.x + 0.18, z1 + 0.32), Vector3(0.01, 0.08, 0.1), "screen_amber")
-	_mesh_box(pod, "PanelButton", Vector3(-2.555, c.x + 0.08, z1 + 0.32), Vector3(0.012, 0.03, 0.03), "hazard")
+	# Little control panel above the opening.
+	_mesh_box(pod, "Panel", Vector3(-2.58, y1 + 0.3, c.y), Vector3(0.04, 0.14, 0.22), "metal_dark")
+	_mesh_box(pod, "PanelScreen", Vector3(-2.555, y1 + 0.3, c.y - 0.03), Vector3(0.01, 0.08, 0.1), "screen_amber")
+	_mesh_box(pod, "PanelButton", Vector3(-2.555, y1 + 0.3, c.y + 0.07), Vector3(0.012, 0.03, 0.03), "hazard")
 
 
 # Padded leather arch on the deck's right wall: a circular curve that
