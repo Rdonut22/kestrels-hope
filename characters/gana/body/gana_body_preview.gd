@@ -88,6 +88,18 @@ static func build_gana() -> Node3D:
 	var g: Node3D = (load("res://characters/gana/body/gana_body.glb") as PackedScene).instantiate()
 	g.rotation.y = PI
 	root.add_child(g)
+	var skel: Skeleton3D = g.find_children("*", "Skeleton3D", true, false)[0]
+	# Mechanical forearm and hand with the wrist terminal, in his sheet's
+	# colours (off-white plates over dark joints, amber lights).
+	var arm := RobotArm.new()
+	arm.name = "RobotArm"
+	arm.light_hand = true
+	arm.frame_color = Color(0.3, 0.29, 0.28)
+	arm.plate_color = Color(0.88, 0.85, 0.78)
+	arm.wear = 0.4
+	arm.palm_glow = Color(0.98, 0.67, 0.22)
+	root.add_child(arm)
+	(func(): arm.attach(skel)).call_deferred()
 	return root
 
 

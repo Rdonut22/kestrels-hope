@@ -125,17 +125,22 @@ func _make_materials() -> void:
 	}
 
 
-## Hand material: swaps frame and plate colours for a light hand.
+## Hand material name (kept for the hand code; the light scheme swaps the
+## frame and plate materials for the whole arm in _part).
 func _hm(m: String) -> String:
-	if not light_hand:
-		return m
-	return {"Graphite": "Cream", "Cream": "Graphite"}.get(m, m)
+	return m
 
 
 func _part(parent: Node3D, name: String, mb: ProcMesh.Builder) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = name
-	mi.mesh = mb.commit(_mats)
+	var table := _mats
+	if light_hand:
+		# Off-white plates over dark joints: swap the frame and plate looks.
+		table = _mats.duplicate()
+		table["Graphite"] = _mats["Cream"]
+		table["Cream"] = _mats["Graphite"]
+	mi.mesh = mb.commit(table)
 	parent.add_child(mi)
 	return mi
 
@@ -226,6 +231,10 @@ func _build_hand(h: Node3D, hand: int) -> void:
 	light.position = palm_c + palm_n * 0.04
 	h.add_child(light)
 
+	if _skel.find_bone("mixamorig_RightHandIndex1") < 0:
+		# A rig without finger bones: fixed, relaxed fingers on the hand.
+		_build_static_fingers(h, b, dorsal, reach, width)
+		return
 	for f in FINGERS:
 		var r := 0.0095 if f == "Thumb" else (0.0072 if f == "Pinky" else 0.0082)
 		var prev_len := 0.03
@@ -237,6 +246,44 @@ func _build_hand(h: Node3D, hand: int) -> void:
 			var len := _length(bone, next) if next >= 0 else prev_len * 0.8
 			prev_len = len
 			_build_finger_segment(_holder(bone, "%s%d" % [f, seg]), len, r * (1.0 - 0.1 * (seg - 1)), seg == 3, _dorsal(bone))
+
+
+## Fingers for a rig with no finger bones: four fingers along the knuckle
+## bar and a thumb, each three segments curled a little towards the palm.
+func _build_static_fingers(h: Node3D, b: Basis, dorsal: Vector3, reach: float, width: float) -> void:
+	var across := b.x
+	# (offset across the knuckles, length, radius, base curl, spread)
+	var fingers := [[-0.36, 0.034, 0.0082, 0.25, -0.05], [-0.12, 0.038, 0.0084, 0.3, 0.0], [0.12, 0.036, 0.0082, 0.35, 0.03],
+		[0.36, 0.029, 0.0072, 0.4, 0.07]]
+	for f in fingers.size():
+		var spec: Array = fingers[f]
+		var parent := h
+		var at := b * Vector3(width * float(spec[0]), reach, 0)
+		var seg_len: float = spec[1] * 0.42
+		for seg in 3:
+			var n := Node3D.new()
+			n.name = "Finger%d_%d" % [f + 1, seg + 1]
+			var curl: float = spec[3] + seg * 0.18
+			n.transform = Transform3D(Basis(across, -curl) * Basis(b.z, float(spec[4]) if seg == 0 else 0.0), at)
+			parent.add_child(n)
+			_build_finger_segment(n, seg_len, float(spec[2]) * (1.0 - 0.1 * seg), seg == 2, dorsal)
+			parent = n
+			at = b * Vector3(0, seg_len, 0)
+			seg_len *= 0.85
+	# Thumb: from the inner side of the palm, angled across and forward.
+	var parent := h
+	var at := b * Vector3(-width * 0.5, reach * 0.3, -0.006)
+	var tl := 0.03
+	for seg in 3:
+		var n := Node3D.new()
+		n.name = "Thumb_%d" % (seg + 1)
+		var rot := Basis(b.z, 0.7) * Basis(across, -0.35) if seg == 0 else Basis(across, -0.2)
+		n.transform = Transform3D(rot, at)
+		parent.add_child(n)
+		_build_finger_segment(n, tl, 0.0095 * (1.0 - 0.1 * seg), seg == 2, dorsal)
+		parent = n
+		at = b * Vector3(0, tl, 0)
+		tl *= 0.8
 
 
 ## One phalanx: a joint barrel at its base, a graphite link, a cream cap on
