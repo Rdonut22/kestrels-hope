@@ -514,26 +514,45 @@ func _floor() -> void:
 
 # ---------- light ----------
 
+## Dim and warm: a low, warm fill so shapes still read, with the light
+## coming mostly from glowing practicals (the amber strips, the screens)
+## and a few warm pools low down by the footwells and walls.
 func _lighting() -> void:
 	var g := _group("Lighting")
 	if f.crashed:
 		return
-	# Neutral fill from the ceiling so the paint and metal read true.
 	for z in [-10.75, -12.05]:
 		var l := OmniLight3D.new()
 		l.name = "Fill%d" % int(-z * 10)
-		l.light_color = Color(0.95, 0.97, 1.0)
-		l.light_energy = 1.25
-		l.omni_range = 4.2
-		l.omni_attenuation = 0.9
+		l.light_color = Color(1.0, 0.82, 0.62)
+		l.light_energy = 0.38
+		l.omni_range = 3.6
+		l.omni_attenuation = 1.1
 		l.position = Vector3(4.0, CockpitFitout.ceiling_at(rings, 4.0, z) - 0.35, z)
 		g.add_child(l)
-	# The amber practicals become accents.
+	# Warm glow pools: under the dash at each footwell, low along each wall.
+	for p in [Vector3(3.3, 0.35, -12.5), Vector3(4.7, 0.35, -12.5), Vector3(2.75, 0.5, -11.0), Vector3(5.25, 0.5, -11.0)]:
+		var l := OmniLight3D.new()
+		l.name = "Glow%d%d" % [int(p.x * 10), int(-p.z * 10)]
+		l.light_color = Color(1.0, 0.58, 0.26)
+		l.light_energy = 0.45
+		l.omni_range = 1.5
+		l.position = p
+		g.add_child(l)
+	# The cockpit's amber practicals at their full strength.
 	var lights := f.root.get_node_or_null("Lights")
 	if lights:
 		for c in lights.get_children():
 			if c is OmniLight3D:
-				(c as OmniLight3D).light_energy *= 0.5
+				(c as OmniLight3D).light_energy *= 1.1
+	# The ship's cool cockpit ceiling light (tools/build_scenes.gd), now
+	# over the passage: dimmed and warmed.
+	var ship := f.ext.get_parent()
+	for n in ["Lights/Cockpit", "Lights/CanopyFill"]:
+		var l := ship.get_node_or_null(n) as Light3D if ship else null
+		if l:
+			l.light_energy *= 0.35
+			l.light_color = Color(1.0, 0.8, 0.6)
 
 
 # ---------- bolts ----------
