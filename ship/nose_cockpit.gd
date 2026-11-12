@@ -215,17 +215,29 @@ func _liner(rings: Array) -> void:
 
 ## The cockpit's walls, ceiling and dash: the user's panel-cut metal wall
 ## texture (corridor.gdshader surface 9).
-static var _panel: ShaderMaterial
+static var _panel: StandardMaterial3D
 
 
-static func panel_material() -> ShaderMaterial:
+static func panel_material() -> StandardMaterial3D:
 	if _panel == null:
-		_panel = (load("res://ship/materials/corridor_wall.tres") as ShaderMaterial).duplicate() as ShaderMaterial
-		_panel.set_shader_parameter("surface", 9)
+		# A standard material, projected in world space (the shell has no
+		# UVs); not a corridor.gdshader surface, which is at the Mac
+		# Compatibility renderer's texture limit.
+		_panel = StandardMaterial3D.new()
 		var tex := "res://ship/textures/interior/cockpit_panel_"
-		_panel.set_shader_parameter("cockpit_albedo", load(tex + "color.png"))
-		_panel.set_shader_parameter("cockpit_nor", load(tex + "nor.png"))
-		_panel.set_shader_parameter("cockpit_rm", load(tex + "rm.png"))
+		_panel.albedo_texture = load(tex + "color.png")
+		_panel.albedo_color = Color(1.15, 1.15, 1.15)
+		_panel.normal_enabled = true
+		_panel.normal_texture = load(tex + "nor.png")
+		_panel.roughness_texture = load(tex + "rm.png")
+		_panel.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		_panel.metallic = 0.4
+		_panel.metallic_texture = load(tex + "rm.png")
+		_panel.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
+		_panel.uv1_triplanar = true
+		_panel.uv1_world_triplanar = true
+		_panel.uv1_scale = Vector3(1.0 / 2.6, 1.0 / 1.46, 1.0 / 2.6)
+		_panel.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return _panel
 
 

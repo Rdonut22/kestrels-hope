@@ -147,16 +147,19 @@ func _make_materials() -> void:
 		"rusty_metal": load(tex + "rusty_metal.png"),
 		"ceil_nor": load(tex + "ceilplate_nor.png"), "ceil_metal": load(tex + "ceilplate_metal.png"),
 		"ceil_rough": load(tex + "ceilplate_rough.png"),
-		"plate_albedo_big": load(tex + "bulkhead_plate_color.png"), "plate_nor_big": load(tex + "bulkhead_plate_nor.png"),
-		"plate_rm_big": load(tex + "bulkhead_plate_rm.png"),
 		# Bathroom doorway on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(), Vector4(), Vector4()]})
 	var frame: ShaderMaterial = mats["corridor_wall"].duplicate()
 	frame.set_shader_parameter("surface", 7)
 	ResourceSaver.save(frame, "res://ship/materials/corridor_frame.tres")
 	mats["corridor_frame"] = load("res://ship/materials/corridor_frame.tres")
-	var bulkhead: ShaderMaterial = mats["corridor_wall"].duplicate()
-	bulkhead.set_shader_parameter("surface", 8)
+	# The middle bulkhead's plate has its own shader (corridor.gdshader is at
+	# the Mac Compatibility renderer's texture limit).
+	var bulkhead := ShaderMaterial.new()
+	bulkhead.shader = load("res://ship/bulkhead_plate.gdshader")
+	bulkhead.set_shader_parameter("plate_albedo", load(tex + "bulkhead_plate_color.png"))
+	bulkhead.set_shader_parameter("plate_nor", load(tex + "bulkhead_plate_nor.png"))
+	bulkhead.set_shader_parameter("plate_rm", load(tex + "bulkhead_plate_rm.png"))
 	ResourceSaver.save(bulkhead, "res://ship/materials/corridor_bulkhead.tres")
 	mats["corridor_bulkhead"] = load("res://ship/materials/corridor_bulkhead.tres")
 	var rusty: ShaderMaterial = mats["corridor_wall"].duplicate()

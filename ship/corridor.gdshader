@@ -6,13 +6,12 @@ render_mode cull_disabled;
 // off-white / muted olive / gunmetal, wear only where people touch things).
 // Projected in ship space (the hull is CSG, no UVs). The user's PBR sets
 // are applied with their own colour, normal, roughness (and metal) maps.
+// It samples 13 textures: the Compatibility renderer on a Mac allows 16
+// per shader and Godot keeps some, so new textured surfaces get their own
+// shader (ship/bulkhead_plate.gdshader, the cockpit's materials).
 //
 //   surface 0: wall: smooth dark metal in large sections with seams,
 //              grooves and inset panels (procedural relief)
-//   surface 9: the cockpit's walls and ceiling: the user's panelled metal
-//              wall texture
-//   surface 8: the bulkhead across the middle of the corridor: one worn
-//              metal plate (the user's texture) across each face
 //   surface 1: floor: dark anti-slip (worn shutter set, fine ribs), darker
 //              border along the walls, a worn walking line down the middle
 //   surface 2: ceiling: dark glossy quilted padding
@@ -48,20 +47,6 @@ uniform sampler2D rusty_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
 uniform float rusty_tile = 1.5;
-// The cockpit (ship/nose_cockpit.gd sets these): the user's panelled metal
-// wall texture, one copy every cockpit_tile metres (width, height).
-uniform sampler2D cockpit_albedo : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D cockpit_nor : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D cockpit_rm : hint_default_white, filter_linear_mipmap, repeat_enable;  // r roughness, g metal
-uniform vec2 cockpit_tile = vec2(2.6, 1.46);
-// The middle bulkhead: one worn metal plate (the user's texture), stretched
-// once across each face so its rusty border frames the whole wall.
-uniform sampler2D plate_albedo_big : source_color, filter_linear_mipmap;
-uniform sampler2D plate_nor_big : hint_normal, filter_linear_mipmap;
-uniform sampler2D plate_rm_big : hint_default_white, filter_linear_mipmap;  // r roughness, g metal
-// The bulkhead face: x from..to (ship x) and its height.
-uniform vec3 bulkhead_span = vec3(-2.3, 2.0, 3.0);
-uniform float plate_relief : hint_range(0.0, 2.0) = 0.3;
 // Ceiling: the user's metal_plate_02 set (normal, metalness, roughness): dark,
 // gunmetal steel plates. Colour from its metal map.
 uniform sampler2D ceil_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -246,28 +231,6 @@ void fragment() {
 		col = quilt * (0.55 + 0.7 * puff) * (0.9 + 0.2 * cr) * mix(1.0, 0.35, seam);
 		rough = mix(0.5, 0.14, puff);
 		metal = 0.0;
-	} else if (s == 8) {
-		// One solid worn metal plate across the whole face, read the right
-		// way round from either side.
-		float u = (v_pos.x - bulkhead_span.x) / (bulkhead_span.y - bulkhead_span.x);
-		if (n.z < 0.0) {
-			u = 1.0 - u;
-		}
-		vec2 puv = clamp(vec2(u, 1.0 - y / bulkhead_span.z), 0.0, 1.0);
-		tn = unpack_n(texture(plate_nor_big, puv), plate_relief);
-		col = texture(plate_albedo_big, puv).rgb;
-		vec2 rm = texture(plate_rm_big, puv).rg;
-		rough = clamp(rm.r + 0.12, 0.0, 1.0);
-		metal = rm.g * 0.45;
-	} else if (s == 9) {
-		// Cockpit walls and ceiling: panelled grey-blue metal with seams,
-		// bevelled cut corners and a bolted inset plate.
-		vec2 puv = vec2(uv.x, -uv.y) / cockpit_tile;
-		tn = unpack_n(texture(cockpit_nor, puv), 1.0);
-		col = texture(cockpit_albedo, puv).rgb * 1.15;
-		vec2 rm = texture(cockpit_rm, puv).rg;
-		rough = rm.r;
-		metal = rm.g * 0.4;   // painted metal: keeps its colour in dim light
 	} else if (s == 7 || s == 0) {
 		// Smooth dark metal in large sections (walls, frames, beams):
 		// seams, grooves and inset panels as relief, soft sheen, faint
