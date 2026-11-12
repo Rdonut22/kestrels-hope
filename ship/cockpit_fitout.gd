@@ -50,7 +50,6 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 	_pedestal()
 	_yoke()
 	_screens()
-	_floor_grates(rings)
 	_lights(rings)
 	_rail_and_pipes(rings)
 	_hooks()
@@ -59,10 +58,20 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 # ---------- materials ----------
 
 func _materials() -> void:
+	# Structural framing (ribs, window frames, housings): worn light metal,
+	# projected in world space so the procedural meshes need no UVs.
 	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color(0.17, 0.18, 0.19)
-	steel.metallic = 0.7
-	steel.roughness = 0.5
+	var tex := "res://ship/textures/interior/bulkhead_plate_"
+	steel.albedo_texture = load(tex + "color.png")
+	steel.albedo_color = Color(1.25, 1.2, 1.15)
+	steel.normal_enabled = true
+	steel.normal_texture = load(tex + "nor.png")
+	steel.normal_scale = 0.4
+	steel.uv1_triplanar = true
+	steel.uv1_world_triplanar = true
+	steel.uv1_scale = Vector3.ONE * 1.4
+	steel.metallic = 0.45
+	steel.roughness = 0.55
 	mats["steel"] = steel
 	var steel_edge := steel.duplicate() as StandardMaterial3D
 	steel_edge.albedo_color = Color(0.32, 0.31, 0.29)
@@ -196,8 +205,9 @@ func _sweep_frame(mb: ProcMesh.Builder, mat: String, pts: PackedVector3Array, in
 func _ribs(rings: Array) -> void:
 	var node := _part("Ribs")
 	var mb := ProcMesh.Builder.new()
-	# One at the passage mouth, one at every fuselage station.
-	for r in range(1, rings.size() - 1):
+	# One at every fuselage station but the last (its top would stand
+	# outside the raked windshield; the windshield frame is the front rib).
+	for r in range(1, rings.size() - 2):
 		var pts := arch(rings[r])
 		if pts.size() < 3:
 			continue
@@ -296,13 +306,16 @@ func _roof_window(rings: Array) -> void:
 	var mb := ProcMesh.Builder.new()
 	var y := 10.0
 	for x in [ROOF_X.x, (ROOF_X.x + ROOF_X.y) / 2.0, ROOF_X.y]:
-		for z in [ROOF_Z.x, ROOF_Z.y]:
+		for z in [-12.0, ROOF_Z.y]:
 			y = minf(y, ceiling_at(rings, x, z))
 	y -= 0.02
+	# It runs forward to meet the top of the windshield, so the glass is
+	# continuous over the front.
+	var front := NoseCockpit.plane_z(y + 0.12)
 	var cx := (ROOF_X.x + ROOF_X.y) / 2.0
-	var cz := (ROOF_Z.x + ROOF_Z.y) / 2.0
+	var cz := (front + ROOF_Z.y) / 2.0
 	var w := ROOF_X.y - ROOF_X.x
-	var d := ROOF_Z.y - ROOF_Z.x
+	var d := ROOF_Z.y - front
 	var g := QuadMesh.new()
 	g.size = Vector2(w, d)
 	g.orientation = PlaneMesh.FACE_Y
@@ -313,11 +326,11 @@ func _roof_window(rings: Array) -> void:
 	# The frame: a deep box round the opening, from the shell up to the
 	# glass, and a bar down the middle.
 	var t := 0.12
-	ProcMesh.box(mb, "steel", Vector3(cx, y + 0.04, ROOF_Z.x - t / 2 + 0.06), Vector3(w + 2 * t, 0.2, t))
 	ProcMesh.box(mb, "steel", Vector3(cx, y + 0.04, ROOF_Z.y + t / 2 - 0.06), Vector3(w + 2 * t, 0.2, t))
-	ProcMesh.box(mb, "steel", Vector3(ROOF_X.x - t / 2 + 0.06, y + 0.04, cz), Vector3(t, 0.2, d + 2 * t))
-	ProcMesh.box(mb, "steel", Vector3(ROOF_X.y + t / 2 - 0.06, y + 0.04, cz), Vector3(t, 0.2, d + 2 * t))
-	ProcMesh.box(mb, "steel", Vector3(cx, y + 0.05, cz), Vector3(w, 0.16, 0.1))
+	ProcMesh.box(mb, "steel", Vector3(ROOF_X.x - t / 2 + 0.06, y + 0.04, cz + t / 2), Vector3(t, 0.2, d + t))
+	ProcMesh.box(mb, "steel", Vector3(ROOF_X.y + t / 2 - 0.06, y + 0.04, cz + t / 2), Vector3(t, 0.2, d + t))
+	# A cross bar over the rib between the two panes.
+	ProcMesh.box(mb, "steel", Vector3(cx, y + 0.05, -12.0), Vector3(w, 0.16, 0.1))
 	_mesh(node, "Frame", mb.commit(mats))
 
 
@@ -488,14 +501,12 @@ func _screens() -> void:
 
 # ---------- floor, light, rail ----------
 
-func _floor_grates(rings: Array) -> void:
-	var node := _part("FloorGrates")
-	# A grate in front of each seat and a strip down the middle.
-	for g in [[Vector3(PILOT_X, 0.006, -12.45), Vector3(0.6, 0.01, 0.42)],
-			[Vector3(COPILOT_X, 0.006, -12.45), Vector3(0.6, 0.01, 0.42)],
-			[Vector3(4.0, 0.006, -10.9), Vector3(0.5, 0.01, 1.5)]]:
-		_box(node, "Grate", g[0], g[1], mats["grate"])
-		_box(node, "GrateFrame", g[0] - Vector3(0, 0.002, 0), g[1] + Vector3(0.05, -0.002, 0.05), mats["steel"])
+## The cockpit floor: perforated deck plate (nose_cockpit.gd puts it on the
+## shell's floor).
+static func floor_material() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://ship/perforated_floor.gdshader")
+	return m
 
 
 func _lights(rings: Array) -> void:

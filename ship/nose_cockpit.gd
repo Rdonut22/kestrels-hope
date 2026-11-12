@@ -179,12 +179,11 @@ func _front_ring() -> PackedVector3Array:
 
 func _liner(rings: Array) -> void:
 	# Painted blue-grey plates on the walls and ceiling (corridor.gdshader
-	# surface 10), panel-cut metal low on the walls (surface 9), the deck
-	# plates underfoot (surface 1).
+	# surface 10), panel-cut metal low on the walls (surface 9), perforated deck
+	# plate underfoot (cockpit_fitout.gd).
 	var src := load("res://ship/materials/corridor_wall.tres") as ShaderMaterial
 	var wall_src := shell_material()
-	var floor_mat := src.duplicate() as ShaderMaterial
-	floor_mat.set_shader_parameter("surface", 1)
+	var floor_mat := CockpitFitout.floor_material()
 	var sts := [SurfaceTool.new(), SurfaceTool.new(), SurfaceTool.new()]
 	for st in sts:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -317,6 +316,10 @@ func _front(ring: PackedVector3Array) -> void:
 		var i0 := ring[k]
 		var i1 := ring[j]
 		if i0.y < WS_Y - 0.01 or i1.y < WS_Y - 0.01:
+			continue
+		# Over the roof window the glass carries on up: no frame there.
+		var rx: Vector2 = CockpitFitout.ROOF_X
+		if i0.y > ROOF_CUT_Y and i1.y > ROOF_CUT_Y and minf(i0.x, i1.x) > rx.x - 0.1 and maxf(i0.x, i1.x) < rx.y + 0.1:
 			continue
 		var o0 := _on_plane(CENTRE + _dir(k) * _hit(outer, _dir(k)))
 		var o1 := _on_plane(CENTRE + _dir(j) * _hit(outer, _dir(j)))
