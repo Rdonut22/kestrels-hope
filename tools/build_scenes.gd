@@ -147,18 +147,18 @@ func _make_materials() -> void:
 		"rusty_metal": load(tex + "rusty_metal.png"),
 		"ceil_nor": load(tex + "ceilplate_nor.png"), "ceil_metal": load(tex + "ceilplate_metal.png"),
 		"ceil_rough": load(tex + "ceilplate_rough.png"),
-		"concrete_albedo": load(tex + "concrete_color.png"), "concrete_nor": load(tex + "concrete_nor.png"),
-		"concrete_rough": load(tex + "concrete_rough.png"),
+		"plate_albedo_big": load(tex + "bulkhead_plate_color.png"), "plate_nor_big": load(tex + "bulkhead_plate_nor.png"),
+		"plate_rm_big": load(tex + "bulkhead_plate_rm.png"),
 		# Bathroom doorway on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(), Vector4(), Vector4()]})
 	var frame: ShaderMaterial = mats["corridor_wall"].duplicate()
 	frame.set_shader_parameter("surface", 7)
 	ResourceSaver.save(frame, "res://ship/materials/corridor_frame.tres")
 	mats["corridor_frame"] = load("res://ship/materials/corridor_frame.tres")
-	var concrete: ShaderMaterial = mats["corridor_wall"].duplicate()
-	concrete.set_shader_parameter("surface", 8)
-	ResourceSaver.save(concrete, "res://ship/materials/corridor_concrete.tres")
-	mats["corridor_concrete"] = load("res://ship/materials/corridor_concrete.tres")
+	var bulkhead: ShaderMaterial = mats["corridor_wall"].duplicate()
+	bulkhead.set_shader_parameter("surface", 8)
+	ResourceSaver.save(bulkhead, "res://ship/materials/corridor_bulkhead.tres")
+	mats["corridor_bulkhead"] = load("res://ship/materials/corridor_bulkhead.tres")
 	var rusty: ShaderMaterial = mats["corridor_wall"].duplicate()
 	rusty.set_shader_parameter("surface", 6)
 	ResourceSaver.save(rusty, "res://ship/materials/corridor_rusty.tres")
@@ -483,7 +483,7 @@ func _build_ship() -> void:
 	_oval_door(hull, "Door_Gunner", "z", Vector3(-4.0, 1.1, 3.55), 0.8, 1.5)
 	# Open padded doorways (see _padded_doorways()): engineering, and a
 	# bulkhead across the corridor just fore of the lounge entrance.
-	_box(hull, "Bulkhead", Vector3(-2.35, 0, BULKHEAD_Z0), Vector3(2.05, 3.0, BULKHEAD_Z1), "corridor_concrete")
+	_box(hull, "Bulkhead", Vector3(-2.35, 0, BULKHEAD_Z0), Vector3(2.05, 3.0, BULKHEAD_Z1), "corridor_bulkhead")
 	for d in PADDED_DOORS:
 		_slant_cut(hull, "Door_" + d.name, d)
 

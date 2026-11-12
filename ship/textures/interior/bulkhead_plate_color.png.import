@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ytp6674vrdt6"
-path="res://.godot/imported/concrete_color.png-0845ad62a6e0223fe9fb42ab69a4108d.ctex"
+uid="uid://0n54485lqutr"
+path="res://.godot/imported/bulkhead_plate_color.png-37f0af595a8e4f5943c961668b9f2175.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://ship/textures/interior/concrete_color.png"
-dest_files=["res://.godot/imported/concrete_color.png-0845ad62a6e0223fe9fb42ab69a4108d.ctex"]
+source_file="res://ship/textures/interior/bulkhead_plate_color.png"
+dest_files=["res://.godot/imported/bulkhead_plate_color.png-37f0af595a8e4f5943c961668b9f2175.ctex"]
 
 [params]
 

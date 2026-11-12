@@ -9,9 +9,8 @@ render_mode cull_disabled;
 //
 //   surface 0: wall: smooth dark metal in large sections with seams,
 //              grooves and inset panels (procedural relief)
-//   surface 8: the bulkhead across the middle of the corridor: flat,
-//              smooth matte concrete (the user's clean concrete set) with a
-//              couple of angled cut lines
+//   surface 8: the bulkhead across the middle of the corridor: one worn
+//              metal plate (the user's texture) across each face
 //   surface 1: floor: dark anti-slip (worn shutter set, fine ribs), darker
 //              border along the walls, a worn walking line down the middle
 //   surface 2: ceiling: dark glossy quilted padding
@@ -47,15 +46,14 @@ uniform sampler2D rusty_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
 uniform float rusty_tile = 1.5;
-// The middle bulkhead: laminated concrete.
-uniform sampler2D concrete_albedo : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D concrete_nor : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D concrete_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
-uniform float concrete_tile = 2.0;
-// Lifts the set's dark albedo toward the cool light grey of its preview.
-uniform vec3 concrete_tint : source_color = vec3(1.55, 1.62, 1.72);
-// How much of the set's surface relief shows (low: flat and smooth).
-uniform float concrete_relief : hint_range(0.0, 2.0) = 0.15;
+// The middle bulkhead: one worn metal plate (the user's texture), stretched
+// once across each face so its rusty border frames the whole wall.
+uniform sampler2D plate_albedo_big : source_color, filter_linear_mipmap;
+uniform sampler2D plate_nor_big : hint_normal, filter_linear_mipmap;
+uniform sampler2D plate_rm_big : hint_default_white, filter_linear_mipmap;  // r roughness, g metal
+// The bulkhead face: x from..to (ship x) and its height.
+uniform vec3 bulkhead_span = vec3(-2.3, 2.0, 3.0);
+uniform float plate_relief : hint_range(0.0, 2.0) = 0.9;
 // Ceiling: the user's metal_plate_02 set (normal, metalness, roughness): dark,
 // gunmetal steel plates. Colour from its metal map.
 uniform sampler2D ceil_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -155,22 +153,6 @@ float wall_relief(vec2 p, bool panels) {
 	return r;
 }
 
-float seg_dist(vec2 p, vec2 a, vec2 b) {
-	vec2 pa = p - a;
-	vec2 ba = b - a;
-	return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0));
-}
-
-// The middle bulkhead's cut lines, in ship x and height (its doorway is at
-// x -2.1..-0.3): one long diagonal down to the right-hand wall, and one
-// running level over the doorway then dropping steeply to the floor.
-float bulkhead_cuts(vec2 p) {
-	float d = seg_dist(p, vec2(-0.05, 3.0), vec2(2.0, 1.55));
-	d = min(d, seg_dist(p, vec2(-2.3, 2.62), vec2(0.3, 2.62)));
-	d = min(d, seg_dist(p, vec2(0.3, 2.62), vec2(1.0, 0.0)));
-	return groove(d, 0.009);
-}
-
 void fragment() {
 	vec3 n = normalize(v_nrm);
 	vec3 an = abs(n);
@@ -257,20 +239,18 @@ void fragment() {
 		rough = mix(0.5, 0.14, puff);
 		metal = 0.0;
 	} else if (s == 8) {
-		// Flat, smooth, matte concrete: the set's colour with only a hint
-		// of its relief, and a couple of crisp angled cut lines.
-		vec2 p = vec2(v_pos.x, y);
-		vec2 cuv = vec2(uv.x, y) / concrete_tile;
-		float e = 0.004;
-		float r0 = -bulkhead_cuts(p);
-		vec2 grad = vec2(-bulkhead_cuts(p + vec2(e, 0.0)) - r0, -bulkhead_cuts(p + vec2(0.0, e)) - r0) / e;
-		grad.x *= n.z > 0.0 ? 1.0 : -1.0;   // uv.x runs along -x on the fore face
-		vec3 cn = unpack_n(texture(concrete_nor, cuv), concrete_relief);
-		tn = normalize(vec3(cn.xy - grad * 0.006, cn.z));
-		col = texture(concrete_albedo, cuv).rgb * concrete_tint;
-		col *= mix(1.0, 0.3, clamp(-r0, 0.0, 1.0));    // the cuts read dark
-		rough = mix(0.72, 0.9, texture(concrete_rough, cuv).r);
-		metal = 0.0;
+		// One solid worn metal plate across the whole face, read the right
+		// way round from either side.
+		float u = (v_pos.x - bulkhead_span.x) / (bulkhead_span.y - bulkhead_span.x);
+		if (n.z < 0.0) {
+			u = 1.0 - u;
+		}
+		vec2 puv = clamp(vec2(u, 1.0 - y / bulkhead_span.z), 0.0, 1.0);
+		tn = unpack_n(texture(plate_nor_big, puv), plate_relief);
+		col = texture(plate_albedo_big, puv).rgb;
+		vec2 rm = texture(plate_rm_big, puv).rg;
+		rough = rm.r;
+		metal = rm.g;
 	} else if (s == 7 || s == 0) {
 		// Smooth dark metal in large sections (walls, frames, beams):
 		// seams, grooves and inset panels as relief, soft sheen, faint
@@ -351,7 +331,7 @@ void fragment() {
 	ALBEDO = col;
 	ROUGHNESS = rough;
 	METALLIC = metal;
-	SPECULAR = s == 2 ? 0.8 : (s == 8 ? 0.3 : 0.5);
+	SPECULAR = s == 2 ? 0.8 : 0.5;
 	vec3 pn = normalize(T * tn.x + B * tn.y + n * tn.z);
 	NORMAL = normalize((VIEW_MATRIX * MODEL_MATRIX * vec4(pn, 0.0)).xyz);
 }
