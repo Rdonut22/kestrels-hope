@@ -53,6 +53,8 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 	_lights(rings)
 	_rail_and_pipes(rings)
 	_hooks()
+	# Plates, hatches, consoles, floor and light (ship/cockpit_detail.gd).
+	CockpitDetail.new().build(self, rings)
 
 
 # ---------- materials ----------
@@ -460,23 +462,9 @@ func _display(mode: int, aspect: float) -> ShaderMaterial:
 	return m
 
 
-## A binnacle on the dash in front of each seat, its screen tilted toward
-## the seat: radar for the pilot, terrain map for the co-pilot.
+## Clears the dash for the stations (cockpit_detail.gd builds them): the
+## overhead console moves out of the roof window, the old flat screens go.
 func _screens() -> void:
-	var node := _part("Screens")
-	for s in [[PILOT_X, 0, "Pilot"], [COPILOT_X, 1, "Copilot"]]:
-		var x: float = s[0]
-		var tilt := Basis(Vector3.RIGHT, -0.45)
-		var c := Vector3(x, DASH_TOP + 0.16, DASH_FRONT_Z - 0.16)
-		_box(node, s[2] + "Housing", c, Vector3(0.46, 0.3, 0.1), mats["steel"], tilt)
-		_box(node, s[2] + "Hood", c + tilt * Vector3(0, 0.16, 0.05), Vector3(0.48, 0.03, 0.12), mats["steel_edge"], tilt)
-		var q := QuadMesh.new()
-		q.size = Vector2(0.38, 0.23)
-		_mesh(node, s[2] + "Display", q, Transform3D(tilt, c + tilt * Vector3(0, 0, 0.052)), _display(s[1], 0.38 / 0.23))
-		# Bronze bezel screws.
-		for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
-			_box(node, "%sScrew%d%d" % [s[2], int(corner.x), int(corner.y)], c + tilt * Vector3(corner.x * 0.205, corner.y * 0.125, 0.052),
-				Vector3(0.012, 0.012, 0.006), mats["bronze"], tilt)
 	# The overhead console hung where the roof window is now: move it back
 	# a bay, between the ribs.
 	var canopy := ext.get_parent().get_node_or_null("Canopy") as Node3D if ext.get_parent() else null
