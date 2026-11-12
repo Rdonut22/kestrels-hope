@@ -2159,8 +2159,8 @@ const BULKHEAD_Z0 := -1.5
 const BULKHEAD_Z1 := -1.2
 const PADDED_DOORS := [
 	{"name": "Engineering", "origin": Vector3(-2.2, 0, 1.1), "through": Vector3(-1, 0, 0), "s0": 0.1, "s1": 0.4,
-		"bottom": 1.7, "top": 1.15, "height": 2.1, "r_top": 0.3, "r_bottom": 0.1},
-	{"name": "Bulkhead", "origin": Vector3(-0.15, 0, BULKHEAD_Z1 + 0.1), "through": Vector3(0, 0, -1), "s0": 0.1, "s1": 0.4,
+		"bottom": 3.4, "top": 2.3, "height": 2.1, "r_top": 0.3, "r_bottom": 0.1},
+	{"name": "Bulkhead", "origin": Vector3(-1.2, 0, BULKHEAD_Z1 + 0.1), "through": Vector3(0, 0, -1), "s0": 0.1, "s1": 0.4,
 		"bottom": 1.8, "top": 1.25, "height": 2.25, "r_top": 0.32, "r_bottom": 0.1},
 ]
 
@@ -2731,16 +2731,16 @@ func _ship_hoses() -> void:
 	corridor.append(_hose_run([Vector3(-2.1, 2.42, -5.0), Vector3(-2.19, 1.95, -4.68), Vector3(-2.23, 1.6, -4.5), Vector3(-2.24, 1.36, -4.45)], 0.04, c1))
 	corridor.append(_hose_run([Vector3(-2.05, 2.36, -5.2), Vector3(-2.17, 1.9, -4.82), Vector3(-2.24, 1.6, -4.5), Vector3(-2.25, 1.36, -4.4)], 0.028, c2))
 	_junction_box(root, "BoxBath", Vector3(-2.25, 1.22, -4.45), Vector3(0.1, 0.3, 0.22))
-	# Up and over the engineering door frame and down the far side.
+	# Up and over the engineering doorway and down the far side.
 	for k in 2:
 		var dx := -2.21 + k * 0.07
 		var dz := k * 0.06
 		var top := 2.34 + k * 0.05
-		corridor.append(_hose_run([Vector3(-2.24, 0.95, -0.38 - dz), Vector3(dx, 1.4, -0.3 - dz), Vector3(dx, 2.05, -0.24 - dz),
-			Vector3(dx, top, 0.15), Vector3(dx, top + 0.03, 1.1), Vector3(dx, top, 2.05), Vector3(dx, 2.0, 2.44 + dz),
-			Vector3(dx, 1.45, 2.5 + dz), Vector3(-2.24, 1.1, 2.56 + dz)], 0.05 - k * 0.015, c1 if k == 0 else Color(0.48, 0.47, 0.44)))
-	_junction_box(root, "BoxEngA", Vector3(-2.25, 0.8, -0.42), Vector3(0.1, 0.3, 0.24))
-	_junction_box(root, "BoxEngB", Vector3(-2.25, 0.95, 2.6), Vector3(0.1, 0.3, 0.24))
+		corridor.append(_hose_run([Vector3(-2.24, 0.95, -0.92 - dz), Vector3(dx, 1.4, -0.86 - dz), Vector3(dx, 2.05, -0.8 - dz),
+			Vector3(dx, top, -0.4), Vector3(dx, top + 0.03, 1.1), Vector3(dx, top, 2.6), Vector3(dx, 2.0, 2.99 + dz),
+			Vector3(dx, 1.45, 3.05 + dz), Vector3(-2.24, 1.1, 3.11 + dz)], 0.05 - k * 0.015, c1 if k == 0 else Color(0.48, 0.47, 0.44)))
+	_junction_box(root, "BoxEngA", Vector3(-2.25, 0.8, -0.96), Vector3(0.1, 0.3, 0.24))
+	_junction_box(root, "BoxEngB", Vector3(-2.25, 0.95, 3.15), Vector3(0.1, 0.3, 0.24))
 	# One feeding the exhaust unit.
 	corridor.append(_hose_run([Vector3(-2.12, 2.4, 4.85), Vector3(-2.04, 2.47, 5.25), Vector3(-2.0, 2.44, 5.5), Vector3(-1.98, 2.3, 5.62)], 0.045, c2))
 	# Right side: one drops to a floor box beside the lounge door.

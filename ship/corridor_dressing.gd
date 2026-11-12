@@ -25,7 +25,7 @@ const X_R := 2.0
 const Z_F := -5.6
 const Z_A := 9.2
 # Solid stretches of each wall (between doorways and other openings), z ranges.
-const LEFT_SPANS := [[-5.55, -4.25], [-1.75, -0.15], [2.35, 9.15]]
+const LEFT_SPANS := [[-5.55, -4.25], [-1.75, -0.8], [3.0, 9.15]]
 const RIGHT_SPANS := [[-3.75, -0.45], [2.45, 6.5]]
 # Doorways [wall x, centre z, half width] for the surrounds and hand wear.
 const DOORS := [[X_L, -3.0, 1.156]]  # (engineering is an open padded doorway now)
