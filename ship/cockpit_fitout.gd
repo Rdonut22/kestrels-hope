@@ -59,6 +59,14 @@ const YOKE_SCALE := 0.21
 const YOKE_HALF := Vector3(0.952, 0.669, 0.343)
 const YOKE_Y := 0.86
 const YOKE_Z := -12.3     # its centre: pushed out ahead of the dash face
+## The user's left wall section (Meshy, decimated): its panelled face
+## into the cabin (+X), its window end forward (-Z), standing on the floor
+## against the pilot's side of the shell.
+const LEFT_WALL_PATH := "res://ship/models/left_wall/left_wall.glb"
+const LEFT_WALL_SCALE := Vector3(1.47, 2.1, 1.0)
+const LEFT_WALL_HALF := Vector3(0.951, 0.615, 0.365)
+const WALL_FACE_X := 2.42  # the section's face below 1.4 m (it curves in above)
+const LEFT_WALL_POS := Vector3(2.53, 0.0, -11.45)   # x of its centre, floor, z of its centre
 const UNDER_DASH_PATH := "res://ship/models/under_dash/under_dash.glb"
 const UNDER_DASH_SCALE := Vector3(1.47, 1.58, 1.3)
 const UNDER_DASH_MIN := Vector3(-0.952, -0.197, -0.258)   # the model's bounds
@@ -81,6 +89,7 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 	_windshield_frame(rings[rings.size() - 1])
 	_roof_window(rings)
 	_canopy()
+	_left_wall()
 	_pedestal()
 	_yoke()
 	_screens()
@@ -395,6 +404,112 @@ func _canopy() -> void:
 	for n in ext.get_children():
 		if n is Node3D and (String(n.name).contains("Mullion") or String(n.name).contains("WindshieldSill")):
 			(n as Node3D).visible = false
+
+
+func _left_wall() -> void:
+	var node := _part("LeftWall")
+	var w: Node3D = (load(LEFT_WALL_PATH) as PackedScene).instantiate()
+	w.name = "Section"
+	w.rotation.y = PI / 2
+	w.scale = LEFT_WALL_SCALE
+	w.position = LEFT_WALL_POS + Vector3(0, LEFT_WALL_HALF.y * LEFT_WALL_SCALE.y, 0)
+	node.add_child(w)
+	# Warm it up toward the concept: off-white worn plating (the model's own
+	# texture, lifted and warmed).
+	for mi: MeshInstance3D in w.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(i) as StandardMaterial3D
+			if src:
+				var m := src.duplicate() as StandardMaterial3D
+				m.albedo_color = Color(1.55, 1.38, 1.18)
+				m.metallic = minf(m.metallic, 0.35)
+				mi.set_surface_override_material(i, m)
+	# The bronze grab rail stood here.
+	for n in ["RailAndPipes/GrabRail", "RailAndPipes/RailBracket0", "RailAndPipes/RailBracket1"]:
+		var old := root.get_node_or_null(n) as Node3D
+		if old:
+			old.visible = false
+	_left_wall_props(node)
+
+
+## The concept's character on the wall section: amber light strips, a
+## canvas satchel on a hook, a footlocker with a mug on it, an orange
+## corrugated hose looping down from overhead, a rust-red stencil block.
+func _left_wall_props(node: Node3D) -> void:
+	var x := WALL_FACE_X
+	var amber := mats["amber"] as StandardMaterial3D
+	# Light strips: one high on the frame toward the window, one low on
+	# the cabinet below the breaker panel, one on the window post.
+	for l in [[Vector3(2.86, 2.05, -11.6), Vector3(0.04, 0.05, 0.42)], [Vector3(x + 0.02, 0.62, -11.55), Vector3(0.03, 0.05, 0.36)],
+			[Vector3(2.55, 1.72, -12.45), Vector3(0.03, 0.12, 0.06)]]:
+		_box(node, "AmberStrip", l[0] - Vector3(0.008, 0, 0), l[1] + Vector3(0, 0.02, 0.02), mats["steel_edge"])
+		_box(node, "AmberLamp", l[0], l[1], amber)
+	if not crashed:
+		var glow := OmniLight3D.new()
+		glow.name = "WallGlow"
+		glow.light_color = Color(1.0, 0.65, 0.3)
+		glow.light_energy = 0.35
+		glow.omni_range = 1.4
+		glow.position = Vector3(3.1, 1.9, -11.6)
+		node.add_child(glow)
+	# Canvas satchel hanging on a hook.
+	var canvas := StandardMaterial3D.new()
+	canvas.albedo_color = Color(0.42, 0.38, 0.2)
+	canvas.roughness = 0.9
+	var strap := StandardMaterial3D.new()
+	strap.albedo_color = Color(0.25, 0.2, 0.13)
+	strap.roughness = 0.8
+	var sc := Vector3(x + 0.07, 1.15, -10.6)
+	_cyl(node, "SatchelHook", sc + Vector3(-0.08, 0.2, 0), sc + Vector3(0.0, 0.2, 0), 0.008, mats["steel_edge"], 8)
+	_box(node, "Satchel", sc, Vector3(0.12, 0.3, 0.34), canvas, Basis(Vector3.FORWARD, 0.05))
+	_box(node, "SatchelFlap", sc + Vector3(0.065, 0.07, 0), Vector3(0.02, 0.17, 0.35), canvas)
+	for dz in [-0.08, 0.08]:
+		_box(node, "SatchelStrap", sc + Vector3(0.078, 0.02, dz), Vector3(0.006, 0.22, 0.03), strap)
+		_box(node, "SatchelBuckle", sc + Vector3(0.082, -0.03, dz), Vector3(0.006, 0.03, 0.035), mats["steel_edge"])
+	# Footlocker at the base (aft end) with a mug on it.
+	var lc := Vector3(x + 0.2, 0.0, -10.35)
+	var paint: Material = mats["ivory"]
+	_box(node, "Locker", lc + Vector3(0, 0.22, 0), Vector3(0.38, 0.44, 0.5), paint)
+	_box(node, "LockerLid", lc + Vector3(0, 0.455, 0), Vector3(0.4, 0.04, 0.52), mats["steel_edge"])
+	for dz in [-0.16, 0.16]:
+		_box(node, "LockerLatch", lc + Vector3(0.195, 0.37, dz), Vector3(0.012, 0.08, 0.04), mats["steel"])
+	_box(node, "LockerStencil", lc + Vector3(0.192, 0.15, 0.12), Vector3(0.004, 0.06, 0.08), mats["cable_red"])
+	var mug := lc + Vector3(-0.02, 0.475, -0.1)
+	_cyl(node, "Mug", mug, mug + Vector3(0, 0.1, 0), 0.04, mats["chrome"], 14)
+	var handle := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.022
+	tm.outer_radius = 0.032
+	handle.mesh = tm
+	handle.material_override = mats["chrome"]
+	handle.position = mug + Vector3(0.0, 0.05, 0.045)
+	handle.rotation.y = PI / 2
+	handle.rotation.x = PI / 2
+	node.add_child(handle)
+	# Orange corrugated hose: from the ceiling, looping down the frame into
+	# the breaker cabinet.
+	var hose := StandardMaterial3D.new()
+	hose.albedo_color = Color(0.7, 0.32, 0.1)
+	hose.roughness = 0.55
+	hose.metallic = 0.3
+	var pts := [Vector3(3.05, 2.72, -11.2), Vector3(2.98, 2.45, -11.35), Vector3(2.9, 2.15, -11.25),
+		Vector3(2.66, 1.85, -11.05), Vector3(2.5, 1.55, -11.1)]
+	for i in pts.size() - 1:
+		_cyl(node, "Hose%d" % i, pts[i], pts[i + 1], 0.028, hose, 10)
+		for k in 4:
+			var p: Vector3 = (pts[i] as Vector3).lerp(pts[i + 1], (k + 0.5) / 4.0)
+			var rib := MeshInstance3D.new()
+			var rm := TorusMesh.new()
+			rm.inner_radius = 0.026
+			rm.outer_radius = 0.034
+			rm.rings = 10
+			rm.ring_segments = 4
+			rib.mesh = rm
+			rib.material_override = hose
+			var d: Vector3 = ((pts[i + 1] as Vector3) - (pts[i] as Vector3)).normalized()
+			var side := d.cross(Vector3.FORWARD).normalized()
+			rib.transform = Transform3D(Basis(side, d, side.cross(d)), p)
+			node.add_child(rib)
 
 
 # ---------- controls ----------

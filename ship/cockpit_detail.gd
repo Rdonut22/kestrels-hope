@@ -252,6 +252,9 @@ func _walls() -> void:
 		var v0 := RIB_CLEAR / bay_len
 		var v1 := 1.0 - RIB_CLEAR / bay_len
 		for band in BANDS:
+			# The pilot's side is the user's wall section (cockpit_fitout.gd).
+			if (band as String).begins_with("L_"):
+				continue
 			var r: Vector2 = BANDS[band]
 			var u0 := r.x
 			var u1 := r.y
@@ -416,7 +419,7 @@ func _structure() -> void:
 	var mb := ProcMesh.Builder.new()
 	# Gussets where each rib meets the side walls, at chair-rail height.
 	for r in range(1, rings.size() - 2):
-		for side in [-1.0, 1.0]:
+		for side in [1.0]:   # (the pilot's side is the user's wall section)
 			var u := 0.6 if side > 0 else 19.4
 			var p := _pt(r, u)
 			var n := CockpitFitout.inward(p)
