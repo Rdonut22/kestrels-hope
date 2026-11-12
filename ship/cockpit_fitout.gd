@@ -42,6 +42,13 @@ const DASHBOARD_PATH := "res://ship/models/dashboard/dashboard.glb"
 const DASHBOARD_SCALE := 1.37
 const DASHBOARD_HALF := Vector3(0.95, 0.255, 0.24)  # the model's half size
 const DASHBOARD_Z := -12.86   # its centre, along the tunnel
+## The user's under-dash unit (Meshy, decimated) fills the space under the
+## dashboard: from the dash wall (z -13.4) to the dash face, floor to
+## DASH_TOP, stretched a little to fit (x 1.47, y 1.58, z 1.3).
+const UNDER_DASH_PATH := "res://ship/models/under_dash/under_dash.glb"
+const UNDER_DASH_SCALE := Vector3(1.47, 1.58, 1.3)
+const UNDER_DASH_MIN := Vector3(-0.952, -0.197, -0.258)   # the model's bounds
+const UNDER_DASH_MAX := Vector3(0.951, 0.196, 0.284)
 
 var ext: Node3D
 var root: Node3D
@@ -484,9 +491,24 @@ func _dashboard() -> void:
 	var ship := ext.get_parent()
 	var block := ship.get_node_or_null("CockpitFurniture/Console") as CSGBox3D if ship else null
 	if block:
-		block.position.y = DASH_TOP / 2.0
-		block.size.y = DASH_TOP
+		# The under-dash unit takes its place (a hidden CSG child drops out
+		# of the combiner, collision included: a box stands in for that).
+		block.visible = false
 	var node := _part("Dashboard")
+	var body := StaticBody3D.new()
+	body.name = "Collision"
+	node.add_child(body)
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(2.8, DASH_TOP, 0.7)
+	cs.shape = shape
+	cs.position = Vector3(4.0, DASH_TOP / 2.0, -13.05)
+	body.add_child(cs)
+	var under: Node3D = (load(UNDER_DASH_PATH) as PackedScene).instantiate()
+	under.name = "UnderDash"
+	under.scale = UNDER_DASH_SCALE
+	under.position = Vector3(4.0, -UNDER_DASH_MIN.y * UNDER_DASH_SCALE.y, -13.4 - UNDER_DASH_MIN.z * UNDER_DASH_SCALE.z)
+	node.add_child(under)
 	var unit: Node3D = (load(DASHBOARD_PATH) as PackedScene).instantiate()
 	unit.name = "Unit"
 	unit.scale = Vector3.ONE * DASHBOARD_SCALE

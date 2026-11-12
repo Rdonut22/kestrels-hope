@@ -12,8 +12,6 @@ extends RefCounted
 ##   panels; one bay is left open on exposed machinery.
 ## - Structure: gusset brackets where the ribs meet the walls, conduits
 ##   on stand-offs along the ceiling, cable bundles to junction boxes.
-## - Consoles: a fascia over the lowered dash block's face (the user's
-##   dashboard unit sits on top: cockpit_fitout.gd).
 ## - Floor: recessed grates, a cable channel with an open run, bolted
 ##   maintenance panels with lift handles.
 ## - Light: neutral ceiling fill so the materials read; the amber
@@ -59,7 +57,6 @@ func build(fitout: CockpitFitout, the_rings: Array) -> void:
 	_restyle()
 	_walls()
 	_structure()
-	_consoles()
 	_floor()
 	_lighting()
 	_bolts()
@@ -455,29 +452,6 @@ func _structure() -> void:
 	for k in 4:
 		var x := 4.37 + k * 0.03
 		f._cyl(g, "DashCable%d" % k, Vector3(x, 0.42, dash + 0.02), Vector3(x, 0.04, dash + 0.1 + k * 0.015), 0.011, cols[k], 6)
-
-
-# ---------- consoles ----------
-
-func _consoles() -> void:
-	var g := _group("Consoles")
-	var mb := ProcMesh.Builder.new()
-	var dz := CockpitFitout.DASH_FRONT_Z
-	var top := CockpitFitout.DASH_TOP
-	# Fascia over the lowered dash block's face (the user's dashboard unit
-	# sits on top): a charcoal skin, vent slats in an off-white panel in
-	# front of each seat, a kick plate, and a worn top edge.
-	ProcMesh.box(mb, "charcoal", Vector3(4.0, top / 2.0, dz + 0.012), Vector3(2.76, top - 0.02, 0.024))
-	ProcMesh.box(mb, "edge", Vector3(4.0, top - 0.008, dz + 0.03), Vector3(2.78, 0.018, 0.03))
-	ProcMesh.box(mb, "charcoal_light", Vector3(4.0, 0.05, dz + 0.03), Vector3(2.76, 0.1, 0.02))
-	for x in [CockpitFitout.PILOT_X, CockpitFitout.COPILOT_X]:
-		ProcMesh.box(mb, "paint_light", Vector3(x, 0.33, dz + 0.03), Vector3(0.62, 0.36, 0.014))
-		for k in 5:
-			ProcMesh.box(mb, "pit", Vector3(x, 0.26 + k * 0.035, dz + 0.04), Vector3(0.4, 0.016, 0.004))
-			ProcMesh.box(mb, "charcoal_light", Vector3(x, 0.268 + k * 0.035, dz + 0.046), Vector3(0.42, 0.006, 0.01))
-		for c in [Vector2(-0.28, 0.48), Vector2(0.28, 0.48), Vector2(-0.28, 0.18), Vector2(0.28, 0.18)]:
-			bolts.append(Transform3D(Basis(), Vector3(x + c.x, c.y, dz + 0.038)))
-	_commit(g, "Hardware", mb)
 
 
 # ---------- floor ----------
