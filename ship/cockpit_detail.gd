@@ -15,8 +15,6 @@ extends RefCounted
 ## - Consoles: a fascia over the dash's face, and at each seat a layered
 ##   instrument deck (buttons, toggle switches with guards, rotary knobs)
 ##   and a display recessed in a bezel in a bracketed housing.
-## - Pedestal: corner posts, detent gates along the slots, label plates,
-##   a bolted side hatch, a cable entry at its base.
 ## - Floor: recessed grates, a cable channel with an open run, bolted
 ##   maintenance panels with lift handles.
 ## - Light: neutral ceiling fill so the materials read; the amber
@@ -63,7 +61,6 @@ func build(fitout: CockpitFitout, the_rings: Array) -> void:
 	_walls()
 	_structure()
 	_consoles()
-	_pedestal_detail()
 	_floor()
 	_lighting()
 	_bolts()
@@ -118,7 +115,7 @@ func _materials() -> void:
 
 
 ## The shell behind the plates becomes their dark backing (it shows in
-## the seams), and the pedestal's housing takes the off-white paint.
+## the seams).
 func _restyle() -> void:
 	var backing := (m["paint_light"] as StandardMaterial3D).duplicate() as StandardMaterial3D
 	backing.albedo_color = Color(0.36, 0.37, 0.38)
@@ -127,9 +124,6 @@ func _restyle() -> void:
 	var liner := f.ext.get_node_or_null("CockpitLiner") as MeshInstance3D
 	if liner:
 		liner.set_surface_override_material(0, backing)
-	var housing := f.root.get_node_or_null("Pedestal/Housing") as MeshInstance3D
-	if housing:
-		housing.material_override = m["paint_off"]
 
 
 func _group(name: String) -> Node3D:
@@ -460,7 +454,7 @@ func _structure() -> void:
 	var dash := CockpitFitout.DASH_FRONT_Z
 	var cols := [m["rubber"], m["cable_red"], m["cable_grey"], m["rubber"]]
 	for k in 4:
-		var x := 4.27 + k * 0.03
+		var x := 4.37 + k * 0.03
 		f._cyl(g, "DashCable%d" % k, Vector3(x, 0.42, dash + 0.02), Vector3(x, 0.04, dash + 0.1 + k * 0.015), 0.011, cols[k], 6)
 
 
@@ -552,48 +546,6 @@ func _station(g: Node3D, mb: ProcMesh.Builder, x: float, mode: int, name: String
 	var back := hx * Vector3(0.15 * side, -0.1, -0.08)
 	for k in 2:
 		f._cyl(g, "%sWire%d" % [name, k], back + Vector3(k * 0.02, 0, 0), Vector3(back.x + k * 0.02, top + 0.01, back.z - 0.06), 0.008, [m["rubber"], m["cable_red"]][k], 6)
-
-
-# ---------- pedestal ----------
-
-func _pedestal_detail() -> void:
-	var g := _group("PedestalDetail")
-	var mb := ProcMesh.Builder.new()
-	var p := CockpitFitout.PEDESTAL
-	var s := CockpitFitout.PEDESTAL_SIZE
-	# Charcoal corner posts with worn edges.
-	for cx in [-1.0, 1.0]:
-		for cz in [-1.0, 1.0]:
-			var c := p + Vector3(cx * (s.x / 2 + 0.005), s.y / 2, cz * (s.z / 2 + 0.005))
-			ProcMesh.box(mb, "charcoal", c, Vector3(0.035, s.y - 0.02, 0.035))
-			if cz > 0.0:
-				ProcMesh.box(mb, "edge", c + Vector3(cx * 0.016, 0, 0.016), Vector3(0.008, s.y - 0.06, 0.008))
-	# Side hatches with four bolts and a pull handle.
-	for side in [-1.0, 1.0]:
-		var fx: float = p.x + side * (s.x / 2 + 0.006)
-		var fr := Transform3D(Basis(Vector3(0, 0, -side), Vector3.UP, Vector3(side, 0, 0)), Vector3(fx, 0.34, p.z))
-		ProcMesh.box(mb, "charcoal_light", Vector3(0, 0, 0.002), Vector3(0.5, 0.36, 0.006), fr)
-		ProcMesh.box(mb, "paint_light", Vector3(0, 0, 0.006), Vector3(0.46, 0.32, 0.004), fr)
-		ProcMesh.box(mb, "edge", Vector3(0.12, 0.05, 0.016), Vector3(0.1, 0.018, 0.016), fr)
-		ProcMesh.box(mb, "red", Vector3(-0.12, 0.13, 0.009), Vector3(0.14, 0.02, 0.002), fr)
-		for c in [Vector2(-0.21, 0.14), Vector2(0.21, 0.14), Vector2(-0.21, -0.14), Vector2(0.21, -0.14)]:
-			bolts.append(fr * Transform3D(Basis(), Vector3(c.x, c.y, 0.01)))
-	# Around the slots: detent gates down both sides, end stops, a label
-	# plate beside each, and a worn front edge where hands rest.
-	var top := Basis(Vector3.RIGHT, -0.12)
-	var tc := CockpitFitout.top_centre()
-	for i in CockpitFitout.SLOT_X.size():
-		var x: float = CockpitFitout.SLOT_X[i]
-		for k in 5:
-			var z := -CockpitFitout.SLOT_LEN / 2 + 0.04 + k * (CockpitFitout.SLOT_LEN - 0.08) / 4.0
-			for sx in [-1.0, 1.0]:
-				ProcMesh.box(mb, "charcoal_light", tc + top * Vector3(x + sx * 0.021, 0.02, z), Vector3(0.006, 0.008, 0.012))
-		for e in [-1.0, 1.0]:
-			ProcMesh.box(mb, "bronze", tc + top * Vector3(x, 0.02, e * (CockpitFitout.SLOT_LEN / 2 + 0.004)), Vector3(0.032, 0.012, 0.008))
-	ProcMesh.box(mb, "edge", tc + top * Vector3(0, 0.017, s.z / 2 + 0.004), Vector3(s.x + 0.03, 0.012, 0.01))
-	# Cable entry at the base, toward the dash.
-	ProcMesh.box(mb, "charcoal", p + Vector3(0, 0.07, -s.z / 2 + 0.02), Vector3(0.16, 0.08, 0.05))
-	_commit(g, "Hardware", mb)
 
 
 # ---------- floor ----------

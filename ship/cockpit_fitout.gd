@@ -20,8 +20,13 @@ const RIB_CHAMFER := 0.025
 const ROOF_Z := Vector2(-12.7, -11.3)
 const ROOF_X := Vector2(3.45, 4.55)
 ## The pedestal between the seats and its three lever slots.
-const PEDESTAL := Vector3(4.0, 0.0, -12.33)      # floor centre
-const PEDESTAL_SIZE := Vector3(0.32, 0.64, 0.74)  # w, h at the back, depth
+const PEDESTAL := Vector3(4.0, 0.0, -12.3)       # floor centre
+const PEDESTAL_SIZE := Vector3(0.65, 0.48, 0.8)  # the console's body (w, h, depth)
+## The user's console model and how big it stands: 0.42 takes it to about
+## 0.65 m wide, 0.8 m deep, 0.71 m to the lever tips (between the seats).
+const CONSOLE_PATH := "res://ship/models/center_console/center_console.glb"
+const CONSOLE_SCALE := 0.42
+const CONSOLE_HALF := Vector3(0.776, 0.846, 0.952)  # the model's half size
 const SLOT_X := [-0.085, 0.0, 0.085]
 const SLOT_LEN := 0.34
 const LEVER_TRAVEL := 0.12  # each way from the slot's middle
@@ -348,31 +353,14 @@ func _pedestal() -> void:
 	cs.shape = shape
 	cs.position = c + Vector3(0, s.y / 2, 0)
 	body.add_child(cs)
-	# Housing (sloping up toward the dash).
-	_box(node, "Housing", c + Vector3(0, s.y / 2 - 0.02, 0), Vector3(s.x, s.y - 0.04, s.z), mats["ivory"])
-	_box(node, "Plinth", c + Vector3(0, 0.03, 0), Vector3(s.x + 0.04, 0.06, s.z + 0.04), mats["steel"])
-	var top := _top_basis()
-	var tc := top_centre()
-	_box(node, "TopPlate", tc, Vector3(s.x + 0.02, 0.03, s.z + 0.02), mats["steel"], top)
-	for i in SLOT_X.size():
-		var x: float = SLOT_X[i]
-		_box(node, "Slot%d" % i, tc + top * Vector3(x, 0.012, 0), Vector3(0.024, 0.012, SLOT_LEN), mats["slot"], top)
-		_box(node, "SlotLip%d" % i, tc + top * Vector3(x, 0.017, 0), Vector3(0.036, 0.004, SLOT_LEN + 0.012), mats["steel_edge"], top)
-		_box(node, "Lamp%d" % i, tc + top * Vector3(x, 0.018, -SLOT_LEN / 2 - 0.035), Vector3(0.03, 0.008, 0.016), mats["amber"], top)
-	# Recessed grille on the back face (toward the cabin).
-	var back := c.z + s.z / 2
-	_box(node, "GrilleRecess", Vector3(c.x, 0.3, back + 0.002), Vector3(s.x - 0.08, 0.26, 0.006), mats["slot"])
-	for k in 6:
-		_box(node, "GrilleSlat%d" % k, Vector3(c.x, 0.2 + k * 0.04, back + 0.008), Vector3(s.x - 0.1, 0.012, 0.01), mats["steel_edge"])
-	# Levers: the flight panel (ship/cockpit_panel.gd) puts its own on the
-	# slots when it's there; otherwise (the crashed ship) static ones.
-	var ship := ext.get_parent()
-	if ship == null or not ship.has_node("CockpitPanel"):
-		for i in SLOT_X.size():
-			var lever := make_lever(mats)
-			lever.name = "Lever%d" % i
-			lever.transform = lever_transform(i, 0.6 if i == 1 else -0.4)
-			node.add_child(lever)
+	# The user's control console (Meshy, decimated): its tall end against
+	# the dash, its three levers leaning back toward the seats. Stands on
+	# the floor; the model is centred on its origin.
+	var console: Node3D = (load(CONSOLE_PATH) as PackedScene).instantiate()
+	console.name = "Console"
+	console.scale = Vector3.ONE * CONSOLE_SCALE
+	console.position = c + Vector3(0, CONSOLE_HALF.y * CONSOLE_SCALE, 0)
+	node.add_child(console)
 
 
 ## The pedestal top: tilted up toward the dash.

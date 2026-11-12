@@ -91,6 +91,11 @@ func _build_switches() -> void:
 		add_child(label)
 		if _is_on(i):
 			_set_lever(i, true, false)
+		# The user's console model between the seats has its own levers:
+		# these stay (the switches still work from the panel view) but
+		# aren't drawn.
+		pivot.visible = false
+		label.visible = false
 	_gauge = Label3D.new()
 	_gauge.font = font
 	_gauge.font_size = 24
@@ -100,6 +105,7 @@ func _build_switches() -> void:
 	_gauge.basis = Basis(Vector3.RIGHT, -0.12) * Basis(Vector3.RIGHT, -PI / 2)
 	_gauge.position = _local(CockpitFitout.top_centre()) + Basis(Vector3.RIGHT, -0.12) * Vector3(0, 0.02, 0.33)
 	add_child(_gauge)
+	_gauge.visible = false
 	_update_gauge()
 	Game.state().power_restored_changed.connect(func(_on: bool) -> void: _update_gauge())
 
