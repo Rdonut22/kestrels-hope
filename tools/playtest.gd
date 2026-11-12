@@ -77,7 +77,8 @@ func _run() -> void:
 
 	# Every doorway is walkable.
 	await _walk_check(Vector3(-0.15, 1.1, -6.5), PI, 1.0, func(p): return p.z > -5.0, "quarters hatch -> deck")
-	await _walk_check(Vector3(-0.15, 1.1, 8.0), 0.0, 2.6, func(p): return p.z < -3.0, "ramp end -> front of deck")
+	# The middle bulkhead's doorway is on the port side (x -2.1..-0.3).
+	await _walk_check(Vector3(-1.2, 1.1, 8.0), 0.0, 2.6, func(p): return p.z < -3.0, "ramp end -> bulkhead doorway -> front of deck")
 	await _walk_check(Vector3(0.0, 1.1, 1.0), -PI / 2, 1.0, func(p): return p.x > 3.0, "deck -> lounge arch")
 	await _walk_check(Vector3(0.5, 1.1, -4.9), -PI / 2, 0.8, func(p): return p.x > 3.0, "deck -> kitchen")
 	await _walk_check(Vector3(4.0, 1.1, -5.5), 0.0, 2.6, func(p): return p.z < -10.2, "kitchen -> passage -> cockpit in the nose")
