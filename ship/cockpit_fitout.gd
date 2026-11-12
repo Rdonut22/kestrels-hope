@@ -26,6 +26,7 @@ const PEDESTAL_SIZE := Vector3(0.65, 0.48, 0.8)  # the console's body (w, h, dep
 ## 0.65 m wide, 0.8 m deep, 0.71 m to the lever tips (between the seats).
 const CONSOLE_PATH := "res://ship/models/center_console/center_console.glb"
 const CONSOLE_SCALE := 0.42
+const CONSOLE_RAISE := 0.14   # it stands on a plinth this tall
 const CONSOLE_HALF := Vector3(0.776, 0.846, 0.952)  # the model's half size
 const SLOT_X := [-0.085, 0.0, 0.085]
 const SLOT_LEN := 0.34
@@ -411,7 +412,8 @@ func _pedestal() -> void:
 	var shape := BoxShape3D.new()
 	shape.size = s
 	cs.shape = shape
-	cs.position = c + Vector3(0, s.y / 2, 0)
+	shape.size = s + Vector3(0, CONSOLE_RAISE, 0)
+	cs.position = c + Vector3(0, (s.y + CONSOLE_RAISE) / 2, 0)
 	body.add_child(cs)
 	# The user's control console (Meshy, decimated): its tall end against
 	# the dash, its three levers leaning back toward the seats. Stands on
@@ -419,8 +421,12 @@ func _pedestal() -> void:
 	var console: Node3D = (load(CONSOLE_PATH) as PackedScene).instantiate()
 	console.name = "Console"
 	console.scale = Vector3.ONE * CONSOLE_SCALE
-	console.position = c + Vector3(0, CONSOLE_HALF.y * CONSOLE_SCALE, 0)
+	console.position = c + Vector3(0, CONSOLE_RAISE + CONSOLE_HALF.y * CONSOLE_SCALE, 0)
 	node.add_child(console)
+	# The plinth it's raised on: a dark steel base, a little inset, with a
+	# worn top lip.
+	_box(node, "Plinth", c + Vector3(0, CONSOLE_RAISE / 2, 0), Vector3(s.x - 0.06, CONSOLE_RAISE, s.z - 0.06), mats["steel_edge"])
+	_box(node, "PlinthLip", c + Vector3(0, CONSOLE_RAISE - 0.008, 0), Vector3(s.x - 0.02, 0.016, s.z - 0.02), mats["rubber"])
 
 
 ## The pedestal top: tilted up toward the dash.
