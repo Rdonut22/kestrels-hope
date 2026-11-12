@@ -9,7 +9,9 @@ render_mode cull_disabled;
 //
 //   surface 0: wall: smooth dark metal in large sections with seams,
 //              grooves and inset panels (procedural relief)
-//   surface 9: the cockpit's walls and ceiling: the user's panelled metal
+//   surface 10: the cockpit's main walls and ceiling: the middle
+//              bulkhead's worn plate texture, repeated as plates
+//   surface 9: the cockpit's lower walls and ceiling: the user's panelled metal
 //              wall texture
 //   surface 8: the bulkhead across the middle of the corridor: one worn
 //              metal plate (the user's texture) across each face
@@ -54,6 +56,13 @@ uniform sampler2D cockpit_albedo : source_color, filter_linear_mipmap, repeat_en
 uniform sampler2D cockpit_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D cockpit_rm : hint_default_white, filter_linear_mipmap, repeat_enable;  // r roughness, g metal
 uniform vec2 cockpit_tile = vec2(2.6, 1.46);
+// The cockpit's main walls and ceiling: the middle bulkhead's worn plate,
+// repeated as plates plate_size metres square, tinted toward blue-grey.
+uniform sampler2D worn_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D worn_nor : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D worn_rm : hint_default_white, filter_linear_mipmap, repeat_enable;  // r roughness, g metal
+uniform float plate_size = 1.2;
+uniform vec3 worn_tint : source_color = vec3(0.78, 0.86, 1.0);
 // The middle bulkhead: one worn metal plate (the user's texture), stretched
 // once across each face so its rusty border frames the whole wall.
 uniform sampler2D plate_albedo_big : source_color, filter_linear_mipmap;
@@ -259,6 +268,20 @@ void fragment() {
 		vec2 rm = texture(plate_rm_big, puv).rg;
 		rough = clamp(rm.r + 0.12, 0.0, 1.0);
 		metal = rm.g * 0.45;
+	} else if (s == 10) {
+		// Cockpit shell: worn painted plates with rusty edges, each plate
+		// a little different in tone.
+		vec2 q = vec2(uv.x, -uv.y) / plate_size;
+		vec2 cell = floor(q);
+		vec2 puv = fract(q);
+		// Flip alternate plates so neighbours don't repeat exactly.
+		puv = vec2(mod(cell.x, 2.0) < 1.0 ? puv.x : 1.0 - puv.x, mod(cell.y, 2.0) < 1.0 ? puv.y : 1.0 - puv.y);
+		vec3 tn0 = unpack_n(texture(worn_nor, puv), 0.35);
+		tn = vec3(mod(cell.x, 2.0) < 1.0 ? tn0.x : -tn0.x, mod(cell.y, 2.0) < 1.0 ? tn0.y : -tn0.y, tn0.z);
+		col = texture(worn_albedo, puv).rgb * worn_tint * (0.88 + 0.24 * h(cell));
+		vec2 rm = texture(worn_rm, puv).rg;
+		rough = clamp(rm.r + 0.12, 0.0, 1.0);
+		metal = rm.g * 0.4;
 	} else if (s == 9) {
 		// Cockpit walls and ceiling: panelled grey-blue metal with seams,
 		// bevelled cut corners and a bolted inset plate.

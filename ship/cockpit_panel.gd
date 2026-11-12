@@ -9,7 +9,6 @@ extends Node3D
 ## offers INITIATE LANDING, which Hale's recovered letter then interrupts.
 
 const SWITCHES := ["MAIN DRIVE", "NAV", "DIAGNOSTICS"]
-const PLATE := Vector3(3.95, 0.955, -12.08)
 ## Windshield: bottom edge centre and the direction up the glass.
 const GLASS_BASE := Vector3(4.0, 0.95, -12.6)
 const GLASS_UP := Vector3(0.0, 0.8633, 0.5054)
@@ -43,68 +42,52 @@ func _ready() -> void:
 # ---------- building ----------
 
 func _build_switches() -> void:
-	var plate := MeshInstance3D.new()
-	var pm := BoxMesh.new()
-	pm.size = Vector3(0.78, 0.02, 0.3)
-	plate.mesh = pm
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.12, 0.12, 0.13)
-	dark.roughness = 0.6
-	dark.metallic = 0.5
-	plate.material_override = dark
-	plate.position = PLATE
-	add_child(plate)
-	var lever_mat := StandardMaterial3D.new()
-	lever_mat.albedo_color = Color(0.75, 0.75, 0.72)
-	lever_mat.metallic = 0.8
-	lever_mat.roughness = 0.35
+	# The levers stand in the pedestal's slots between the seats
+	# (ship/cockpit_fitout.gd builds the pedestal), sliding forward for on.
+	var m := {}
+	var steel := StandardMaterial3D.new()
+	steel.albedo_color = Color(0.17, 0.18, 0.19)
+	steel.metallic = 0.7
+	steel.roughness = 0.5
+	m["steel"] = steel
+	var edge := steel.duplicate() as StandardMaterial3D
+	edge.albedo_color = Color(0.32, 0.31, 0.29)
+	edge.roughness = 0.35
+	m["steel_edge"] = edge
+	var bronze := StandardMaterial3D.new()
+	bronze.albedo_color = Color(0.55, 0.38, 0.2)
+	bronze.metallic = 0.85
+	bronze.roughness = 0.38
+	m["bronze"] = bronze
+	var rubber := StandardMaterial3D.new()
+	rubber.albedo_color = Color(0.06, 0.06, 0.06)
+	rubber.roughness = 0.8
+	m["rubber"] = rubber
 	var font: Font = load("res://ui/fonts/JetBrainsMono-Bold.ttf")
+	var top := Basis(Vector3.RIGHT, -0.12)
+	var tc := _local(CockpitFitout.top_centre())
 	for i in SWITCHES.size():
-		var x := (i - 1) * 0.24
-		var pivot := Node3D.new()
-		pivot.position = PLATE + Vector3(x, 0.012, 0.03)
+		var cap := StandardMaterial3D.new()
+		cap.albedo_color = Color(0.1, 0.1, 0.1)
+		cap.emission_enabled = true
+		cap.emission = Color.BLACK
+		m["amber"] = cap
+		var pivot := CockpitFitout.make_lever(m)
+		pivot.transform = _lever_xf(i, -1.0)
 		add_child(pivot)
-		var lever := MeshInstance3D.new()
-		var lm := CylinderMesh.new()
-		lm.top_radius = 0.009
-		lm.bottom_radius = 0.012
-		lm.height = 0.07
-		lever.mesh = lm
-		lever.material_override = lever_mat
-		lever.position.y = 0.035
-		pivot.add_child(lever)
-		var knob := MeshInstance3D.new()
-		var km := SphereMesh.new()
-		km.radius = 0.014
-		km.height = 0.028
-		knob.mesh = km
-		knob.material_override = lever_mat
-		knob.position.y = 0.072
-		pivot.add_child(knob)
-		pivot.rotation.x = 0.5  # off: tipped toward the pilot
 		_levers.append(pivot)
-		var lamp := MeshInstance3D.new()
-		var lamp_mesh := SphereMesh.new()
-		lamp_mesh.radius = 0.012
-		lamp_mesh.height = 0.012
-		lamp.mesh = lamp_mesh
-		var lmat := StandardMaterial3D.new()
-		lmat.albedo_color = Color(0.1, 0.1, 0.1)
-		lmat.emission_enabled = true
-		lmat.emission = Color.BLACK
-		lamp.material_override = lmat
-		lamp.position = PLATE + Vector3(x, 0.012, -0.07)
-		add_child(lamp)
-		_lamps.append(lmat)
+		# The handle's emitter cap is its status lamp.
+		_lamps.append(cap)
 		var label := Label3D.new()
 		label.text = SWITCHES[i]
 		label.font = font
-		label.font_size = 28
-		label.pixel_size = 0.0007
+		label.font_size = 20
+		label.pixel_size = 0.0006
 		label.modulate = Color(0.85, 0.8, 0.65)
 		label.outline_size = 0
-		label.rotation.x = -PI / 2
-		label.position = PLATE + Vector3(x, 0.012, 0.115)
+		# Flat on the pedestal top beside its slot, reading from the seats.
+		label.basis = top * Basis(Vector3.RIGHT, -PI / 2) * Basis(Vector3.FORWARD, PI / 2)
+		label.position = tc + top * Vector3(CockpitFitout.SLOT_X[i] + 0.034, 0.02, 0.02)
 		add_child(label)
 		if _is_on(i):
 			_set_lever(i, true, false)
@@ -113,8 +96,9 @@ func _build_switches() -> void:
 	_gauge.font_size = 24
 	_gauge.pixel_size = 0.0007
 	_gauge.outline_size = 0
-	_gauge.rotation.x = -PI / 2
-	_gauge.position = PLATE + Vector3(0, 0.012, -0.11)
+	_gauge.font_size = 16
+	_gauge.basis = Basis(Vector3.RIGHT, -0.12) * Basis(Vector3.RIGHT, -PI / 2)
+	_gauge.position = _local(CockpitFitout.top_centre()) + Basis(Vector3.RIGHT, -0.12) * Vector3(0, 0.02, 0.33)
 	add_child(_gauge)
 	_update_gauge()
 	Game.state().power_restored_changed.connect(func(_on: bool) -> void: _update_gauge())
@@ -167,11 +151,11 @@ func _build_hud() -> void:
 ## Where the panel camera sits and looks (used by the pilot seat).
 ## (The panel moves up with the flight deck: ship/kestrel_exterior.gd.)
 func view_eye() -> Vector3:
-	return to_global(Vector3(3.97, 1.42, -10.5))
+	return to_global(_local(Vector3(3.62, 1.3, -11.55)))
 
 
 func view_target() -> Vector3:
-	return to_global(Vector3(3.97, 1.5, -12.1))
+	return to_global(_local(CockpitFitout.top_centre() + Vector3(0, 0.0, -0.02)))
 
 
 # ---------- state ----------
@@ -196,12 +180,30 @@ func _update_gauge() -> void:
 		_gauge.modulate = Color(1.0, 0.45, 0.25)
 
 
-func _set_lever(i: int, down: bool, animate := true) -> void:
-	var angle := -0.5 if down else 0.5
-	if animate:
-		create_tween().tween_property(_levers[i], "rotation:x", angle, 0.12)
+## Ship space (cockpit_fitout.gd) -> this node's frame: the panel moves
+## forward with the cockpit (kestrel_exterior.gd), the fitout is built
+## where the cockpit ends up.
+func _local(p: Vector3) -> Vector3:
+	return p - Vector3(0, 0, KestrelExterior.COCKPIT_SHIFT)
+
+
+func _lever_xf(i: int, t: float) -> Transform3D:
+	var xf := CockpitFitout.lever_transform(i, t)
+	xf.origin = _local(xf.origin)
+	return xf
+
+
+## Slide lever i to t (-1 back, toward the seats = off; 1 forward = on).
+func _slide(i: int, t: float, secs: float) -> void:
+	var to := _lever_xf(i, t).origin
+	if secs <= 0.0:
+		_levers[i].position = to
 	else:
-		_levers[i].rotation.x = angle
+		create_tween().tween_property(_levers[i], "position", to, secs)
+
+
+func _set_lever(i: int, down: bool, animate := true) -> void:
+	_slide(i, 1.0 if down else -1.0, 0.16 if animate else 0.0)
 	_lamps[i].emission = Color(0.3, 1.0, 0.4) if down else Color.BLACK
 	_lamps[i].emission_energy_multiplier = 2.0
 
@@ -305,14 +307,14 @@ func flip(i: int) -> void:
 func _fail(i: int) -> void:
 	_busy = true
 	_play("res://audio/sfx/click.ogg", 0.9)
-	create_tween().tween_property(_levers[i], "rotation:x", -0.5, 0.1)
+	_slide(i, 1.0, 0.1)
 	view.flash_no_power()
 	for k in 5:
 		_lamps[i].emission = Color(1.0, 0.6, 0.15) if k % 2 == 0 else Color.BLACK
 		await get_tree().create_timer(0.08).timeout
 	_play("res://audio/sfx/thunk.ogg")
 	_lamps[i].emission = Color.BLACK
-	create_tween().tween_property(_levers[i], "rotation:x", 0.5, 0.25)
+	_slide(i, -1.0, 0.25)
 	_busy = false
 	_fails += 1
 	var gs := Game.state()

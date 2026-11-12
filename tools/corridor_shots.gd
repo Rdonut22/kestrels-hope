@@ -52,7 +52,10 @@ func _run(out: String) -> void:
 		["k_eng_close", Vector3(0.6, 1.4, 1.1), Vector3(-2.4, 1.1, 1.1)], ["l_bulk_close", Vector3(0.4, 1.3, 1.0), Vector3(-0.2, 1.2, -1.4)],
 		["m_board", Vector3(0.1, 1.55, 1.3), Vector3(1.4, 1.5, -1.2)], ["n_board_up", Vector3(0.6, 1.2, 0.2), Vector3(1.4, 2.7, -1.2)],
 		["o_cockpit", Vector3(4.0, 1.65, -8.6), Vector3(4.0, 1.2, -13.0)], ["p_cockpit_side", Vector3(5.0, 1.6, -12.4), Vector3(2.6, 1.4, -10.0)],
-		["q_cockpit_up", Vector3(4.0, 1.2, -11.0), Vector3(3.0, 2.6, -11.8)]]
+		["q_cockpit_up", Vector3(4.0, 1.2, -11.0), Vector3(3.0, 2.6, -11.8)],
+		["r_pilot_seat", Vector3(3.3, 1.2, -11.7), Vector3(3.5, 1.05, -13.6)], ["s_copilot_seat", Vector3(4.7, 1.2, -11.7), Vector3(4.5, 1.05, -13.6)],
+		["t_entrance", Vector3(4.0, 1.65, -9.7), Vector3(4.0, 1.05, -12.8)], ["u_pedestal", Vector3(4.35, 1.25, -11.5), Vector3(4.0, 0.62, -12.35)],
+		["v_roof", Vector3(4.0, 1.3, -10.8), Vector3(4.0, 3.2, -12.1)]]
 	# VIEWS=g,h renders only the views whose names start with those letters.
 	var only := OS.get_environment("VIEWS").split(",", false)
 	for v in views:

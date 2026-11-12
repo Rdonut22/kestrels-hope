@@ -26,6 +26,10 @@ const PASSAGE := Rect2(2.4, 0.0, 3.2, 3.0)   # x, y, w, h of the opening from th
 const PASSAGE_Z := -9.95
 const STATIONS := [-10.6, -11.3, -12.0, -12.7]
 const MULLION_X := [3.45, 4.55]
+## Above this the shell and the fuselage are open for the roof window.
+const ROOF_CUT_Y := 1.9
+## Below this the walls are the panel-cut metal; above, the painted plates.
+const LOWER_WALL_Y := 0.85
 
 var ext: Node3D
 var tris := PackedVector3Array()   # the fuselage, ship space, all surfaces
@@ -57,6 +61,8 @@ func build(exterior: Node3D, fus: Mesh, xf: Transform3D) -> ArrayMesh:
 	_liner(rings)
 	_front(last)
 	_chin_cap()
+	# Ribs, windows, controls, lights (ship/cockpit_fitout.gd).
+	CockpitFitout.new().build(ext, rings, bool(ext.get("crashed")))
 
 	# The fuselage, in one pass: the nose cut at the windshield, and
 	# everything inside the cockpit cleared.
@@ -66,6 +72,12 @@ func build(exterior: Node3D, fus: Mesh, xf: Transform3D) -> ArrayMesh:
 		[Vector3(1, 0, 0), 1.0], [Vector3(-1, 0, 0), -7.5]],
 		AABB(Vector3(1.0, WS_Y, -20.0), Vector3(6.5, 10.0, 20.0 + WS_Z + WS_RAKE * 10.0))]]
 	regions.append_array(_inside_regions(rings))
+	# The roof window (cockpit_fitout.gd frames and glazes it).
+	var rx: Vector2 = CockpitFitout.ROOF_X
+	var rz: Vector2 = CockpitFitout.ROOF_Z
+	regions.append([[[Vector3(1, 0, 0), rx.x], [Vector3(-1, 0, 0), -rx.y], [Vector3(0, 0, 1), rz.x],
+		[Vector3(0, 0, -1), -rz.y], [Vector3(0, 1, 0), ROOF_CUT_Y]],
+		AABB(Vector3(rx.x, ROOF_CUT_Y, rz.x), Vector3(rx.y - rx.x, 10.0, rz.y - rz.x))])
 	# The passage from the kitchen door (the fuselage crosses it; the hull
 	# carves the room itself).
 	var pb := AABB(Vector3(PASSAGE.position.x, 0.01, PASSAGE_Z), Vector3(PASSAGE.size.x, PASSAGE.size.y - 0.01, 3.0))
@@ -166,13 +178,14 @@ func _front_ring() -> PackedVector3Array:
 # ---------- meshes ----------
 
 func _liner(rings: Array) -> void:
-	# Panelled metal walls (corridor.gdshader surface 9), the deck plates
-	# underfoot (surface 1).
+	# Painted blue-grey plates on the walls and ceiling (corridor.gdshader
+	# surface 10), panel-cut metal low on the walls (surface 9), the deck
+	# plates underfoot (surface 1).
 	var src := load("res://ship/materials/corridor_wall.tres") as ShaderMaterial
-	var wall_src := panel_material()
+	var wall_src := shell_material()
 	var floor_mat := src.duplicate() as ShaderMaterial
 	floor_mat.set_shader_parameter("surface", 1)
-	var sts := [SurfaceTool.new(), SurfaceTool.new()]
+	var sts := [SurfaceTool.new(), SurfaceTool.new(), SurfaceTool.new()]
 	for st in sts:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var col := PackedVector3Array()
@@ -184,7 +197,12 @@ func _liner(rings: Array) -> void:
 			var j := (k + 1) % N
 			for t in [[a[k], b[k], b[j]], [a[k], b[j], a[j]]]:
 				var on_floor: bool = t[0].y < 0.01 and t[1].y < 0.01 and t[2].y < 0.01
-				_tri(sts[1 if on_floor else 0], t, axis)
+				var c: Vector3 = (t[0] + t[1] + t[2]) / 3.0
+				if c.y > ROOF_CUT_Y and c.x > CockpitFitout.ROOF_X.x and c.x < CockpitFitout.ROOF_X.y \
+						and c.z > CockpitFitout.ROOF_Z.x and c.z < CockpitFitout.ROOF_Z.y:
+					continue   # the roof window
+				var which := 1 if on_floor else (2 if c.y < LOWER_WALL_Y else 0)
+				_tri(sts[which], t, axis)
 				col.append_array(PackedVector3Array(t))
 	var m: ArrayMesh = null
 	for st in sts:
@@ -195,12 +213,13 @@ func _liner(rings: Array) -> void:
 	mi.mesh = m
 	mi.set_surface_override_material(0, wall_src)
 	mi.set_surface_override_material(1, floor_mat)
+	mi.set_surface_override_material(2, panel_material())
 	ext.add_child(mi)
 	_body("CockpitLinerBody", col)
 
 
-## The cockpit's walls, ceiling and dash: the user's panelled metal wall
-## texture (corridor.gdshader surface 9), one material shared by all.
+## The cockpit's lower walls and dash: the user's panel-cut metal wall
+## texture (corridor.gdshader surface 9).
 static var _panel: ShaderMaterial
 
 
@@ -213,6 +232,21 @@ static func panel_material() -> ShaderMaterial:
 		_panel.set_shader_parameter("cockpit_nor", load(tex + "nor.png"))
 		_panel.set_shader_parameter("cockpit_rm", load(tex + "rm.png"))
 	return _panel
+
+
+## The walls' and ceiling's painted plates (corridor.gdshader surface 10).
+static var _shell: ShaderMaterial
+
+
+static func shell_material() -> ShaderMaterial:
+	if _shell == null:
+		_shell = (load("res://ship/materials/corridor_wall.tres") as ShaderMaterial).duplicate() as ShaderMaterial
+		_shell.set_shader_parameter("surface", 10)
+		var tex := "res://ship/textures/interior/bulkhead_plate_"
+		_shell.set_shader_parameter("worn_albedo", load(tex + "color.png"))
+		_shell.set_shader_parameter("worn_nor", load(tex + "nor.png"))
+		_shell.set_shader_parameter("worn_rm", load(tex + "rm.png"))
+	return _shell
 
 
 ## Adds a triangle facing the axis point (into the room).
