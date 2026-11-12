@@ -28,7 +28,7 @@ func _go(scene: Node3D, out: String) -> void:
 		scene.apply_preset(i)
 		await _snap("%s/view_%02d.png" % [out, i + 1])
 	scene.apply_preset(0)
-	for a in ["Idle", "Walk", "Run", "Jump", "PickUp"]:
+	for a in ["Idle", "Walk", "Run", "Jump", "PickUp", "JumpGrab", "ClimbUp"]:
 		scene.play(a)
 		scene.anim.play(a, 0.0)
 		var len: float = scene.anim.get_animation(a).length

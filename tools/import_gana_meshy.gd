@@ -243,6 +243,15 @@ const STRAY_TRIS := 80
 
 
 func _drop_strays(idx: PackedInt32Array, v: PackedVector3Array, own_of: Array) -> PackedInt32Array:
+	# Join vertices that share a position (UV seams split them).
+	var weld := {}
+	var key_of := PackedInt32Array()
+	key_of.resize(v.size())
+	for i in v.size():
+		var key := Vector3i((v[i] * 10000.0).round())
+		if not weld.has(key):
+			weld[key] = i
+		key_of[i] = weld[key]
 	var parent := {}
 	var find := func(a: int) -> int:
 		while parent.get(a, a) != a:
@@ -251,15 +260,15 @@ func _drop_strays(idx: PackedInt32Array, v: PackedVector3Array, own_of: Array) -
 		return a
 	for t in range(0, idx.size(), 3):
 		for k in [1, 2]:
-			var ra: int = find.call(idx[t])
-			var rb: int = find.call(idx[t + k])
+			var ra: int = find.call(key_of[idx[t]])
+			var rb: int = find.call(key_of[idx[t + k]])
 			if ra != rb:
 				parent[ra] = rb
 	var count := {}
 	var centre := {}
 	var leg := {}
 	for t in range(0, idx.size(), 3):
-		var r: int = find.call(idx[t])
+		var r: int = find.call(key_of[idx[t]])
 		count[r] = count.get(r, 0) + 1
 		centre[r] = centre.get(r, Vector3.ZERO) + v[idx[t]]
 		if String(own_of[idx[t]]).ends_with("Leg"):
@@ -267,9 +276,9 @@ func _drop_strays(idx: PackedInt32Array, v: PackedVector3Array, own_of: Array) -
 	var out := PackedInt32Array()
 	var dropped := 0
 	for t in range(0, idx.size(), 3):
-		var r: int = find.call(idx[t])
+		var r: int = find.call(key_of[idx[t]])
 		var c: Vector3 = centre[r] / count[r]
-		if count[r] < STRAY_TRIS and leg.get(r, 0) * 2 > count[r] and absf(c.x) > 0.25 and c.y > 0.75:
+		if count[r] < STRAY_TRIS and leg.get(r, 0) * 2 > count[r] and absf(c.x) > 0.25 and c.y > 0.6:
 			dropped += 1
 			continue
 		out.append_array([idx[t], idx[t + 1], idx[t + 2]])
@@ -356,7 +365,8 @@ func _separate_limbs(mi: MeshInstance3D) -> void:
 		arrays[Mesh.ARRAY_WEIGHTS] = weights
 		# The generated mesh joins the hanging hands to the thighs and the
 		# lower arms to the jacket sides: those triangles would stretch
-		# into blades whenever an arm lifts, so they go.
+		# into blades whenever an arm lifts, so they go. (Arm-to-arm
+		# triangles stay: they are the back of the collar, both shoulders'.)
 		var own_of := []
 		own_of.resize(v.size())
 		for i in v.size():
@@ -382,7 +392,7 @@ func _separate_limbs(mi: MeshInstance3D) -> void:
 				if v[idx[t + k]].y > ARMPIT_Y:
 					low = false
 			var arm := ls.has("LeftArm") or ls.has("RightArm")
-			var bridge := arm and ls.size() > 1 and (ls.has("LeftLeg") or ls.has("RightLeg") or (ls.has("LeftArm") and ls.has("RightArm")) or (ls.has("Core") and low))
+			var bridge := arm and (ls.has("LeftLeg") or ls.has("RightLeg") or (ls.has("Core") and low))
 			if bridge:
 				bridges += 1
 			else:
@@ -396,7 +406,8 @@ func _separate_limbs(mi: MeshInstance3D) -> void:
 	mi.mesh = out
 
 
-## Removes triangles skinned mostly to REMOVED_BONES or their children.
+## Removes triangles skinned even slightly to REMOVED_BONES or their
+## children (the stub would poke out of the mechanical elbow).
 func _cut(mi: MeshInstance3D) -> void:
 	var skel := mi.get_node_or_null(mi.skeleton) as Skeleton3D
 	if skel == null or mi.skin == null:
@@ -435,7 +446,7 @@ func _cut(mi: MeshInstance3D) -> void:
 			w_gone[v] = w
 		var keep := PackedInt32Array()
 		for t in range(0, idx.size(), 3):
-			if (w_gone[idx[t]] + w_gone[idx[t + 1]] + w_gone[idx[t + 2]]) / 3.0 < 0.25:
+			if (w_gone[idx[t]] + w_gone[idx[t + 1]] + w_gone[idx[t + 2]]) / 3.0 < 0.08:
 				keep.append_array([idx[t], idx[t + 1], idx[t + 2]])
 		print("  cut right forearm and hand: %d -> %d triangles" % [idx.size() / 3, keep.size() / 3])
 		arrays = _compact(arrays, keep)
