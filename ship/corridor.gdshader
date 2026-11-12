@@ -7,8 +7,11 @@ render_mode cull_disabled;
 // Projected in ship space (the hull is CSG, no UVs). The user's PBR sets
 // are applied with their own colour, normal, roughness (and metal) maps.
 //
-//   surface 0: wall: glossy laminated concrete (the user's clean concrete
-//              set) in large sheets with fine seams between them
+//   surface 0: wall: smooth dark metal in large sections with seams,
+//              grooves and inset panels (procedural relief)
+//   surface 8: the bulkhead across the middle of the corridor: glossy
+//              laminated concrete (the user's clean concrete set) in large
+//              sheets with fine seams between them
 //   surface 1: floor: dark anti-slip (worn shutter set, fine ribs), darker
 //              border along the walls, a worn walking line down the middle
 //   surface 2: ceiling: dark glossy quilted padding
@@ -44,7 +47,7 @@ uniform sampler2D rusty_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
 uniform float rusty_tile = 1.5;
-// Main walls: laminated concrete.
+// The middle bulkhead: laminated concrete.
 uniform sampler2D concrete_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D concrete_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D concrete_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
@@ -237,7 +240,7 @@ void fragment() {
 		col = quilt * (0.55 + 0.7 * puff) * (0.9 + 0.2 * cr) * mix(1.0, 0.35, seam);
 		rough = mix(0.5, 0.14, puff);
 		metal = 0.0;
-	} else if (s == 0) {
+	} else if (s == 8) {
 		// Laminated concrete in large sheets: the set's colour, normal and
 		// roughness under a glossy laminate, with fine seams between sheets
 		// and above the kick band.
@@ -257,7 +260,7 @@ void fragment() {
 		}
 		rough = mix(texture(concrete_rough, cuv).r, 0.06, concrete_gloss);
 		metal = 0.0;
-	} else if (s == 7) {
+	} else if (s == 7 || s == 0) {
 		// Smooth dark metal in large sections (walls, frames, beams):
 		// seams, grooves and inset panels as relief, soft sheen, faint
 		// smudges. Frames get only the seams.

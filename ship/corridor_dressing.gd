@@ -476,7 +476,7 @@ func _mat_edge() -> void:
 ## Industrial caged sconces (ship/caged_sconce.gd) on both walls, in the dark
 ## stretches between the ceiling panels, glowing warm orange. Dead after
 ## the crash. [wall x, z]
-const SCONCES := [[X_L, -1.0], [X_L, 3.05], [X_L, 7.6], [X_R, -1.0], [X_R, 4.45]]
+const SCONCES := [[X_L, -1.0], [X_L, 2.72], [X_L, 7.6], [X_R, -1.0], [X_R, 4.45]]
 const SCONCE_Y := 1.95
 
 

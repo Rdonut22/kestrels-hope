@@ -149,6 +149,10 @@ func _make_materials() -> void:
 	frame.set_shader_parameter("surface", 7)
 	ResourceSaver.save(frame, "res://ship/materials/corridor_frame.tres")
 	mats["corridor_frame"] = load("res://ship/materials/corridor_frame.tres")
+	var concrete: ShaderMaterial = mats["corridor_wall"].duplicate()
+	concrete.set_shader_parameter("surface", 8)
+	ResourceSaver.save(concrete, "res://ship/materials/corridor_concrete.tres")
+	mats["corridor_concrete"] = load("res://ship/materials/corridor_concrete.tres")
 	var rusty: ShaderMaterial = mats["corridor_wall"].duplicate()
 	rusty.set_shader_parameter("surface", 6)
 	ResourceSaver.save(rusty, "res://ship/materials/corridor_rusty.tres")
@@ -473,7 +477,7 @@ func _build_ship() -> void:
 	_oval_door(hull, "Door_Gunner", "z", Vector3(-4.0, 1.1, 3.55), 0.8, 1.5)
 	# Open padded doorways (see _padded_doorways()): engineering, and a
 	# bulkhead across the corridor just fore of the lounge entrance.
-	_box(hull, "Bulkhead", Vector3(-2.35, 0, BULKHEAD_Z0), Vector3(2.05, 3.0, BULKHEAD_Z1), "corridor_frame")
+	_box(hull, "Bulkhead", Vector3(-2.35, 0, BULKHEAD_Z0), Vector3(2.05, 3.0, BULKHEAD_Z1), "corridor_concrete")
 	for d in PADDED_DOORS:
 		_slant_cut(hull, "Door_" + d.name, d)
 
