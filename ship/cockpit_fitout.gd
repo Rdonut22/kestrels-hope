@@ -91,6 +91,7 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 	_roof_window(rings)
 	_canopy()
 	_left_wall()
+	_right_wall()
 	_pedestal()
 	_yoke()
 	_screens()
@@ -431,6 +432,38 @@ func _left_wall() -> void:
 		if old:
 			old.visible = false
 	_left_wall_props(node)
+
+
+## The co-pilot's side: the same section mirrored across the cockpit's
+## centre line (window end still forward), plainer: its orange pipes
+## repainted bare metal, a single amber strip, none of the loose props.
+func _right_wall() -> void:
+	var node := _part("RightWall")
+	var w: Node3D = (load(LEFT_WALL_PATH) as PackedScene).instantiate()
+	w.name = "Section"
+	w.rotation.y = PI / 2
+	# Mirrored: the depth axis (into the cabin) flips.
+	w.scale = LEFT_WALL_SCALE * Vector3(1, 1, -1)
+	w.position = Vector3(8.0 - LEFT_WALL_POS.x, LEFT_WALL_HALF.y * LEFT_WALL_SCALE.y, LEFT_WALL_POS.z)
+	node.add_child(w)
+	var plain: Texture2D = load("res://ship/models/left_wall/right_wall_albedo.png")
+	for mi: MeshInstance3D in w.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(i) as StandardMaterial3D
+			if src:
+				var m := src.duplicate() as StandardMaterial3D
+				m.albedo_texture = plain
+				m.albedo_color = Color(1.5, 1.36, 1.2)
+				m.metallic = minf(m.metallic, 0.35)
+				m.cull_mode = BaseMaterial3D.CULL_DISABLED
+				mi.set_surface_override_material(i, m)
+	_box(node, "AmberStrip", Vector3(8.0 - 2.86 + 0.008, 2.05, -11.6), Vector3(0.04, 0.07, 0.44), mats["steel_edge"])
+	_box(node, "AmberLamp", Vector3(8.0 - 2.86, 2.05, -11.6), Vector3(0.04, 0.05, 0.42), mats["amber"])
+	# The pipes that ran along this wall would cut through it.
+	for n in ["RailAndPipes/Pipe0", "RailAndPipes/Pipe1"]:
+		var old := root.get_node_or_null(n) as Node3D
+		if old:
+			old.visible = false
 
 
 ## The concept's character on the wall section: amber light strips, a

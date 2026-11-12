@@ -253,7 +253,9 @@ func _walls() -> void:
 		var v1 := 1.0 - RIB_CLEAR / bay_len
 		for band in BANDS:
 			# The pilot's side is the user's wall section (cockpit_fitout.gd).
-			if (band as String).begins_with("L_"):
+			# Both sides are the user's wall section now (cockpit_fitout.gd):
+			# only the ceiling keeps its plates.
+			if band != "ceil":
 				continue
 			var r: Vector2 = BANDS[band]
 			var u0 := r.x
@@ -419,7 +421,7 @@ func _structure() -> void:
 	var mb := ProcMesh.Builder.new()
 	# (The gussets that tied the ribs to the walls went with the ribs.)
 	for r in []:
-		for side in [1.0]:   # (the pilot's side is the user's wall section)
+		for side in []:   # (both sides are the user's wall section)
 			var u := 0.6 if side > 0 else 19.4
 			var p := _pt(r, u)
 			var n := CockpitFitout.inward(p)
