@@ -34,7 +34,14 @@ const LEVER_TRAVEL := 0.12  # each way from the slot's middle
 const PILOT_X := 3.3
 const COPILOT_X := 4.7
 const DASH_FRONT_Z := -12.7   # the dash console's face toward the seats
-const DASH_TOP := 0.95
+const DASH_TOP := 0.62       # the lowered dash block the dashboard unit sits on
+## The user's dashboard unit (Meshy, decimated): radar screen in front of
+## the pilot, terrain map in front of the co-pilot. 1.37 takes its 1.9
+## model units to about 2.6 m across.
+const DASHBOARD_PATH := "res://ship/models/dashboard/dashboard.glb"
+const DASHBOARD_SCALE := 1.37
+const DASHBOARD_HALF := Vector3(0.95, 0.255, 0.24)  # the model's half size
+const DASHBOARD_Z := -12.86   # its centre, along the tunnel
 
 var ext: Node3D
 var root: Node3D
@@ -55,6 +62,7 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 	_pedestal()
 	_yoke()
 	_screens()
+	_dashboard()
 	_lights(rings)
 	_rail_and_pipes(rings)
 	_hooks()
@@ -470,6 +478,22 @@ func _screens() -> void:
 				old.visible = false
 
 
+## The dashboard: the old dash block drops to DASH_TOP and the user's
+## dashboard unit (screens, gauges, buttons) sits on it across the cockpit.
+func _dashboard() -> void:
+	var ship := ext.get_parent()
+	var block := ship.get_node_or_null("CockpitFurniture/Console") as CSGBox3D if ship else null
+	if block:
+		block.position.y = DASH_TOP / 2.0
+		block.size.y = DASH_TOP
+	var node := _part("Dashboard")
+	var unit: Node3D = (load(DASHBOARD_PATH) as PackedScene).instantiate()
+	unit.name = "Unit"
+	unit.scale = Vector3.ONE * DASHBOARD_SCALE
+	unit.position = Vector3(4.0, DASH_TOP + DASHBOARD_HALF.y * DASHBOARD_SCALE - 0.02, DASHBOARD_Z)
+	node.add_child(unit)
+
+
 # ---------- floor, light, rail ----------
 
 func _lights(rings: Array) -> void:
@@ -556,7 +580,7 @@ func _hooks() -> void:
 		h.position = pos
 		node.add_child(h)
 	add.call("copilot_seat", Vector3(COPILOT_X, 0.0, -11.8), "Sit in the co-pilot seat", 1.2)
-	add.call("pilot_instruments", Vector3(PILOT_X, DASH_TOP + 0.16, DASH_FRONT_Z - 0.16), "Pilot instruments", 1.4)
-	add.call("copilot_display", Vector3(COPILOT_X, DASH_TOP + 0.16, DASH_FRONT_Z - 0.16), "Navigation display", 1.4)
+	add.call("pilot_instruments", Vector3(PILOT_X - 0.08, DASH_TOP + 0.35, DASHBOARD_Z), "Pilot instruments", 1.4)
+	add.call("copilot_display", Vector3(COPILOT_X - 0.08, DASH_TOP + 0.35, DASHBOARD_Z), "Navigation display", 1.4)
 	for i in SLOT_X.size():
 		add.call("lever_%d" % i, lever_transform(i, 0.0).origin, "Lever %d" % (i + 1), 1.0)

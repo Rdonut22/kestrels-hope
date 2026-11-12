@@ -12,9 +12,8 @@ extends RefCounted
 ##   panels; one bay is left open on exposed machinery.
 ## - Structure: gusset brackets where the ribs meet the walls, conduits
 ##   on stand-offs along the ceiling, cable bundles to junction boxes.
-## - Consoles: a fascia over the dash's face, and at each seat a layered
-##   instrument deck (buttons, toggle switches with guards, rotary knobs)
-##   and a display recessed in a bezel in a bracketed housing.
+## - Consoles: a fascia over the lowered dash block's face (the user's
+##   dashboard unit sits on top: cockpit_fitout.gd).
 ## - Floor: recessed grates, a cable channel with an open run, bolted
 ##   maintenance panels with lift handles.
 ## - Light: neutral ceiling fill so the materials read; the amber
@@ -465,87 +464,20 @@ func _consoles() -> void:
 	var mb := ProcMesh.Builder.new()
 	var dz := CockpitFitout.DASH_FRONT_Z
 	var top := CockpitFitout.DASH_TOP
-	# Fascia over the dash's face: a charcoal skin with off-white panels
-	# in it, vent slats low down, a kick plate, and a worn top edge.
-	ProcMesh.box(mb, "charcoal", Vector3(4.0, 0.47, dz + 0.012), Vector3(2.76, 0.9, 0.024))
+	# Fascia over the lowered dash block's face (the user's dashboard unit
+	# sits on top): a charcoal skin, vent slats in an off-white panel in
+	# front of each seat, a kick plate, and a worn top edge.
+	ProcMesh.box(mb, "charcoal", Vector3(4.0, top / 2.0, dz + 0.012), Vector3(2.76, top - 0.02, 0.024))
 	ProcMesh.box(mb, "edge", Vector3(4.0, top - 0.008, dz + 0.03), Vector3(2.78, 0.018, 0.03))
 	ProcMesh.box(mb, "charcoal_light", Vector3(4.0, 0.05, dz + 0.03), Vector3(2.76, 0.1, 0.02))
 	for x in [CockpitFitout.PILOT_X, CockpitFitout.COPILOT_X]:
-		ProcMesh.box(mb, "paint_light", Vector3(x, 0.6, dz + 0.03), Vector3(0.62, 0.36, 0.014))
+		ProcMesh.box(mb, "paint_light", Vector3(x, 0.33, dz + 0.03), Vector3(0.62, 0.36, 0.014))
 		for k in 5:
-			ProcMesh.box(mb, "pit", Vector3(x, 0.2 + k * 0.035, dz + 0.026), Vector3(0.4, 0.016, 0.004))
-			ProcMesh.box(mb, "charcoal_light", Vector3(x, 0.208 + k * 0.035, dz + 0.032), Vector3(0.42, 0.006, 0.01))
-		for c in [Vector2(-0.28, 0.75), Vector2(0.28, 0.75), Vector2(-0.28, 0.45), Vector2(0.28, 0.45)]:
+			ProcMesh.box(mb, "pit", Vector3(x, 0.26 + k * 0.035, dz + 0.04), Vector3(0.4, 0.016, 0.004))
+			ProcMesh.box(mb, "charcoal_light", Vector3(x, 0.268 + k * 0.035, dz + 0.046), Vector3(0.42, 0.006, 0.01))
+		for c in [Vector2(-0.28, 0.48), Vector2(0.28, 0.48), Vector2(-0.28, 0.18), Vector2(0.28, 0.18)]:
 			bolts.append(Transform3D(Basis(), Vector3(x + c.x, c.y, dz + 0.038)))
-	# The instrument decks and displays, one per seat.
-	for st in [[CockpitFitout.PILOT_X, 0, "Pilot", 1.0], [CockpitFitout.COPILOT_X, 1, "Copilot", -1.0]]:
-		_station(g, mb, st[0], st[1], st[2], st[3])
 	_commit(g, "Hardware", mb)
-
-
-## A seat's station on the dash top: a sloped instrument deck toward the
-## seat with buttons, guarded toggles and knobs, and the display housing.
-func _station(g: Node3D, mb: ProcMesh.Builder, x: float, mode: int, name: String, side: float) -> void:
-	var dz := CockpitFitout.DASH_FRONT_Z
-	var top := CockpitFitout.DASH_TOP
-	# Deck: a sloped plate standing on the dash top, nearest the seat.
-	var tilt := Basis(Vector3.RIGHT, 0.32)
-	var dc := Vector3(x, top + 0.035, dz - 0.13)
-	var deck := Transform3D(tilt, dc)
-	ProcMesh.box(mb, "charcoal", Vector3(0, -0.015, 0), Vector3(0.66, 0.05, 0.26), deck)
-	ProcMesh.box(mb, "paint_off", Vector3(0, 0.012, 0), Vector3(0.62, 0.006, 0.22), deck)
-	ProcMesh.box(mb, "edge", Vector3(0, 0.012, 0.115), Vector3(0.64, 0.012, 0.012), deck)
-	# Two rows of push buttons in a recessed strip.
-	ProcMesh.box(mb, "pit", Vector3(-0.12, 0.016, 0.05), Vector3(0.3, 0.004, 0.08), deck)
-	var lit := ["btn_amber", "btn_white", "btn_green", "btn_white", "btn_red", "btn_white"]
-	for row in 2:
-		for k in 6:
-			var mat: String = lit[(k + row * 2) % lit.size()]
-			ProcMesh.box(mb, mat, Vector3(-0.245 + k * 0.05, 0.022, 0.03 + row * 0.04), Vector3(0.032, 0.012, 0.026), deck)
-	# Toggle switches behind their guard rail.
-	for k in 4:
-		var sx := 0.08 + k * 0.045
-		var stalk := deck * Transform3D(Basis(Vector3.RIGHT, -0.5), Vector3(sx, 0.025, 0.05))
-		ProcMesh.box(mb, "charcoal_light", Vector3(sx, 0.018, 0.05), Vector3(0.026, 0.01, 0.03), deck)
-		ProcMesh.box(mb, "edge", Vector3(0, 0.02, 0), Vector3(0.008, 0.04, 0.008), stalk)
-	ProcMesh.box(mb, "charcoal_light", Vector3(0.145, 0.03, 0.085), Vector3(0.2, 0.024, 0.008), deck)
-	ProcMesh.box(mb, "red", Vector3(0.145, 0.043, 0.085), Vector3(0.2, 0.003, 0.009), deck)
-	# Rotary knobs at the back of the deck, with pointer lines.
-	for k in 3:
-		var kx := -0.2 + k * 0.1
-		var kn := deck * Transform3D(Basis(), Vector3(kx, 0.03, -0.07))
-		f._cyl(g, "%sKnob%d" % [name, k], kn.origin, kn.origin + deck.basis.y * 0.03, 0.019, m["charcoal_light"], 12)
-		f._cyl(g, "%sKnobCap%d" % [name, k], kn.origin + deck.basis.y * 0.03, kn.origin + deck.basis.y * 0.034, 0.015, m["edge"], 12)
-		ProcMesh.box(mb, "btn_white", Vector3(kx, 0.036, -0.08), Vector3(0.004, 0.003, 0.012), deck)
-	# Display housing: rear case, bezel frame, recessed screen, side
-	# brackets bolted to the dash, a hood.
-	var scr_tilt := Basis(Vector3.RIGHT, -0.45)
-	var c := Vector3(x, top + 0.2, dz - 0.33)
-	var hx := Transform3D(scr_tilt, c)
-	ProcMesh.box(mb, "charcoal", Vector3(0, 0, -0.03), Vector3(0.5, 0.33, 0.1), hx)
-	for e in [[Vector3(0, 0.15, 0.03), Vector3(0.5, 0.035, 0.03)], [Vector3(0, -0.15, 0.03), Vector3(0.5, 0.035, 0.03)],
-			[Vector3(-0.232, 0, 0.03), Vector3(0.036, 0.3, 0.03)], [Vector3(0.232, 0, 0.03), Vector3(0.036, 0.3, 0.03)]]:
-		ProcMesh.box(mb, "paint_light", e[0], e[1], hx)
-	ProcMesh.box(mb, "edge", Vector3(0, -0.168, 0.03), Vector3(0.5, 0.006, 0.03), hx)
-	ProcMesh.box(mb, "charcoal_light", Vector3(0, 0.175, 0.06), Vector3(0.52, 0.02, 0.11), hx)
-	for sx in [-0.27, 0.27]:
-		ProcMesh.box(mb, "charcoal_light", Vector3(sx, -0.08, -0.02), Vector3(0.03, 0.2, 0.08), hx)
-		bolts.append(hx * Transform3D(Basis(Vector3.UP, PI / 2 * signf(sx)), Vector3(sx + signf(sx) * 0.016, -0.12, -0.02)))
-	# Buttons down the bezel's side.
-	for k in 4:
-		ProcMesh.box(mb, ["btn_amber", "btn_white", "btn_white", "btn_green"][k], Vector3(0.232 * side, 0.09 - k * 0.06, 0.05), Vector3(0.02, 0.03, 0.012), hx)
-	var q := QuadMesh.new()
-	q.size = Vector2(0.4, 0.25)
-	var scr := MeshInstance3D.new()
-	scr.name = name + "Display"
-	scr.mesh = q
-	scr.material_override = f._display(mode, 0.4 / 0.25)
-	scr.transform = Transform3D(scr_tilt, c + scr_tilt * Vector3(0, 0, 0.022))
-	g.add_child(scr)
-	# Wires out of the housing's back into the dash.
-	var back := hx * Vector3(0.15 * side, -0.1, -0.08)
-	for k in 2:
-		f._cyl(g, "%sWire%d" % [name, k], back + Vector3(k * 0.02, 0, 0), Vector3(back.x + k * 0.02, top + 0.01, back.z - 0.06), 0.008, [m["rubber"], m["cable_red"]][k], 6)
 
 
 # ---------- floor ----------
