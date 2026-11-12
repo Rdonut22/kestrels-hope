@@ -141,6 +141,8 @@ func _make_materials() -> void:
 		"rusty_metal": load(tex + "rusty_metal.png"),
 		"ceil_nor": load(tex + "ceilplate_nor.png"), "ceil_metal": load(tex + "ceilplate_metal.png"),
 		"ceil_rough": load(tex + "ceilplate_rough.png"),
+		"concrete_albedo": load(tex + "concrete_color.png"), "concrete_nor": load(tex + "concrete_nor.png"),
+		"concrete_rough": load(tex + "concrete_rough.png"),
 		# Bathroom doorway on the left wall: hand wear.
 		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(), Vector4(), Vector4()]})
 	var frame: ShaderMaterial = mats["corridor_wall"].duplicate()

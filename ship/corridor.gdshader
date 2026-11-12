@@ -7,8 +7,8 @@ render_mode cull_disabled;
 // Projected in ship space (the hull is CSG, no UVs). The user's PBR sets
 // are applied with their own colour, normal, roughness (and metal) maps.
 //
-//   surface 0: wall: smooth dark metal in large sections with seams,
-//              grooves and inset panels (procedural relief)
+//   surface 0: wall: glossy laminated concrete (the user's clean concrete
+//              set) in large sheets with fine seams between them
 //   surface 1: floor: dark anti-slip (worn shutter set, fine ribs), darker
 //              border along the walls, a worn walking line down the middle
 //   surface 2: ceiling: dark glossy quilted padding
@@ -44,6 +44,15 @@ uniform sampler2D rusty_nor : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rusty_metal : hint_default_black, filter_linear_mipmap, repeat_enable;
 uniform float rusty_tile = 1.5;
+// Main walls: laminated concrete.
+uniform sampler2D concrete_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D concrete_nor : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D concrete_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform float concrete_tile = 2.0;
+// Lifts the set's dark albedo toward the cool light grey of its preview.
+uniform vec3 concrete_tint : source_color = vec3(1.55, 1.62, 1.72);
+// How glossy the laminate is: 0 = the concrete's own roughness, 1 = mirror.
+uniform float concrete_gloss : hint_range(0.0, 1.0) = 0.6;
 // Ceiling: the user's metal_plate_02 set (normal, metalness, roughness): dark,
 // gunmetal steel plates. Colour from its metal map.
 uniform sampler2D ceil_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -228,7 +237,27 @@ void fragment() {
 		col = quilt * (0.55 + 0.7 * puff) * (0.9 + 0.2 * cr) * mix(1.0, 0.35, seam);
 		rough = mix(0.5, 0.14, puff);
 		metal = 0.0;
-	} else if (s == 7 || s == 0) {
+	} else if (s == 0) {
+		// Laminated concrete in large sheets: the set's colour, normal and
+		// roughness under a glossy laminate, with fine seams between sheets
+		// and above the kick band.
+		vec2 p = vec2(uv.x, y);
+		vec2 cuv = p / concrete_tile;
+		float e = 0.004;
+		float r0 = wall_relief(p, false) - groove(abs(y - 0.16), 0.012);
+		float rx = wall_relief(p + vec2(e, 0.0), false) - groove(abs(y - 0.16), 0.012);
+		float ry = wall_relief(p + vec2(0.0, e), false) - groove(abs(y + e - 0.16), 0.012);
+		vec2 grad = vec2(rx - r0, ry - r0) / e;
+		vec3 cn = unpack_n(texture(concrete_nor, cuv), normal_strength * 0.8);
+		tn = normalize(vec3(cn.xy - grad * 0.008, cn.z));
+		col = texture(concrete_albedo, cuv).rgb * concrete_tint;
+		col *= mix(1.0, 0.35, clamp(-r0, 0.0, 1.0));   // seams darker
+		if (y <= kick_top + 0.04) {
+			col *= 0.6;                                  // darker kick band
+		}
+		rough = mix(texture(concrete_rough, cuv).r, 0.06, concrete_gloss);
+		metal = 0.0;
+	} else if (s == 7) {
 		// Smooth dark metal in large sections (walls, frames, beams):
 		// seams, grooves and inset panels as relief, soft sheen, faint
 		// smudges. Frames get only the seams.
