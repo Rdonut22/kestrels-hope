@@ -45,6 +45,12 @@ const DASHBOARD_Z := -12.86   # its centre, along the tunnel
 ## The user's under-dash unit (Meshy, decimated) fills the space under the
 ## dashboard: from the dash wall (z -13.4) to the dash face, floor to
 ## DASH_TOP, stretched a little to fit (x 1.47, y 1.58, z 1.3).
+## The user's canopy frame (Meshy, decimated): turned to face forward, its
+## raked front at the windshield's foot, stretched to the windshield's
+## width and up to the roof window.
+const CANOPY_PATH := "res://ship/models/canopy/canopy.glb"
+const CANOPY_SCALE := Vector3(1.53, 1.94, 1.47)
+const CANOPY_HALF := Vector3(0.951, 0.447, 0.714)
 const UNDER_DASH_PATH := "res://ship/models/under_dash/under_dash.glb"
 const UNDER_DASH_SCALE := Vector3(1.47, 1.58, 1.3)
 const UNDER_DASH_MIN := Vector3(-0.952, -0.197, -0.258)   # the model's bounds
@@ -66,6 +72,7 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 	_ribs(rings)
 	_windshield_frame(rings[rings.size() - 1])
 	_roof_window(rings)
+	_canopy()
 	_pedestal()
 	_yoke()
 	_screens()
@@ -349,6 +356,28 @@ func _roof_window(rings: Array) -> void:
 	# A cross bar over the rib between the two panes.
 	ProcMesh.box(mb, "steel", Vector3(cx, y + 0.05, -12.0), Vector3(w, 0.16, 0.1))
 	_mesh(node, "Frame", mb.commit(mats))
+
+
+## The canopy frame takes over from the built window frames (the glass
+## stays).
+func _canopy() -> void:
+	var node := _part("Canopy")
+	var c: Node3D = (load(CANOPY_PATH) as PackedScene).instantiate()
+	c.name = "Frame"
+	c.rotation.y = PI
+	c.scale = CANOPY_SCALE
+	c.position = Vector3(4.0, NoseCockpit.WS_Y + CANOPY_HALF.y * CANOPY_SCALE.y,
+		NoseCockpit.WS_Z + CANOPY_HALF.z * CANOPY_SCALE.z)
+	node.add_child(c)
+	for path in ["WindshieldFrame", "RoofWindow/Frame"]:
+		var old := root.get_node_or_null(path) as Node3D
+		if old:
+			old.visible = false
+	# The shell's own steel window posts and sill (nose_cockpit.gd): the
+	# canopy has its own.
+	for n in ext.get_children():
+		if n is Node3D and (String(n.name).contains("Mullion") or String(n.name).contains("WindshieldSill")):
+			(n as Node3D).visible = false
 
 
 # ---------- controls ----------

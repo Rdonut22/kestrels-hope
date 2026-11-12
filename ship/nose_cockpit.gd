@@ -333,7 +333,7 @@ func _front(ring: PackedVector3Array) -> void:
 		var y1 := _top_at(above, x)
 		var a := Vector3(x, WS_Y, plane_z(WS_Y))
 		var b := Vector3(x, y1, plane_z(y1))
-		_bar("Mullion", a, b, Vector3(0.07, 0.0, 0.07), steel)
+		_bar("Mullion%d" % int(x * 100), a, b, Vector3(0.07, 0.0, 0.07), steel)
 	var sl := _x_span(above, WS_Y + 0.01)
 	_bar("WindshieldSill", Vector3(sl.x, WS_Y + 0.02, plane_z(WS_Y) + 0.02), Vector3(sl.y, WS_Y + 0.02, plane_z(WS_Y) + 0.02),
 		Vector3(0.0, 0.06, 0.12), steel)
