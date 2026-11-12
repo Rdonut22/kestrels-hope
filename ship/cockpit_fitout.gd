@@ -85,7 +85,8 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 	root.name = "CockpitFitout"
 	ext.add_child(root)
 	_materials()
-	_ribs(rings)
+	# (No built ribs or window frames: the user's canopy and wall section
+	# frame the cockpit.)
 	_windshield_frame(rings[rings.size() - 1])
 	_roof_window(rings)
 	_canopy()
