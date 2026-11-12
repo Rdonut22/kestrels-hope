@@ -166,12 +166,10 @@ func _front_ring() -> PackedVector3Array:
 # ---------- meshes ----------
 
 func _liner(rings: Array) -> void:
-	# Aged-ivory painted panels (corridor.gdshader surface 3), the deck
-	# plates underfoot (surface 1).
+	# Panelled metal walls (corridor.gdshader surface 9), the deck plates
+	# underfoot (surface 1).
 	var src := load("res://ship/materials/corridor_wall.tres") as ShaderMaterial
-	var wall_src := src.duplicate() as ShaderMaterial
-	wall_src.set_shader_parameter("surface", 3)
-	wall_src.set_shader_parameter("panel_color", Color("C5B9A5"))
+	var wall_src := panel_material()
 	var floor_mat := src.duplicate() as ShaderMaterial
 	floor_mat.set_shader_parameter("surface", 1)
 	var sts := [SurfaceTool.new(), SurfaceTool.new()]
@@ -199,6 +197,22 @@ func _liner(rings: Array) -> void:
 	mi.set_surface_override_material(1, floor_mat)
 	ext.add_child(mi)
 	_body("CockpitLinerBody", col)
+
+
+## The cockpit's walls, ceiling and dash: the user's panelled metal wall
+## texture (corridor.gdshader surface 9), one material shared by all.
+static var _panel: ShaderMaterial
+
+
+static func panel_material() -> ShaderMaterial:
+	if _panel == null:
+		_panel = (load("res://ship/materials/corridor_wall.tres") as ShaderMaterial).duplicate() as ShaderMaterial
+		_panel.set_shader_parameter("surface", 9)
+		var tex := "res://ship/textures/interior/cockpit_panel_"
+		_panel.set_shader_parameter("cockpit_albedo", load(tex + "color.png"))
+		_panel.set_shader_parameter("cockpit_nor", load(tex + "nor.png"))
+		_panel.set_shader_parameter("cockpit_rm", load(tex + "rm.png"))
+	return _panel
 
 
 ## Adds a triangle facing the axis point (into the room).
@@ -233,7 +247,6 @@ func _body(n: String, faces: PackedVector3Array) -> void:
 ## sill), and the frame between the glass and the fuselage's skin.
 func _front(ring: PackedVector3Array) -> void:
 	var paint: Material = ext.call("_mat")
-	var dark := load("res://ship/materials/corridor_frame.tres") as Material
 	var steel := StandardMaterial3D.new()
 	steel.albedo_color = Color(0.58, 0.56, 0.53)
 	steel.metallic = 0.75
@@ -254,7 +267,7 @@ func _front(ring: PackedVector3Array) -> void:
 			above.append(p)
 			below.append(p)
 	# Dash wall (faces into the cockpit).
-	_fan("Dash", below, dark, behind, true)
+	_fan("Dash", below, panel_material(), behind, true)
 	# Glass.
 	var glass_mat := ShaderMaterial.new()
 	glass_mat.shader = preload("res://ship/galley_glass.gdshader")
