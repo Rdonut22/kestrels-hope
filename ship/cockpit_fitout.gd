@@ -58,17 +58,15 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 # ---------- materials ----------
 
 func _materials() -> void:
-	# Structural framing (ribs, window frames): the middle corridor wall's
-	# worn metal plate, stretched large so each piece reads as one smooth
-	# solid part. Projected in world space (the meshes have no UVs).
+	# Structural framing (ribs, window frames): clean, smooth, shiny metal
+	# in the colour of the user's reference photo.
 	var steel := StandardMaterial3D.new()
-	steel.albedo_texture = load("res://ship/textures/interior/bulkhead_plate_color.png")
-	steel.uv1_triplanar = true
-	steel.uv1_world_triplanar = true
-	steel.uv1_scale = Vector3.ONE * 0.22
-	steel.uv1_offset = Vector3(0.3, 0.3, 0.3)
-	steel.metallic = 0.45
-	steel.roughness = 0.5
+	steel.albedo_color = Color(0.61, 0.58, 0.59)
+	# Only part metallic: the cockpit has little bright to reflect, and a
+	# fully metallic surface would read dark instead of silver.
+	steel.metallic = 0.35
+	steel.roughness = 0.22
+	steel.metallic_specular = 0.8
 	mats["steel"] = steel
 	var steel_edge := steel.duplicate() as StandardMaterial3D
 	steel_edge.albedo_color = Color(0.32, 0.31, 0.29)
