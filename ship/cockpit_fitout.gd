@@ -51,6 +51,13 @@ const DASHBOARD_Z := -12.86   # its centre, along the tunnel
 const CANOPY_PATH := "res://ship/models/canopy/canopy.glb"
 const CANOPY_SCALE := Vector3(1.53, 1.94, 1.47)
 const CANOPY_HALF := Vector3(0.951, 0.447, 0.714)
+## The user's flight yoke (Meshy, decimated): 0.21 takes its 1.9 model
+## units to about 0.4 m across the grips. Its display faces the pilot (+Z).
+const YOKE_PATH := "res://ship/models/yoke/yoke.glb"
+const YOKE_SCALE := 0.21
+const YOKE_HALF := Vector3(0.952, 0.669, 0.343)
+const YOKE_Y := 0.86
+const YOKE_Z := -12.3     # its centre: pushed out ahead of the dash face
 const UNDER_DASH_PATH := "res://ship/models/under_dash/under_dash.glb"
 const UNDER_DASH_SCALE := Vector3(1.47, 1.58, 1.3)
 const UNDER_DASH_MIN := Vector3(-0.952, -0.197, -0.258)   # the model's bounds
@@ -106,6 +113,15 @@ func _materials() -> void:
 	bronze.metallic = 0.85
 	bronze.roughness = 0.38
 	mats["bronze"] = bronze
+	var chrome := StandardMaterial3D.new()
+	chrome.albedo_color = Color(0.78, 0.78, 0.76)
+	chrome.metallic = 1.0
+	chrome.roughness = 0.15
+	mats["chrome"] = chrome
+	var cable_red := StandardMaterial3D.new()
+	cable_red.albedo_color = Color(0.35, 0.08, 0.06)
+	cable_red.roughness = 0.6
+	mats["cable_red"] = cable_red
 	var rubber := StandardMaterial3D.new()
 	rubber.albedo_color = Color(0.06, 0.06, 0.06)
 	rubber.roughness = 0.8
@@ -463,25 +479,45 @@ static func make_lever(m: Dictionary) -> Node3D:
 	return lever
 
 
-## The pilot's yoke: a short column out of the dash, a hub with a round
-## display and two upright grips.
+## The pilot's yoke: the user's flight yoke model (Meshy, decimated),
+## pushed out from the under-dash toward the pilot on a hydraulic cylinder
+## (a dark barrel, a polished piston rod, a collar where it meets the
+## yoke), with a few wires drooping from its back into the dash.
 func _yoke() -> void:
 	var node := _part("Yoke")
-	var y := 0.8
-	var z0 := DASH_FRONT_Z
-	var z1 := DASH_FRONT_Z + 0.32
-	_cyl(node, "ColumnSleeve", Vector3(PILOT_X, y, z0), Vector3(PILOT_X, y, z0 + 0.14), 0.05, mats["steel"])
-	_cyl(node, "Column", Vector3(PILOT_X, y, z0), Vector3(PILOT_X, y, z1), 0.03, mats["steel_edge"])
-	_cyl(node, "Hub", Vector3(PILOT_X, y, z1 - 0.03), Vector3(PILOT_X, y, z1 + 0.02), 0.075, mats["steel"], 24)
-	_cyl(node, "HubRing", Vector3(PILOT_X, y, z1 + 0.018), Vector3(PILOT_X, y, z1 + 0.026), 0.078, mats["bronze"], 24)
-	var face := QuadMesh.new()
-	face.size = Vector2(0.12, 0.12)
-	_mesh(node, "HubDisplay", face, Transform3D(Basis(), Vector3(PILOT_X, y, z1 + 0.027)), _display(2, 1.0))
-	for side in [-1.0, 1.0]:
-		var hx: float = PILOT_X + side * 0.17
-		_cyl(node, "Arm%d" % int(side), Vector3(PILOT_X + side * 0.06, y, z1 - 0.005), Vector3(hx, y, z1 - 0.005), 0.016, mats["steel"])
-		_cyl(node, "Grip%d" % int(side), Vector3(hx, y - 0.03, z1 - 0.005), Vector3(hx, y + 0.11, z1 - 0.005), 0.022, mats["rubber"])
-		_cyl(node, "GripCap%d" % int(side), Vector3(hx, y + 0.11, z1 - 0.005), Vector3(hx, y + 0.125, z1 - 0.005), 0.024, mats["bronze"])
+	var y := YOKE_Y
+	var back := YOKE_Z - YOKE_HALF.z * YOKE_SCALE     # the yoke's rear face
+	var dash := DASH_FRONT_Z + 0.02
+	var unit: Node3D = (load(YOKE_PATH) as PackedScene).instantiate()
+	unit.name = "Unit"
+	unit.scale = Vector3.ONE * YOKE_SCALE
+	unit.position = Vector3(PILOT_X, y, YOKE_Z)
+	node.add_child(unit)
+	# Hydraulic cylinder: mounting flange on the dash, barrel, gland, rod.
+	var mid := lerpf(dash, back, 0.55)
+	_cyl(node, "Flange", Vector3(PILOT_X, y, dash - 0.01), Vector3(PILOT_X, y, dash + 0.015), 0.06, mats["steel_edge"], 16)
+	_cyl(node, "Barrel", Vector3(PILOT_X, y, dash), Vector3(PILOT_X, y, mid), 0.038, mats["rubber"], 18)
+	_cyl(node, "BarrelBand", Vector3(PILOT_X, y, lerpf(dash, mid, 0.5) - 0.01), Vector3(PILOT_X, y, lerpf(dash, mid, 0.5) + 0.01), 0.041, mats["bronze"], 18)
+	_cyl(node, "Gland", Vector3(PILOT_X, y, mid - 0.01), Vector3(PILOT_X, y, mid + 0.015), 0.043, mats["steel_edge"], 18)
+	_cyl(node, "Rod", Vector3(PILOT_X, y, mid), Vector3(PILOT_X, y, back + 0.01), 0.018, mats["chrome"], 14)
+	_cyl(node, "RodEnd", Vector3(PILOT_X, y, back - 0.015), Vector3(PILOT_X, y, back + 0.012), 0.03, mats["steel_edge"], 14)
+	# A hydraulic line from the barrel's top back into the dash.
+	_wire(node, "HydraulicLine", [Vector3(PILOT_X + 0.03, y + 0.04, mid - 0.03), Vector3(PILOT_X + 0.05, y + 0.07, lerpf(dash, mid, 0.4)),
+		Vector3(PILOT_X + 0.06, y + 0.05, dash + 0.005)], 0.008, mats["bronze"])
+	# Wires from the yoke's back, sagging down into the under-dash.
+	var cols := [mats["rubber"], mats["cable_red"], mats["rubber"]]
+	for k in 3:
+		var x := PILOT_X - 0.06 + k * 0.06
+		var start := Vector3(x, y - 0.05, back + 0.005)
+		var end := Vector3(x * 0.6 + PILOT_X * 0.4, y - 0.2 - k * 0.02, dash + 0.005)
+		var sag := (start + end) / 2.0 + Vector3(0, -0.1 - k * 0.02, 0)
+		_wire(node, "Wire%d" % k, [start, start.lerp(sag, 0.6), sag, sag.lerp(end, 0.5), end], 0.009, cols[k])
+
+
+## A cable through the given points, as short straight pieces.
+func _wire(parent: Node, name: String, pts: Array, r: float, mat: Material) -> void:
+	for i in pts.size() - 1:
+		_cyl(parent, "%s_%d" % [name, i], pts[i], pts[i + 1], r, mat, 8)
 
 
 func _display(mode: int, aspect: float) -> ShaderMaterial:
