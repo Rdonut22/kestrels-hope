@@ -58,20 +58,17 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 # ---------- materials ----------
 
 func _materials() -> void:
-	# Structural framing (ribs, window frames, housings): worn light metal,
-	# projected in world space so the procedural meshes need no UVs.
+	# Structural framing (ribs, window frames): the middle corridor wall's
+	# worn metal plate, stretched large so each piece reads as one smooth
+	# solid part. Projected in world space (the meshes have no UVs).
 	var steel := StandardMaterial3D.new()
-	var tex := "res://ship/textures/interior/bulkhead_plate_"
-	steel.albedo_texture = load(tex + "color.png")
-	steel.albedo_color = Color(1.25, 1.2, 1.15)
-	steel.normal_enabled = true
-	steel.normal_texture = load(tex + "nor.png")
-	steel.normal_scale = 0.4
+	steel.albedo_texture = load("res://ship/textures/interior/bulkhead_plate_color.png")
 	steel.uv1_triplanar = true
 	steel.uv1_world_triplanar = true
-	steel.uv1_scale = Vector3.ONE * 1.4
+	steel.uv1_scale = Vector3.ONE * 0.22
+	steel.uv1_offset = Vector3(0.3, 0.3, 0.3)
 	steel.metallic = 0.45
-	steel.roughness = 0.55
+	steel.roughness = 0.5
 	mats["steel"] = steel
 	var steel_edge := steel.duplicate() as StandardMaterial3D
 	steel_edge.albedo_color = Color(0.32, 0.31, 0.29)
@@ -500,14 +497,6 @@ func _screens() -> void:
 
 
 # ---------- floor, light, rail ----------
-
-## The cockpit floor: perforated deck plate (nose_cockpit.gd puts it on the
-## shell's floor).
-static func floor_material() -> ShaderMaterial:
-	var m := ShaderMaterial.new()
-	m.shader = load("res://ship/perforated_floor.gdshader")
-	return m
-
 
 func _lights(rings: Array) -> void:
 	var node := _part("Lights")
