@@ -127,6 +127,7 @@ func _make_materials() -> void:
 	# jackets, each tinted by its vertex colour.
 	_mat("insulated_cable", Color.WHITE, 0.5)
 	(mats["insulated_cable"] as StandardMaterial3D).vertex_color_use_as_albedo = true
+	ResourceSaver.save(mats["insulated_cable"], "res://ship/materials/insulated_cable.tres")
 	_mat("cable_clamp", Color(0.2, 0.21, 0.22), 0.45, 0.6)
 	_mat("hazard", Color(0.78, 0.42, 0.12), 0.6, 0.2)
 	_mat("copper", Color(0.62, 0.33, 0.18), 0.4, 0.85)
@@ -2213,10 +2214,10 @@ func _distribution_board() -> void:
 	var k := 0
 	for row in 2:
 		for col in 3:
-			var dx := (col - 1) * 0.11 + row * 0.03
+			var dx := (col - 1) * 0.12 + row * 0.03
 			var z0 := BULKHEAD_Z1 + 0.09 + row * 0.08
 			var zw := BULKHEAD_Z1 + 0.05 + row * 0.055
-			var r := 0.032 if (k % 2 == 0) else 0.026
+			var r := 0.045 if (k % 2 == 0) else 0.038
 			runs.append({"pts": [Vector3(BOARD_X + dx, top, z0), Vector3(BOARD_X + dx * 0.95, top + 0.22, z0 - 0.01),
 				Vector3(BOARD_X + dx * 0.6, top + 0.6, zw), Vector3(BOARD_X + dx * 0.55, 2.3, zw),
 				Vector3(BOARD_X + dx * 0.6, 2.82, zw + 0.01), Vector3(BOARD_X + dx * 0.7, 3.25, zw + 0.06)],
@@ -2226,7 +2227,7 @@ func _distribution_board() -> void:
 	# Clamps holding the bundle to the wall.
 	for y in [top + 0.75, 2.45]:
 		_mesh_box(root, "Clamp%d" % int(y * 100), Vector3(BOARD_X + 0.0, y, BULKHEAD_Z1 + 0.06),
-			Vector3(0.34, 0.05, 0.12), "cable_clamp")
+			Vector3(0.36, 0.05, 0.16), "cable_clamp")
 
 
 # The doorway's outline (u across, v up), counter-clockwise from the start
