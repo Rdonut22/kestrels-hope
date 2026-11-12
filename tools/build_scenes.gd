@@ -123,6 +123,11 @@ func _make_materials() -> void:
 	_shader_mat("pad_frame", "worn", {"base_color": Color(0.5, 0.47, 0.41), "grime": 0.6, "chips": 0.1,
 		"scratches": 0.3, "fade": 0.3, "noise_scale": 2.0, "roughness_amount": 0.6, "metallic_amount": 0.2})
 	_mat("tie", Color(0.86, 0.85, 0.8), 0.55)
+	# Insulated power cables (the distribution board's bundle): rubber
+	# jackets, each tinted by its vertex colour.
+	_mat("insulated_cable", Color.WHITE, 0.5)
+	(mats["insulated_cable"] as StandardMaterial3D).vertex_color_use_as_albedo = true
+	_mat("cable_clamp", Color(0.2, 0.21, 0.22), 0.45, 0.6)
 	_mat("hazard", Color(0.78, 0.42, 0.12), 0.6, 0.2)
 	_mat("copper", Color(0.62, 0.33, 0.18), 0.4, 0.85)
 	_mat("cable", Color(0.06, 0.06, 0.06), 0.7)
@@ -587,6 +592,7 @@ func _build_ship() -> void:
 	_lounge()
 	_lounge_entrance()
 	_padded_doorways()
+	_distribution_board()
 	_bookshelf()
 	_crates()
 	_reactor_pod()
@@ -2171,6 +2177,58 @@ const PADDED_DOORS := [
 ]
 
 
+# The user's industrial distribution board (Meshy, decimated), standing on
+# the floor against the lounge side of the middle bulkhead, right of its
+# doorway, with a thick bundle of insulated cables rising from its top up
+# the wall and into the ceiling. The model faces +Z (aft, toward the
+# lounge); BOARD_SCALE takes its 1.9 model units to about 1.4 m.
+const BOARD_PATH := "res://ship/models/distribution_board/distribution_board.glb"
+const BOARD_SCALE := 0.75
+const BOARD_X := 1.4
+const BOARD_HALF := Vector3(0.43, 0.951, 0.315)  # the model's half size
+
+
+func _distribution_board() -> void:
+	var root := _add(scene_root, Node3D.new(), "DistributionBoard")
+	var half := BOARD_HALF * BOARD_SCALE
+	var centre := Vector3(BOARD_X, half.y, BULKHEAD_Z1 + half.z + 0.005)
+	var board: Node3D = (load(BOARD_PATH) as PackedScene).instantiate()
+	board.scale = Vector3.ONE * BOARD_SCALE
+	board.position = centre
+	_add(root, board, "Board")
+	var body := StaticBody3D.new()
+	_add(root, body, "Collision")
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = half * 2.0
+	cs.shape = box
+	cs.position = centre
+	_add(body, cs, "Shape")
+	# Cables: two rows out of the back of the top, gathering into one tight
+	# bundle against the wall, up into the ceiling.
+	var top := half.y * 2.0 - 0.04
+	var runs := []
+	var tints := [Color(0.07, 0.07, 0.075), Color(0.11, 0.11, 0.115), Color(0.07, 0.07, 0.075),
+		Color(0.32, 0.08, 0.05), Color(0.09, 0.09, 0.095), Color(0.14, 0.14, 0.13)]
+	var k := 0
+	for row in 2:
+		for col in 3:
+			var dx := (col - 1) * 0.11 + row * 0.03
+			var z0 := BULKHEAD_Z1 + 0.09 + row * 0.08
+			var zw := BULKHEAD_Z1 + 0.05 + row * 0.055
+			var r := 0.032 if (k % 2 == 0) else 0.026
+			runs.append({"pts": [Vector3(BOARD_X + dx, top, z0), Vector3(BOARD_X + dx * 0.95, top + 0.22, z0 - 0.01),
+				Vector3(BOARD_X + dx * 0.6, top + 0.6, zw), Vector3(BOARD_X + dx * 0.55, 2.3, zw),
+				Vector3(BOARD_X + dx * 0.6, 2.82, zw + 0.01), Vector3(BOARD_X + dx * 0.7, 3.25, zw + 0.06)],
+				"r": r, "tint": tints[k], "ties": []})
+			k += 1
+	_hoses(root, "PowerCables", runs, "insulated_cable", "cable_clamp")
+	# Clamps holding the bundle to the wall.
+	for y in [top + 0.75, 2.45]:
+		_mesh_box(root, "Clamp%d" % int(y * 100), Vector3(BOARD_X + 0.0, y, BULKHEAD_Z1 + 0.06),
+			Vector3(0.34, 0.05, 0.12), "cable_clamp")
+
+
 # The doorway's outline (u across, v up), counter-clockwise from the start
 # of the bottom-right fillet round to the end of the bottom-left one; the
 # closing edge is the floor.
@@ -2604,7 +2662,7 @@ func _sweep(st: SurfaceTool, path: PackedVector3Array, radius: float, tint: Colo
 # Builds hose runs into one mesh (saved next to the ship's materials so the
 # scenes stay small) with white zip ties. Each run: {"pts", "r", "tint", "ties"}
 # where "ties" lists indices into "pts".
-func _hoses(parent: Node, name: String, runs: Array) -> Node3D:
+func _hoses(parent: Node, name: String, runs: Array, mat := "hose", tie_mat := "tie") -> Node3D:
 	var node := _add(parent, Node3D.new(), name)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -2623,7 +2681,7 @@ func _hoses(parent: Node, name: String, runs: Array) -> Node3D:
 	ResourceSaver.save(st.commit(), path)
 	var mi := MeshInstance3D.new()
 	mi.mesh = load(path)
-	mi.material_override = mats["hose"]
+	mi.material_override = mats[mat]
 	_add(node, mi, "Hoses")
 	if ties.size() > 0:
 		var tie := TorusMesh.new()
@@ -2639,7 +2697,7 @@ func _hoses(parent: Node, name: String, runs: Array) -> Node3D:
 			mm.set_instance_transform(i, ties[i])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
-		mmi.material_override = mats["tie"]
+		mmi.material_override = mats[tie_mat]
 		_add(node, mmi, "Ties")
 	return node
 

@@ -49,7 +49,8 @@ func _run(out: String) -> void:
 		["8_entrance", Vector3(-0.15, 1.7, 2.5), Vector3(-0.15, 0.0, 8.5)], ["9_mats", Vector3(-0.15, 1.3, 5.0), Vector3(-0.15, 0.0, 6.6)], ["a_quarters", Vector3(1.3, 1.6, -6.2), Vector3(-2.0, 0.3, -8.8)], ["b_kitchen", Vector3(4.0, 1.6, -3.6), Vector3(3.5, 0.2, -6.5)], ["c_ceiling", Vector3(-0.15, 1.5, 7.5), Vector3(-0.15, 3.0, 2.0)], ["d_up", Vector3(-0.15, 1.8, 4.3), Vector3(-0.1, 3.0, 4.31)], ["e_sconce", Vector3(-1.2, 1.85, 2.2), Vector3(-2.2, 1.93, 2.72)], ["f_sconces", Vector3(0.5, 1.6, -3.5), Vector3(-0.3, 1.5, 3.0)],
 		["g_engineering", Vector3(1.2, 1.6, 3.6), Vector3(-2.3, 1.1, 1.0)], ["h_fore", Vector3(0.3, 1.7, 3.6), Vector3(-0.3, 1.1, -3.5)],
 		["i_from_fore", Vector3(-0.3, 1.6, -4.4), Vector3(-0.1, 1.1, 1.0)], ["j_eng_inside", Vector3(-5.2, 1.5, 2.6), Vector3(-2.3, 1.0, 0.8)],
-		["k_eng_close", Vector3(0.6, 1.4, 1.1), Vector3(-2.4, 1.1, 1.1)], ["l_bulk_close", Vector3(0.4, 1.3, 1.0), Vector3(-0.2, 1.2, -1.4)]]
+		["k_eng_close", Vector3(0.6, 1.4, 1.1), Vector3(-2.4, 1.1, 1.1)], ["l_bulk_close", Vector3(0.4, 1.3, 1.0), Vector3(-0.2, 1.2, -1.4)],
+		["m_board", Vector3(0.1, 1.55, 1.3), Vector3(1.4, 1.5, -1.2)], ["n_board_up", Vector3(0.6, 1.2, 0.2), Vector3(1.4, 2.7, -1.2)]]
 	# VIEWS=g,h renders only the views whose names start with those letters.
 	var only := OS.get_environment("VIEWS").split(",", false)
 	for v in views:
