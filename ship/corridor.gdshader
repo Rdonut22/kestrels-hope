@@ -53,7 +53,7 @@ uniform sampler2D plate_nor_big : hint_normal, filter_linear_mipmap;
 uniform sampler2D plate_rm_big : hint_default_white, filter_linear_mipmap;  // r roughness, g metal
 // The bulkhead face: x from..to (ship x) and its height.
 uniform vec3 bulkhead_span = vec3(-2.3, 2.0, 3.0);
-uniform float plate_relief : hint_range(0.0, 2.0) = 0.9;
+uniform float plate_relief : hint_range(0.0, 2.0) = 0.3;
 // Ceiling: the user's metal_plate_02 set (normal, metalness, roughness): dark,
 // gunmetal steel plates. Colour from its metal map.
 uniform sampler2D ceil_nor : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -249,8 +249,8 @@ void fragment() {
 		tn = unpack_n(texture(plate_nor_big, puv), plate_relief);
 		col = texture(plate_albedo_big, puv).rgb;
 		vec2 rm = texture(plate_rm_big, puv).rg;
-		rough = rm.r;
-		metal = rm.g;
+		rough = clamp(rm.r + 0.12, 0.0, 1.0);
+		metal = rm.g * 0.45;
 	} else if (s == 7 || s == 0) {
 		// Smooth dark metal in large sections (walls, frames, beams):
 		// seams, grooves and inset panels as relief, soft sheen, faint

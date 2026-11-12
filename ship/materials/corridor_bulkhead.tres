@@ -1,0 +1,73 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ship/corridor.gdshader" id="1_8ckot"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_metal.png" id="2_8dd0q"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_nor.png" id="3_k0632"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_rough.png" id="4_omfdv"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_color.png" id="5_to73x"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/bulkhead_plate_color.png" id="6_kjqn1"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_detail.png" id="7_yy3gn"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_nor.png" id="8_tvvpo"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/bulkhead_plate_nor.png" id="9_opcx6"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/bulkhead_plate_rm.png" id="10_lt4xj"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_rough.png" id="11_ef65p"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rubber_nor.png" id="12_vmj83"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rubber_rough.png" id="13_h3lyt"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_color.png" id="14_vtyrl"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_metal.png" id="15_b3knh"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_nor.png" id="16_o5dqt"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/rusty_rough.png" id="17_j8s4x"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_8ckot")
+shader_parameter/surface = 8
+shader_parameter/off_white = Color(0.773, 0.725, 0.647, 1)
+shader_parameter/olive = Color(0.42, 0.447, 0.365, 1)
+shader_parameter/gunmetal = Color(0.282, 0.275, 0.255, 1)
+shader_parameter/floor_color = Color(0.24, 0.24, 0.23, 1)
+shader_parameter/panel_color = Color(0.714, 0.702, 0.643, 1)
+shader_parameter/kick_top = 0.12
+shader_parameter/olive_top = 1.0
+shader_parameter/rail_top = 1.06
+shader_parameter/panel_top = 3.6
+shader_parameter/plate_nor = ExtResource("8_tvvpo")
+shader_parameter/plate_rough = ExtResource("11_ef65p")
+shader_parameter/plate_detail = ExtResource("7_yy3gn")
+shader_parameter/plate_albedo = ExtResource("5_to73x")
+shader_parameter/rusty_albedo = ExtResource("14_vtyrl")
+shader_parameter/rusty_nor = ExtResource("16_o5dqt")
+shader_parameter/rusty_rough = ExtResource("17_j8s4x")
+shader_parameter/rusty_metal = ExtResource("15_b3knh")
+shader_parameter/rusty_tile = 1.5
+shader_parameter/plate_albedo_big = ExtResource("6_kjqn1")
+shader_parameter/plate_nor_big = ExtResource("9_opcx6")
+shader_parameter/plate_rm_big = ExtResource("10_lt4xj")
+shader_parameter/bulkhead_span = Vector3(-2.3, 2, 3)
+shader_parameter/plate_relief = 0.9
+shader_parameter/ceil_nor = ExtResource("3_k0632")
+shader_parameter/ceil_metal = ExtResource("2_8dd0q")
+shader_parameter/ceil_rough = ExtResource("4_omfdv")
+shader_parameter/ceil_tile = 2.2
+shader_parameter/ceil_steel = Color(0.34, 0.36, 0.4, 1)
+shader_parameter/ceil_rust = Color(0.25, 0.26, 0.29, 1)
+shader_parameter/deck_light = Color(0.78, 0.73, 0.63, 1)
+shader_parameter/deck_dark = Color(0.55, 0.51, 0.44, 1)
+shader_parameter/dark_paint = Color(0.2, 0.195, 0.185, 1)
+shader_parameter/worn_edge = Color(0.46, 0.44, 0.4, 1)
+shader_parameter/quilt = Color(0.05, 0.048, 0.046, 1)
+shader_parameter/wall_metal = Color(0.085, 0.08, 0.074, 1)
+shader_parameter/bay = 1.6
+shader_parameter/quilt_size = 0.55
+shader_parameter/rubber_nor = ExtResource("12_vmj83")
+shader_parameter/rubber_rough = ExtResource("13_h3lyt")
+shader_parameter/mat_start = 4.3
+shader_parameter/rubber_tile = 1.3
+shader_parameter/rubber_color = Color(0.3, 0.31, 0.32, 1)
+shader_parameter/plate_tile = 3.0
+shader_parameter/green_tile = 1.6
+shader_parameter/shutter_tile = 1.0
+shader_parameter/normal_strength = 1.3
+shader_parameter/detail_amount = 0.6
+shader_parameter/doors = [Vector4(-2.3, -3, 1.156, 0), Vector4(0, 0, 0, 0), Vector4(0, 0, 0, 0), Vector4(0, 0, 0, 0)]
+shader_parameter/hand_wear = 0.6

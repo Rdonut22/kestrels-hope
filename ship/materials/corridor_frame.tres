@@ -4,12 +4,12 @@
 [ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_metal.png" id="2_bi2ie"]
 [ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_nor.png" id="3_a7xow"]
 [ext_resource type="Texture2D" path="res://ship/textures/interior/ceilplate_rough.png" id="4_earsj"]
-[ext_resource type="Texture2D" path="res://ship/textures/interior/concrete_color.png" id="5_av126"]
-[ext_resource type="Texture2D" path="res://ship/textures/interior/concrete_nor.png" id="6_drdhs"]
-[ext_resource type="Texture2D" path="res://ship/textures/interior/concrete_rough.png" id="7_1f84o"]
-[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_color.png" id="8_c48i6"]
-[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_detail.png" id="9_ounyb"]
-[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_nor.png" id="10_2c715"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_color.png" id="5_av126"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/bulkhead_plate_color.png" id="6_drdhs"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_detail.png" id="7_1f84o"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/plate_nor.png" id="8_c48i6"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/bulkhead_plate_nor.png" id="9_ounyb"]
+[ext_resource type="Texture2D" path="res://ship/textures/interior/bulkhead_plate_rm.png" id="10_2c715"]
 [ext_resource type="Texture2D" path="res://ship/textures/interior/plate_rough.png" id="11_endtc"]
 [ext_resource type="Texture2D" path="res://ship/textures/interior/rubber_nor.png" id="12_mcmdd"]
 [ext_resource type="Texture2D" path="res://ship/textures/interior/rubber_rough.png" id="13_4k08s"]
@@ -31,21 +31,20 @@ shader_parameter/kick_top = 0.12
 shader_parameter/olive_top = 1.0
 shader_parameter/rail_top = 1.06
 shader_parameter/panel_top = 3.6
-shader_parameter/plate_nor = ExtResource("10_2c715")
+shader_parameter/plate_nor = ExtResource("8_c48i6")
 shader_parameter/plate_rough = ExtResource("11_endtc")
-shader_parameter/plate_detail = ExtResource("9_ounyb")
-shader_parameter/plate_albedo = ExtResource("8_c48i6")
+shader_parameter/plate_detail = ExtResource("7_1f84o")
+shader_parameter/plate_albedo = ExtResource("5_av126")
 shader_parameter/rusty_albedo = ExtResource("14_aniop")
 shader_parameter/rusty_nor = ExtResource("16_gv0lo")
 shader_parameter/rusty_rough = ExtResource("17_ke4qw")
 shader_parameter/rusty_metal = ExtResource("15_343wc")
 shader_parameter/rusty_tile = 1.5
-shader_parameter/concrete_albedo = ExtResource("5_av126")
-shader_parameter/concrete_nor = ExtResource("6_drdhs")
-shader_parameter/concrete_rough = ExtResource("7_1f84o")
-shader_parameter/concrete_tile = 2.0
-shader_parameter/concrete_tint = Color(1.55, 1.62, 1.72, 1)
-shader_parameter/concrete_relief = 0.15
+shader_parameter/plate_albedo_big = ExtResource("6_drdhs")
+shader_parameter/plate_nor_big = ExtResource("9_ounyb")
+shader_parameter/plate_rm_big = ExtResource("10_2c715")
+shader_parameter/bulkhead_span = Vector3(-2.3, 2, 3)
+shader_parameter/plate_relief = 0.9
 shader_parameter/ceil_nor = ExtResource("3_a7xow")
 shader_parameter/ceil_metal = ExtResource("2_bi2ie")
 shader_parameter/ceil_rough = ExtResource("4_earsj")
