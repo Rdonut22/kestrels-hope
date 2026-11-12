@@ -28,7 +28,7 @@ const Z_A := 9.2
 const LEFT_SPANS := [[-5.55, -4.25], [-1.75, -0.15], [2.35, 9.15]]
 const RIGHT_SPANS := [[-3.75, -0.45], [2.45, 6.5]]
 # Doorways [wall x, centre z, half width] for the surrounds and hand wear.
-const DOORS := [[X_L, -3.0, 1.156], [X_L, 1.1, 1.156]]
+const DOORS := [[X_L, -3.0, 1.156]]  # (engineering is an open padded doorway now)
 # Luminous ceiling panels in a few places only (z ranges; beams at z -1.6,
 # 3.2, 5.4, 8.9): by the quarters, at the lounge entrance, near the ramp.
 # Between them the ceiling is dark rusted steel with pipe runs.

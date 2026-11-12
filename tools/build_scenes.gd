@@ -141,8 +141,8 @@ func _make_materials() -> void:
 		"rusty_metal": load(tex + "rusty_metal.png"),
 		"ceil_nor": load(tex + "ceilplate_nor.png"), "ceil_metal": load(tex + "ceilplate_metal.png"),
 		"ceil_rough": load(tex + "ceilplate_rough.png"),
-		# Bathroom and engineering doorways on the left wall: hand wear.
-		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(-2.3, 1.1, 1.156, 0), Vector4(), Vector4()]})
+		# Bathroom doorway on the left wall: hand wear.
+		"doors": [Vector4(-2.3, -3.0, 1.156, 0), Vector4(), Vector4(), Vector4()]})
 	var frame: ShaderMaterial = mats["corridor_wall"].duplicate()
 	frame.set_shader_parameter("surface", 7)
 	ResourceSaver.save(frame, "res://ship/materials/corridor_frame.tres")
@@ -469,6 +469,11 @@ func _build_ship() -> void:
 		cut.operation = CSGShape3D.OPERATION_SUBTRACTION
 		_add(hull, cut, "Door_" + d[0])
 	_oval_door(hull, "Door_Gunner", "z", Vector3(-4.0, 1.1, 3.55), 0.8, 1.5)
+	# Open padded doorways (see _padded_doorways()): engineering, and a
+	# bulkhead across the corridor just fore of the lounge entrance.
+	_box(hull, "Bulkhead", Vector3(-2.35, 0, BULKHEAD_Z0), Vector3(2.05, 3.0, BULKHEAD_Z1), "corridor_frame")
+	for d in PADDED_DOORS:
+		_slant_cut(hull, "Door_" + d.name, d)
 
 	var view := _half_cyl(hull, "Window_Lounge", 5.3, 1.4, 1.75, Vector3(5.95, 1.05, -5), Vector3(8, 2.45, 9), "trim")
 	view.operation = CSGShape3D.OPERATION_SUBTRACTION
@@ -575,6 +580,7 @@ func _build_ship() -> void:
 
 	_lounge()
 	_lounge_entrance()
+	_padded_doorways()
 	_bookshelf()
 	_crates()
 	_reactor_pod()
@@ -757,7 +763,6 @@ const DOORS := [
 	["Quarters", Vector3(-0.15, 0, -5.75), PI / 2, 0.3, 0.85],
 	["Cockpit", Vector3(4.0, 0, -6.9), PI / 2, 0.2, 0.7],
 	["Bathroom", Vector3(-2.45, 0, -3.0), 0.0, 0.3, 0.85],
-	["Engineering", Vector3(-2.45, 0, 1.1), 0.0, 0.3, 0.85],
 ]
 const DOOR_HEIGHT := 0.85
 
@@ -2142,6 +2147,128 @@ func _lounge_entrance() -> void:
 	glow.light_energy = 0.5
 	glow.omni_range = 2.6
 	_add(E, glow, "Glow")
+
+
+# Open doorways shaped like a slanted rectangle (narrower at the top) with
+# filleted corners, lined with the lounge entrance's beige pads and framed
+# on both wall faces. Each: where its outline stands (`origin`, the floor
+# under the middle of the opening, a little out from the wall), which way
+# it goes through the wall, the wall's two faces (`s0`, `s1`, distances
+# along `through`) and the shape.
+const BULKHEAD_Z0 := -1.5
+const BULKHEAD_Z1 := -1.2
+const PADDED_DOORS := [
+	{"name": "Engineering", "origin": Vector3(-2.2, 0, 1.1), "through": Vector3(-1, 0, 0), "s0": 0.1, "s1": 0.4,
+		"bottom": 1.7, "top": 1.15, "height": 2.1, "r_top": 0.3, "r_bottom": 0.1},
+	{"name": "Bulkhead", "origin": Vector3(-0.15, 0, BULKHEAD_Z1 + 0.1), "through": Vector3(0, 0, -1), "s0": 0.1, "s1": 0.4,
+		"bottom": 1.8, "top": 1.25, "height": 2.25, "r_top": 0.32, "r_bottom": 0.1},
+]
+
+
+# The doorway's outline (u across, v up), counter-clockwise from the start
+# of the bottom-right fillet round to the end of the bottom-left one; the
+# closing edge is the floor.
+func _slant_outline(d: Dictionary) -> PackedVector2Array:
+	var wb: float = d.bottom / 2.0
+	var wt: float = d.top / 2.0
+	var h: float = d.height
+	var corners := [Vector2(wb, 0), Vector2(wt, h), Vector2(-wt, h), Vector2(-wb, 0)]
+	var radii := [d.r_bottom, d.r_top, d.r_top, d.r_bottom]
+	var out := PackedVector2Array()
+	for i in 4:
+		var p: Vector2 = corners[i]
+		var d1: Vector2 = (corners[(i + 3) % 4] - p).normalized()
+		var d2: Vector2 = (corners[(i + 1) % 4] - p).normalized()
+		var half := acos(clampf(d1.dot(d2), -1.0, 1.0)) / 2.0
+		var r: float = radii[i]
+		var c := p + (d1 + d2).normalized() * r / sin(half)
+		var a0 := (p + d1 * r / tan(half) - c).angle()
+		var a1 := (p + d2 * r / tan(half) - c).angle()
+		var da := wrapf(a1 - a0, -PI, PI)
+		for k in 7:
+			out.append(c + Vector2.from_angle(a0 + da * k / 6.0) * r)
+	return out
+
+
+func _door_frame_basis(d: Dictionary) -> Basis:
+	var through: Vector3 = d.through
+	return Basis(Vector3.UP.cross(-through), Vector3.UP, -through)
+
+
+# The hole through the wall.
+func _slant_cut(hull: Node, name: String, d: Dictionary) -> void:
+	var poly := CSGPolygon3D.new()
+	poly.polygon = _slant_outline(d)
+	poly.depth = d.s1 + 0.2
+	poly.transform = Transform3D(_door_frame_basis(d), d.origin)
+	poly.material = mats["trim"]
+	poly.operation = CSGShape3D.OPERATION_SUBTRACTION
+	_add(hull, poly, name)
+
+
+func _padded_doorways() -> void:
+	var root := _add(scene_root, Node3D.new(), "PaddedDoorways")
+	var pad_mesh := _cushion_mesh(10.0, 0.0)
+	for d in PADDED_DOORS:
+		var D := _add(root, Node3D.new(), d.name)
+		var pts := _slant_outline(d)
+		var b := _door_frame_basis(d)
+		var through: Vector3 = d.through
+		var o: Vector3 = d.origin
+		var s0: float = d.s0
+		var s1: float = d.s1
+		# Pads: the outline cut into even lengths of about 0.27 m.
+		var lens := [0.0]
+		for i in pts.size() - 1:
+			lens.append(lens[-1] + pts[i].distance_to(pts[i + 1]))
+		var total: float = lens[-1]
+		var n := int(round(total / 0.27))
+		var at := func(t: float) -> Vector2:
+			var j := 0
+			while j < pts.size() - 2 and lens[j + 1] < t:
+				j += 1
+			var f: float = (t - lens[j]) / maxf(lens[j + 1] - lens[j], 0.0001)
+			return pts[j].lerp(pts[j + 1], clampf(f, 0.0, 1.0))
+		for k in n:
+			var q0: Vector2 = at.call(total * k / n)
+			var q1: Vector2 = at.call(total * (k + 1) / n)
+			var m := (q0 + q1) / 2.0
+			if m.y < 0.15:
+				continue
+			var t2 := (q1 - q0).normalized()
+			var tangent := b * Vector3(t2.x, t2.y, 0)
+			var inward := b * Vector3(-t2.y, t2.x, 0)
+			if tangent.cross(through).dot(inward) < 0.0:
+				tangent = -tangent
+			var pos := o + b * Vector3(m.x, m.y, 0) + through * (s0 + s1) / 2.0 + inward * 0.045
+			_cushion(D, "Pad%d" % k, pad_mesh, Transform3D(Basis(tangent, through, inward), pos),
+				Vector3(q0.distance_to(q1) - 0.04, s1 - s0 - 0.05, 0.09), "couch_leather")
+		# Frames on both wall faces, the same as the lounge entrance's rings.
+		var mb := ProcMesh.Builder.new()
+		var outs := []
+		for i in pts.size():
+			var e0 := (pts[i] - pts[maxi(i - 1, 0)]) if i > 0 else Vector2.ZERO
+			var e1 := (pts[i + 1] - pts[i]) if i < pts.size() - 1 else Vector2.ZERO
+			var t2 := (e0.normalized() + e1.normalized()).normalized()
+			outs.append(Vector2(t2.y, -t2.x))
+		for face in [[s0 - 0.05, s0 + 0.02, -1.0], [s1 - 0.02, s1 + 0.05, 1.0]]:
+			var w := func(p: Vector2, s: float) -> Vector3:
+				return o + b * Vector3(p.x, p.y, 0) + through * s
+			var front: Vector3 = through * face[2]
+			for i in pts.size() - 1:
+				var a_in: Vector2 = pts[i] - outs[i] * 0.06
+				var b_in: Vector2 = pts[i + 1] - outs[i + 1] * 0.06
+				var a_out: Vector2 = pts[i] + outs[i] * 0.13
+				var b_out: Vector2 = pts[i + 1] + outs[i + 1] * 0.13
+				var fs: float = face[0] if face[2] < 0.0 else face[1]
+				var bs: float = face[1] if face[2] < 0.0 else face[0]
+				var on: Vector2 = (outs[i] + outs[i + 1]) / 2.0
+				mb.quad("frame", w.call(a_in, fs), w.call(b_in, fs), w.call(b_out, fs), w.call(a_out, fs), front)
+				mb.quad("frame", w.call(a_in, fs), w.call(b_in, fs), w.call(b_in, bs), w.call(a_in, bs), b * Vector3(-on.x, -on.y, 0))
+				mb.quad("frame", w.call(a_out, fs), w.call(b_out, fs), w.call(b_out, bs), w.call(a_out, bs), b * Vector3(on.x, on.y, 0))
+		var mi := MeshInstance3D.new()
+		mi.mesh = mb.commit({"frame": mats["pad_frame"]})
+		_add(D, mi, "Frames")
 
 
 # Rounded box (corner radius r) centred on the origin.
