@@ -27,7 +27,7 @@ const N := NoseCockpit.N
 ## rings are sampled at the same angles, index 0 = the right side at the
 ## tunnel's centre height, counting up over the roof to the left).
 const BANDS := {
-	"R_low": Vector2(-5.0, -1.25), "R_mid": Vector2(-1.45, 2.75), "R_up": Vector2(3.1, 6.6),
+	"R_low": Vector2(-5.0, -1.25), "R_mid": Vector2(-1.45, 2.75), "R_up": Vector2(2.75, 7.0),
 	"ceil": Vector2(7.0, 13.0),
 	"L_up": Vector2(13.4, 16.9), "L_mid": Vector2(17.25, 21.45), "L_low": Vector2(21.25, 25.0),
 }
@@ -36,7 +36,7 @@ const BANDS := {
 const OFFSET := {"R_low": 0.012, "R_mid": 0.03, "R_up": 0.012, "ceil": 0.012, "L_up": 0.012, "L_mid": 0.03, "L_low": 0.012}
 const PLATE_T := 0.022     # plate thickness
 const BEVEL := 0.012
-const RIB_CLEAR := 0.1     # plates stop this short of each rib
+const RIB_CLEAR := 0.006   # plates meet across where the ribs were (a hairline seam)
 
 var f: CockpitFitout
 var rings: Array
@@ -285,7 +285,7 @@ func _walls() -> void:
 			var splits := [u0, u1]
 			if (band == "ceil" or band.ends_with("mid")) and u1 - u0 > 3.5:
 				var cut := lerpf(u0, u1, 0.42 + 0.16 * float(bi % 2))
-				splits = [u0, cut - 0.12, cut + 0.12, u1]
+				splits = [u0, cut - 0.01, cut + 0.01, u1]
 			for s in range(0, splits.size(), 2):
 				_plate(mb, ra, rb, splits[s], splits[s + 1], v0, v1, OFFSET[band], face, edge)
 			_plate_feature(deco, band, bi, ra, rb, u0, u1, v0, v1)
