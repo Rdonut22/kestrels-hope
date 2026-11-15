@@ -28,6 +28,8 @@ group_uniforms push;
 // Set each frame by world/grass_field.gd: blades bend away from Gana.
 uniform vec3 player_pos = vec3(0.0, -1000.0, 0.0);
 uniform float push_radius = 1.3;
+// Blades within this far of the camera (horizontally) bend away from it.
+uniform float camera_clear = 1.6;
 
 group_uniforms distance;
 // Blades sink into the ground towards the edge of the grass's range.
@@ -78,6 +80,12 @@ void vertex() {
 	vec2 away = root.xz - player_pos.xz;
 	float near = (1.0 - smoothstep(0.2, push_radius, length(away))) * step(abs(root.y - player_pos.y), 2.0);
 	push += normalize(away + vec2(0.001)) * near * 1.4;
+	// And aside from the camera, so looking up from low down doesn't put
+	// a wall of blades in front of the lens.
+	vec3 cam = INV_VIEW_MATRIX[3].xyz;
+	vec2 from_cam = root.xz - cam.xz;
+	float cam_near = (1.0 - smoothstep(0.3, camera_clear, length(from_cam))) * step(root.y - 0.3, cam.y);
+	push += normalize(from_cam + vec2(0.001)) * cam_near * 1.6;
 	float amount = length(push);
 	VERTEX.xz += push * bend * size;
 	// Keep blade length roughly constant: tips dip as they lean.
@@ -86,6 +94,9 @@ void vertex() {
 	float dist = distance(root, INV_VIEW_MATRIX[3].xyz);
 	float grow = 1.0 - smoothstep(fade_start, fade_end, dist);
 	VERTEX = root + (VERTEX - root) * grow;
+	// Close to the camera, blades also stay well below the lens.
+	float room = clamp((cam.y - root.y - 0.15) / max(size, 0.01), 0.08, 1.0);
+	VERTEX = root + (VERTEX - root) * mix(1.0, room, cam_near);
 	// Soft, even shading: normals mostly up, like a carpet of grass.
 	// Both sides of a blade light the same (no black back faces).
 	vec3 n = NORMAL * sign(NORMAL.y + 0.0001);
