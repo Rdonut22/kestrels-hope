@@ -103,7 +103,8 @@ func _build() -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 18)
 	box.add_child(gap)
-	for item in [["Resume", resume], ["Save Game", _save_game], ["Quit to Menu", _quit_to_menu], ["Quit Game", get_tree().quit]]:
+	var shots := func() -> void: (load("res://ui/screenshot.gd") as GDScript).call("open_folder")
+	for item in [["Resume", resume], ["Save Game", _save_game], ["Screenshots", shots], ["Quit to Menu", _quit_to_menu], ["Quit Game", get_tree().quit]]:
 		var b := Button.new()
 		b.text = item[0]
 		b.flat = true
