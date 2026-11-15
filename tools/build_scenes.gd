@@ -4522,18 +4522,23 @@ func _save_resource(res: Resource, path: String) -> void:
 ## Didelta spinosa shrubs (world/shrubs, from the downloaded Blender file)
 ## where the old blob bushes stood: about two in three bush spots keep a
 ## shrub, sized like the bush, and some grow into clumps of 3-5. Split
-## into 30 m tiles that stop drawing past SHRUB_RANGE (fog hides them).
-const SHRUB_RANGE := 70.0
+## into 30 m tiles: the full mesh with shadows up to SHRUB_NEAR, a 30%
+## version without shadows (world/shrubs/shrub_*_far.glb) to SHRUB_RANGE,
+## nothing past that (fog hides them).
+const SHRUB_RANGE := 55.0
+const SHRUB_NEAR := 24.0
 
 
 func _build_shrubs(site: Node, bushes: Array) -> void:
 	var srng := RandomNumberGenerator.new()
 	srng.seed = 4021
 	var meshes := {}
+	var far_meshes := {}
 	for k in ["small", "medium", "large"]:
-		var sc: Node = (load("res://world/shrubs/shrub_%s.glb" % k) as PackedScene).instantiate()
-		meshes[k] = (sc.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
-		sc.free()
+		for pair in [[meshes, "res://world/shrubs/shrub_%s.glb" % k], [far_meshes, "res://world/shrubs/shrub_%s_far.glb" % k]]:
+			var sc: Node = (load(pair[1]) as PackedScene).instantiate()
+			(pair[0] as Dictionary)[k] = (sc.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+			sc.free()
 	var tiles := {}  # Vector2i -> {kind: [Transform3D]}
 	var add := func(pos: Vector3, size: float) -> void:
 		var kind := "small" if size < 1.1 else ("medium" if size < 1.5 else "large")
@@ -4566,19 +4571,25 @@ func _build_shrubs(site: Node, bushes: Array) -> void:
 			var list: Array = tiles[key][kind]
 			if list.is_empty():
 				continue
-			var mm := MultiMesh.new()
-			mm.transform_format = MultiMesh.TRANSFORM_3D
-			mm.mesh = meshes[kind]
-			mm.instance_count = list.size()
-			for i in list.size():
-				mm.set_instance_transform(i, list[i])
-			var mmi := MultiMeshInstance3D.new()
-			mmi.multimesh = mm
-			mmi.material_override = mat
-			mmi.visibility_range_end = SHRUB_RANGE
-			mmi.visibility_range_end_margin = 8.0
-			mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
-			_add(root, mmi, "Shrubs_%d_%d_%s" % [key.x, key.y, kind])
+			for far in [false, true]:
+				var mm := MultiMesh.new()
+				mm.transform_format = MultiMesh.TRANSFORM_3D
+				mm.mesh = far_meshes[kind] if far else meshes[kind]
+				mm.instance_count = list.size()
+				for i in list.size():
+					mm.set_instance_transform(i, list[i])
+				var mmi := MultiMeshInstance3D.new()
+				mmi.multimesh = mm
+				mmi.material_override = mat
+				if far:
+					mmi.visibility_range_begin = SHRUB_NEAR
+					mmi.visibility_range_end = SHRUB_RANGE
+					mmi.visibility_range_end_margin = 8.0
+					mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+					mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				else:
+					mmi.visibility_range_end = SHRUB_NEAR
+				_add(root, mmi, "Shrubs_%d_%d_%s%s" % [key.x, key.y, kind, "_far" if far else ""])
 			n += list.size()
 	print("shrubs: %d in %d tiles" % [n, tiles.size()])
 

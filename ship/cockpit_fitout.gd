@@ -101,6 +101,7 @@ func build(exterior: Node3D, rings: Array, is_crashed: bool) -> void:
 	_hooks()
 	# Plates, hatches, consoles, floor and light (ship/cockpit_detail.gd).
 	CockpitDetail.new().build(self, rings)
+	_optimise()
 
 
 # ---------- materials ----------
@@ -198,6 +199,22 @@ func _cyl(parent: Node, name: String, a: Vector3, b: Vector3, r: float, mat: Mat
 	var side := up.cross(Vector3.FORWARD if absf(up.z) < 0.9 else Vector3.RIGHT).normalized()
 	var bas := Basis(side, up, side.cross(up))
 	return _mesh(parent, name, cm, Transform3D(bas, (a + b) / 2.0), mat)
+
+
+## Keeps the cockpit cheap to draw: the user's heavy models (dashboard,
+## under-dash, canopy, wall sections, console, yoke) and the detail cast
+## no sun shadows (each shadow cascade would draw them again; inside the
+## nose they barely show), and nothing in the cockpit is drawn from
+## further than VISIBLE_RANGE away (outside the ship, in the forest).
+const VISIBLE_RANGE := 24.0
+
+
+func _optimise() -> void:
+	for gi: GeometryInstance3D in root.find_children("*", "GeometryInstance3D", true, false):
+		gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		gi.visibility_range_end = VISIBLE_RANGE
+		gi.visibility_range_end_margin = 2.0
+		gi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 
 # ---------- the shell's structure ----------
