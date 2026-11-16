@@ -9,7 +9,7 @@ extends SceneTree
 ##   godot --path . --script tools/opening_playtest.gd [-- <screenshot dir>]
 
 const LINES := ["It's been 43 days already.", "Not sure what I'm hoping for at this point.",
-	"It's… beautiful.", "But how?", "Good morning, Gana.",
+	"It's… beautiful.", "But how?", "Good morning, Ganna.",
 	"Forty-three days since the attack. No sign of Hale.",
 	"The drive sustained extensive damage. Fuel reserves are low.",
 	"I've established a stable orbit.", "This planet isn't on our system map.",
@@ -23,6 +23,17 @@ func _check(c: bool, what: String) -> void:
 	print(("PASS " if c else "FAIL ") + what)
 	if not c:
 		fails += 1
+
+
+var _once := {}
+
+
+## A check made on every line, reported once: its first failure, or one
+## pass at the end of the run if it never failed.
+func _check_once(what: String, c: bool) -> void:
+	if not c and not _once.get(what, true) == false:
+		_check(false, what)
+	_once[what] = _once.get(what, true) and c
 
 
 func _initialize() -> void:
@@ -70,7 +81,8 @@ func _run() -> void:
 	_check(player.process_mode == Node.PROCESS_MODE_DISABLED, "player control off")
 	_check(not hud.visible, "gameplay HUD hidden")
 	await _shot("1_bed")
-	var box: Control = cine.get("_box")
+	var box: DialogueBox = cine.get("_box")
+	var portraits_ok := true
 	var cam: Camera3D = cine.get("_cam")
 	var seen := []
 	var tested_typing := false
@@ -80,7 +92,7 @@ func _run() -> void:
 	var max_jump := 0.0
 	var max_turn := 0.0
 	var frames := 0
-	while is_instance_valid(cine) and not (seen.size() == LINES.size() and not box.get("_waiting")):
+	while is_instance_valid(cine) and not (seen.size() == LINES.size() and not box.is_waiting()):
 		await process_frame
 		frames += 1
 		if is_instance_valid(cam):
@@ -89,12 +101,18 @@ func _run() -> void:
 				max_jump = maxf(max_jump, cam.global_position.distance_to(last.origin))
 				max_turn = maxf(max_turn, rad_to_deg((-cam.global_basis.z).angle_to(-last.basis.z)))
 			last = cam.global_transform
-		var panel: Control = box.get("_box")
-		if not panel.visible or not box.get("_waiting"):
+		if not box.is_open() or not box.is_waiting():
 			continue
-		var text: String = (box.get("_line") as Label).text
+		var text: String = box.current_text()
 		if seen.is_empty() or seen[-1] != text:
 			seen.append(text)
+			# Ganna's lines (the first four) show his portrait, the rest the
+			# ship computer's symbol; never any choices.
+			_check_once("every opening line fits one box (no pages)", box.pages_left() == 0)
+			var want := "ganna_thoughts" if seen.size() <= 4 else "ship_computer"
+			if box.current_portrait() != DialogueSpeakers.portrait(want) or (box.get("_choices") as Control).visible:
+				portraits_ok = false
+				print("  wrong portrait/choices on: ", text)
 			if seen.size() == 3 and reveal_from < 0:
 				reveal_from = frames
 				await _shot("4_reveal_first_line")
@@ -104,27 +122,34 @@ func _run() -> void:
 				await _shot("5_computer_hale")
 			if seen.size() == 10:
 				await _shot("6_signal")
-		if box.get("_typing"):
+		if box.is_typing():
 			if not tested_typing:
 				await _press()
 				tested_typing = true
-				_check(not box.get("_typing") and panel.visible and box.get("_waiting"),
+				_check(not box.is_typing() and box.is_open() and box.is_waiting(),
 					"a press while typing completes the line instead of dismissing it")
 			continue
 		if not tested_hold and float(box.get("_hold")) > 0.3:
+			_check(not (box.get("_indicator") as Control).visible, "no continue indicator while the line can't be dismissed")
 			await _press()
 			tested_hold = true
-			_check(panel.visible and box.get("_waiting") and (box.get("_line") as Label).text == text,
+			_check(box.is_open() and box.is_waiting() and box.current_text() == text,
 				"a press inside the minimum hold doesn't dismiss the line")
 			continue
-		if float(box.get("_hold")) > 0.0:
+		if not box.can_advance():
 			continue
+		await process_frame
+		_check_once("continue indicator shows when advancing is possible", (box.get("_indicator") as Control).visible)
 		if seen.size() == 2:
 			await _press()
 			await create_timer(4.0).timeout
 			await _shot("3_walk")
 			continue
 		await _press()
+	for what in _once:
+		if _once[what]:
+			_check(true, what)
+	_check(portraits_ok, "Ganna's portrait on his thoughts, the ship computer's symbol on its lines, no choices")
 	_check(seen == LINES, "all lines in order (%d of %d)" % [seen.size(), LINES.size()])
 	if seen != LINES:
 		print("  saw: ", seen)

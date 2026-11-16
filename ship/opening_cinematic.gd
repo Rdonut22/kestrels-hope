@@ -15,7 +15,9 @@ extends Node
 ##          player in the pilot seat: pilot_seat.gd opening()).
 ##
 ## Player control and the gameplay HUD are off for all of it. Lines are
-## shown with ui/cinematic_dialogue.gd (advanced only by the player).
+## shown with the game's dialogue box (ui/dialogue/dialogue_box.tscn:
+## Ganna's thoughts with his portrait, the ship computer with its
+## symbol), advanced only by the player.
 ## Positions are in the ship's frame (forward -Z, floor y 0).
 
 ## Music slots (no suitable track in the project yet: see the report).
@@ -45,8 +47,6 @@ const REVEAL_LOOK := Vector3(-0.38, 1.78, -14.0)
 const ROOM_X := Vector2(-2.3, 1.6)
 const ROOM_Z := Vector2(-9.3, -6.1)
 
-const GANA := Color(0.85, 0.66, 0.36)
-const COMPUTER := Color(0.45, 1.0, 0.55)
 
 var _ship: Node3D
 var _player: Node
@@ -57,7 +57,7 @@ var _pose: CinematicPose
 var _ui: CanvasLayer
 var _bars: Array[ColorRect] = []
 var _fade: ColorRect
-var _box: Control
+var _box: DialogueBox
 var _music: AudioStreamPlayer
 var _reveal: AudioStreamPlayer
 var _steps: AudioStreamPlayer
@@ -130,7 +130,11 @@ func _build_ui() -> void:
 		bar.anchor_bottom = 0.12 if top else 1.0
 		_ui.add_child(bar)
 		_bars.append(bar)
-	_box = (load("res://ui/cinematic_dialogue.gd") as GDScript).new()
+	# The game's dialogue box (portraits from DialogueSpeakers), sized to
+	# sit low in the frame over the bottom letterbox bar.
+	_box = (load("res://ui/dialogue/dialogue_box.tscn") as PackedScene).instantiate()
+	_box.set("width_share", 0.5)
+	_box.set("max_width", 860.0)
 	_ui.add_child(_box)
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
@@ -202,9 +206,9 @@ func _bed() -> void:
 	y.tween_property(_pose, "yawn", 0.0, 1.6)
 	await y.finished
 	await _wait(1.6)
-	await _box.show_line("GANA  ·  THOUGHTS", "It's been 43 days already.", GANA, 1.6)
+	await _box.show_line("ganna_thoughts", "It's been 43 days already.", {"hold": 1.6})
 	await _wait(1.4)
-	await _box.show_line("GANA  ·  THOUGHTS", "Not sure what I'm hoping for at this point.", GANA, 1.8)
+	await _box.show_line("ganna_thoughts", "Not sure what I'm hoping for at this point.", {"hold": 1.8})
 	await _wait(1.2)
 
 
@@ -252,9 +256,9 @@ func _reveal_and_dialogue() -> void:
 	var push := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	push.tween_method(func(k: float) -> void: _place_cam(REVEAL_EYE.lerp(REVEAL_PUSH, k), REVEAL_LOOK), 0.0, 1.0, 18.0)
 	await _wait(4.5)
-	await _box.show_line("GANA  ·  THOUGHTS", "It's… beautiful.", GANA, 1.6)
+	await _box.show_line("ganna_thoughts", "It's… beautiful.", {"hold": 1.6})
 	await _wait(1.0)
-	await _box.show_line("GANA  ·  THOUGHTS", "But how?", GANA, 1.4)
+	await _box.show_line("ganna_thoughts", "But how?", {"hold": 1.4})
 	await _wait(1.2)
 	# The ship's computer: a quiet tone, the music dips under it.
 	_tone.volume_db = -16.0
@@ -262,17 +266,17 @@ func _reveal_and_dialogue() -> void:
 	_tone.play()
 	_duck(true)
 	await _wait(1.0)
-	await _box.show_line("SHIP COMPUTER", "Good morning, Gana.", COMPUTER, 1.2)
+	await _box.show_line("ship_computer", "Good morning, Ganna.", {"hold": 1.2})
 	await _wait(0.6)
-	await _box.show_line("SHIP COMPUTER", "Forty-three days since the attack. No sign of Hale.", COMPUTER, 3.2)
+	await _box.show_line("ship_computer", "Forty-three days since the attack. No sign of Hale.", {"hold": 3.2})
 	await _wait(2.4)
-	await _box.show_line("SHIP COMPUTER", "The drive sustained extensive damage. Fuel reserves are low.", COMPUTER, 1.4)
+	await _box.show_line("ship_computer", "The drive sustained extensive damage. Fuel reserves are low.", {"hold": 1.4})
 	await _wait(0.6)
-	await _box.show_line("SHIP COMPUTER", "I've established a stable orbit.", COMPUTER, 1.2)
+	await _box.show_line("ship_computer", "I've established a stable orbit.", {"hold": 1.2})
 	await _wait(0.6)
-	await _box.show_line("SHIP COMPUTER", "This planet isn't on our system map.", COMPUTER, 2.8)
+	await _box.show_line("ship_computer", "This planet isn't on our system map.", {"hold": 2.8})
 	await _wait(2.2)
-	await _box.show_line("SHIP COMPUTER", "But… there's a signal.", COMPUTER, 1.6)
+	await _box.show_line("ship_computer", "But… there's a signal.", {"hold": 1.6})
 	_duck(false)
 	# A faint signal pulse under the music while the view holds.
 	for k in 3:
