@@ -1,29 +1,18 @@
 extends Node3D
 
-## Opening cinematic for New Game. Stars and the space hum; the camera tilts
-## down until the forest moon fills the bottom of the frame; thrusters swell
-## and the Kestrel bursts past overhead as the intro music and title come in;
-## the ship shrinks toward the horizon; fade to black and cut to the cockpit.
-## Then a second shot: the Kestrel adrift over the planet while the opening
-## narration types out in green in the top-left corner. Hold Space / Enter
-## to skip.
+## Opening cinematic for New Game, first half: stars and the space hum; the
+## camera tilts down until the forest planet fills the bottom of the frame;
+## the damaged Kestrel passes overhead under a low, uneven engine hum (one
+## engine sputtering) and moves away toward the horizon while letterbox
+## bars slide in and the title fades up. Then fade to black and on to the
+## quarters (ship/opening_cinematic.gd, in main.tscn). Hold Space / Enter
+## to skip the flyby.
 
 const NEXT_SCENE := "res://main.tscn"
 const BURST := 10.5          # seconds: ship passes the camera, music starts
-const END := 31.0            # seconds: flyby shot fades to black
+const END := 27.0            # seconds: flyby shot fades to black
+const BARS := 0.12           # letterbox bar height (share of the screen)
 
-## Opening narration, typed out over the drifting-ship shot.
-const NARRATION := [
-	"November, 4023.",
-	"The Kestrel B26 - a mining vessel owned by Ushida Industries.",
-	"After a failed mission near Aphelion, pirates struck on the outer rim.",
-	"Her crew was lost. Her reactor, badly damaged.",
-	"Only one survived: Gana, a pilot from Asura.",
-	"For 43 days, the Kestrel has drifted, her navigation dead, her fuel running low.",
-	"Until now.",
-]
-const TYPE_SPEED := 32.0     # characters per second
-const LINE_PAUSE := 1.1      # seconds between lines
 const PLANET_RADIUS := 6000.0
 # Planet directly below the camera so its edge is a wide, gentle arc across
 # the whole frame, about 16 degrees below eye level (cos 16 = R / (R + h)).
@@ -43,11 +32,10 @@ var _music: AudioStreamPlayer
 var _thrust_started := false
 var _music_started := false
 var _leaving := false
-var _drift_shot := false
-var _drift_pending := false
-var _text: RichTextLabel
-var _blip: AudioStreamPlayer
 var _flares: Array[Node3D] = []
+var _engine: AudioStreamPlayer
+var _bars: Array[ColorRect] = []
+var _bars_in := false
 
 
 func _ready() -> void:
@@ -58,9 +46,11 @@ func _ready() -> void:
 	_build_ui()
 	_hum = _audio("res://audio/space_hum.ogg", -9.0, true)
 	_hum.play()
-	_thrust = _audio("res://audio/thruster_flyby.ogg", 0.0, false)
+	_thrust = _audio("res://audio/thruster_flyby.ogg", -15.0, false)
 	_music = _audio("res://audio/intro_music.ogg", -2.0, false)
-	_blip = _audio("res://audio/type_blip.ogg", -14.0, false)
+	# The damaged engines: the space hum pitched down, wobbling unevenly.
+	_engine = _audio("res://audio/space_hum.ogg", -60.0, true)
+	_engine.pitch_scale = 0.62
 
 
 func _audio(path: String, db: float, loop: bool) -> AudioStreamPlayer:
@@ -195,23 +185,15 @@ func _build_ui() -> void:
 	_skip_hint.offset_top = -48
 	_skip_hint.modulate.a = 0.0
 	layer.add_child(_skip_hint)
-	_text = RichTextLabel.new()
-	_text.bbcode_enabled = true
-	_text.fit_content = true
-	_text.scroll_active = false
-	_text.position = Vector2(56, 48)
-	_text.size = Vector2(1100, 400)
-	var mono := SystemFont.new()
-	mono.font_names = PackedStringArray(["Courier New", "Courier", "Menlo", "DejaVu Sans Mono", "monospace"])
-	_text.add_theme_font_override("normal_font", mono)
-	_text.add_theme_font_size_override("normal_font_size", 22)
-	_text.add_theme_color_override("default_color", Color(0.45, 1.0, 0.5))
-	_text.add_theme_color_override("font_shadow_color", Color(0.2, 1.0, 0.35, 0.45))
-	_text.add_theme_constant_override("shadow_offset_x", 0)
-	_text.add_theme_constant_override("shadow_offset_y", 0)
-	_text.add_theme_constant_override("shadow_outline_size", 6)
-	_text.add_theme_constant_override("line_separation", 10)
-	layer.add_child(_text)
+	for top in [true, false]:
+		var bar := ColorRect.new()
+		bar.color = Color.BLACK
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.anchor_right = 1.0
+		bar.anchor_top = 0.0 if top else 1.0
+		bar.anchor_bottom = 0.0 if top else 1.0
+		layer.add_child(bar)
+		_bars.append(bar)
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -226,46 +208,37 @@ func _process(delta: float) -> void:
 	_update_ship()
 	_update_audio_and_title()
 	_update_skip(delta)
-	if _t >= END and not _drift_pending and not _leaving:
-		_start_drift_shot()
+	_update_engine()
+	if not _bars_in and _t >= BURST + 2.0:
+		_bars_in = true
+		var tw := create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_property(_bars[0], "anchor_bottom", BARS, 4.0)
+		tw.tween_property(_bars[1], "anchor_top", 1.0 - BARS, 4.0)
+	if _t >= END and not _leaving:
+		_leave(2.5)
 
 
 func _update_camera() -> void:
-	if _drift_shot:
-		# Slow push-in behind the drifting ship.
-		var d := _t - END
-		_cam.position = Vector3(5.5, 4.5, 34.0) + Vector3(0, -0.02, -0.12) * d
-		_cam.look_at(Vector3(-2.0, -3.0, -40.0))
-		return
 	# Slow tilt from the stars down to just above the horizon.
 	var k := smoothstep(0.5, 9.5, _t)
 	_cam.rotation.x = deg_to_rad(lerpf(55.0, 0.0, k))
 	_cam.position = Vector3.ZERO
-	# A short rumble as the ship roars over.
-	var shake := clampf(1.0 - absf(_t - BURST) / 1.2, 0.0, 1.0)
-	if shake > 0.0:
-		_cam.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * 0.08 * shake
 
 
 func _update_ship() -> void:
-	if _drift_shot:
-		var d := _t - END
-		_ship.position = Vector3(0, 0, 0)
-		_ship.rotation = Vector3(0.05 + 0.004 * d, 0.25 + 0.006 * d, 0.12 + 0.003 * d)
-		return
-	var start := BURST - 1.6
+	var start := BURST - 3.2
 	if _t < start:
 		return
 	_ship.visible = true
 	var pass_pos := Vector3(1.5, 2.0, -16.0)
 	if _t < BURST:
-		# From behind and above the camera to just past it, very fast.
+		# From behind and above the camera to just past it, unhurried.
 		var a := (_t - start) / (BURST - start)
 		_ship.position = Vector3(2.0, 12.0, 55.0).lerp(pass_pos, a)
 		_ship.rotation = Vector3(-0.04, 0.0, 0.0)
 	else:
 		# Away toward the horizon, appearing to slow as it shrinks.
-		var a := clampf((_t - BURST) / (END + 2.0 - BURST), 0.0, 1.0)
+		var a := clampf((_t - BURST) / (END + 4.0 - BURST), 0.0, 1.0)
 		# Accelerates away so it lingers large, then dwindles to a speck.
 		var e := pow(a, 1.5)
 		_ship.position = pass_pos.lerp(Vector3(-20.0, -500.0, -1740.0), e)
@@ -276,19 +249,34 @@ func _update_audio_and_title() -> void:
 	if not _thrust_started and _t >= BURST - THRUST_PEAK:
 		_thrust_started = true
 		_thrust.play()
-		# Let the roar ring briefly after the pass, then fall away fast.
 		var tw := create_tween()
 		tw.tween_interval(THRUST_PEAK + 0.8)
-		tw.tween_property(_thrust, "volume_db", -40.0, 3.0)
-	if not _music_started and _t >= BURST:
+		tw.tween_property(_thrust, "volume_db", -45.0, 4.0)
+		create_tween().tween_property(_engine, "volume_db", -11.0, 3.0)
+		_engine.play()
+	if not _music_started and _t >= BURST + 1.5:
+		# (The title fades up over the receding ship; no music here: the
+		# piano begins in the quarters.)
 		_music_started = true
-		_music.play()
 		var tw := create_tween()
-		tw.tween_interval(0.3)
-		tw.tween_property(_title, "modulate:a", 1.0, 2.5)
-		tw.tween_interval(11.0)
+		tw.tween_property(_title, "modulate:a", 0.85, 3.0)
+		tw.tween_interval(7.0)
 		tw.tween_property(_title, "modulate:a", 0.0, 3.0)
-		create_tween().tween_property(_hum, "volume_db", -18.0, 4.0)
+		create_tween().tween_property(_hum, "volume_db", -16.0, 4.0)
+
+
+## The engine hum wobbles in pitch and loudness, a little out of true,
+## and fades as the ship draws away; one engine flare sputters with it.
+func _update_engine() -> void:
+	if not _engine.playing:
+		return
+	var w := sin(_t * 2.3) * 0.5 + sin(_t * 5.1 + 1.3) * 0.3 + sin(_t * 0.7) * 0.2
+	_engine.pitch_scale = 0.62 + 0.025 * w
+	var away := clampf((_t - BURST) / (END - BURST), 0.0, 1.0)
+	if _t > BURST + 3.0:
+		_engine.volume_db = lerpf(-11.0, -26.0, away) + 2.0 * w
+	if _flares.size() > 0:
+		_flares[0].visible = fmod(_t * 7.3, 1.0) > 0.18 or w > 0.4
 
 
 func _update_skip(delta: float) -> void:
@@ -312,53 +300,10 @@ func _leave(duration: float) -> void:
 	_leaving = true
 	var tw := create_tween().set_parallel()
 	tw.tween_property(_fade, "color:a", 1.0, duration)
-	for p in [_hum, _thrust, _music]:
+	for p in [_hum, _thrust, _engine]:
 		tw.tween_property(p, "volume_db", -50.0, duration)
 	await tw.finished
-	# The cockpit scene reads this to start the player at the pilot seat.
-	get_tree().root.set_meta("spawn_cockpit", true)
+	# The ship scene reads this and plays the quarters half of the opening
+	# (ship/opening_cinematic.gd), which ends in the pilot seat.
+	get_tree().root.set_meta("opening_cinematic", true)
 	get_tree().change_scene_to_file(NEXT_SCENE)
-
-
-# Cut to the Kestrel adrift over the planet, engines dark, and type out the
-# narration in the top-left corner.
-func _start_drift_shot() -> void:
-	_drift_pending = true
-	var out := create_tween()
-	out.tween_property(_fade, "color:a", 1.0, 1.5)
-	await out.finished
-	for f in _flares:
-		f.visible = false
-	# Engines cold: the Kestrel is adrift.
-	var cold := StandardMaterial3D.new()
-	cold.albedo_color = Color(0.08, 0.09, 0.1)
-	for core in _ship.find_children("ThrusterCore*", "", false, false):
-		(core as MeshInstance3D).material_override = cold
-	_title.modulate.a = 0.0
-	_hum.volume_db = -10.0
-	_t = END
-	_drift_shot = true
-	var back := create_tween()
-	back.tween_property(_fade, "color:a", 0.0, 2.0)
-	await get_tree().create_timer(2.5).timeout
-	for line: String in NARRATION:
-		if _leaving:
-			return
-		await _type_line(line)
-		await get_tree().create_timer(LINE_PAUSE).timeout
-	await get_tree().create_timer(2.0).timeout
-	if not _leaving:
-		_leave(2.0)
-
-
-func _type_line(line: String) -> void:
-	var done := _text.text
-	for i in line.length():
-		if _leaving:
-			return
-		_text.text = done + line.substr(0, i + 1) + "[color=#7fff8a]_[/color]"
-		if line[i] != " ":
-			_blip.pitch_scale = randf_range(0.95, 1.05)
-			_blip.play()
-		await get_tree().create_timer(1.0 / TYPE_SPEED).timeout
-	_text.text = done + line + "\n"

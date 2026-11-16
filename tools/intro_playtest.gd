@@ -17,23 +17,20 @@ func _run() -> void:
 	_check(intro._hum.playing, "space hum playing at the start")
 	intro._t = 10.0
 	await create_timer(1.5).timeout
-	_check(intro._music.playing, "intro music started at the flyby")
-	_check(intro._thrust_started, "thruster sound triggered")
-	intro._t = 30.8
-	await create_timer(6.0).timeout
-	_check(intro._drift_shot, "cuts to the drifting-ship shot")
-	await create_timer(3.0).timeout
-	_check(intro._text.get_parsed_text().begins_with("November, 4023."), "narration types out")
+	_check(intro._thrust_started, "engine sound triggered at the flyby")
+	_check(intro._engine.playing, "uneven engine hum playing")
+	_check(not intro._music.playing, "no music in the flyby (the piano starts in the quarters)")
+	intro._t = 14.0
+	await create_timer(5.0).timeout
+	_check(intro._bars[0].anchor_bottom > 0.05, "letterbox bars slide in as the ship moves away")
+	root.get_texture().get_image().save_png(OUT + "i5_flyby.png")
 	intro._leave(0.5)
 	await create_timer(2.0).timeout
 	_check(current_scene.scene_file_path == "res://main.tscn", "intro ends in the ship")
-	var player: Node3D = current_scene.get_node("Player")
-	# The cockpit is the raised flight deck now (ship/kestrel_exterior.gd).
-	var seat: Node3D = get_first_node_in_group("pilot_seat")
-	_check(seat != null and player.global_position.distance_to(seat.global_position) < 2.0, "player starts in the cockpit (%s)" % player.global_position)
+	# The quarters half of the opening (tools/opening_playtest.gd plays it
+	# through); it ends in the pilot seat.
+	_check(current_scene.get_node_or_null("OpeningCinematic") != null, "the opening cinematic continues in the quarters")
 	var hum: AudioStreamPlayer = current_scene.get_node("ShipHum")
-	_check(hum.playing, "ship hum playing in the cockpit")
-	await create_timer(1.0).timeout
-	root.get_texture().get_image().save_png(OUT + "i8_cockpit.png")
+	_check(hum.playing, "ship hum playing aboard")
 	print("FAILS: ", fails)
 	quit()

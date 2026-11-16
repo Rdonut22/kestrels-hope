@@ -41,8 +41,16 @@ func _ready() -> void:
 	spring_arm.add_excluded_object(get_rid())
 	_setup_footsteps()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	# Coming from the intro cinematic: start sat in the pilot seat.
-	if get_tree().root.has_meta("spawn_cockpit"):
+	# Coming from the intro's flyby: the opening cinematic in the quarters
+	# (ship/opening_cinematic.gd), which ends by seating us in the cockpit.
+	if get_tree().root.has_meta("opening_cinematic"):
+		get_tree().root.remove_meta("opening_cinematic")
+		var cine := Node.new()
+		cine.name = "OpeningCinematic"
+		cine.set_script(load("res://ship/opening_cinematic.gd"))
+		get_parent().add_child.call_deferred(cine)
+	# Start sat in the pilot seat.
+	elif get_tree().root.has_meta("spawn_cockpit"):
 		get_tree().root.remove_meta("spawn_cockpit")
 		_start_in_pilot_seat.call_deferred()
 	# Continuing a saved game: back where we were (GameState.load_game).
