@@ -49,12 +49,12 @@ const AFT_COUNTER_D := 0.62
 const CABINET_PATH := "res://ship/models/kitchen_cabinet/kitchen_cabinet.glb"
 const CABINET_SCALE := 1.25
 const CABINET_HALF := Vector3(0.952, 0.452, 0.196)
-## The user's two-burner stove (Meshy, decimated; coloured by part to match
-## the user's reference: bronzed body, copper knobs and trim, glowing
-## burner rings and display), on the window counter, controls toward the
-## room. Its model is 1.9 x 0.34 x 1.12, front +Z, bottom at y -0.154.
+## The user's textured two-burner stove (Meshy, decoded from its meshopt
+## compression and decimated), on the window counter, controls toward the
+## room. Its model is 2.0 x 0.36 x 1.18, front +Z, bottom at y -0.18.
 const STOVE_PATH := "res://ship/models/stove/stove.glb"
-const STOVE_SCALE := 0.5
+const STOVE_SCALE := 0.48
+const STOVE_BOTTOM := 0.18
 const STOVE_AT := Vector2(5.86, -5.1)   # (x, z) of its centre on the counter
 const BEZEL_W := 0.055
 const BEZEL_D := 0.035
@@ -177,9 +177,8 @@ func _build() -> void:
 	stove.name = "Stove"
 	stove.rotation.y = -PI / 2
 	stove.scale = Vector3.ONE * STOVE_SCALE
-	stove.position = Vector3(STOVE_AT.x, SILL_Y + 0.04 + 0.154 * STOVE_SCALE, STOVE_AT.y)
+	stove.position = Vector3(STOVE_AT.x, SILL_Y + 0.04 + STOVE_BOTTOM * STOVE_SCALE, STOVE_AT.y)
 	add_child(stove)
-	_paint_stove(stove)
 	var burn := OmniLight3D.new()
 	burn.name = "StoveGlow"
 	burn.light_color = Color(1.0, 0.5, 0.18)
@@ -215,33 +214,6 @@ func _build() -> void:
 			m.set_shader_parameter("surface", 5)
 			kitchen.material = m
 			(hull.get_node("GalleyRoom") as CSGShape3D).material = m
-
-
-## The stove's parts (material names from ship/models/stove), coloured
-## after the user's reference picture.
-func _paint_stove(stove: Node) -> void:
-	var looks := {
-		"StoveBody": [Color(0.2, 0.15, 0.11), 0.55, 0.62, null],
-		"StoveCopper": [Color(0.62, 0.34, 0.16), 0.85, 0.38, null],
-		"StoveDark": [Color(0.05, 0.045, 0.04), 0.3, 0.8, null],
-		"BurnerGlow": [Color(0.6, 0.16, 0.02), 0.0, 0.5, Color(1.0, 0.3, 0.02)],
-		"DisplayAmber": [Color(0.6, 0.3, 0.05), 0.0, 0.4, Color(1.0, 0.5, 0.08)],
-	}
-	for mi: MeshInstance3D in stove.find_children("*", "MeshInstance3D", true, false):
-		for i in mi.mesh.get_surface_count():
-			var src := mi.mesh.surface_get_material(i)
-			if src == null or not looks.has(src.resource_name):
-				continue
-			var l: Array = looks[src.resource_name]
-			var m := StandardMaterial3D.new()
-			m.albedo_color = l[0]
-			m.metallic = l[1]
-			m.roughness = l[2]
-			if l[3] != null:
-				m.emission_enabled = true
-				m.emission = l[3]
-				m.emission_energy_multiplier = 0.7
-			mi.set_surface_override_material(i, m)
 
 
 # ---------- counters ----------
