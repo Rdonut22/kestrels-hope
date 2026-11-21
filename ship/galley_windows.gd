@@ -55,6 +55,12 @@ const CABINET_HALF := Vector3(0.952, 0.452, 0.196)
 const STOVE_PATH := "res://ship/models/stove/stove.glb"
 const STOVE_SCALE := 0.48
 const STOVE_BOTTOM := 0.18
+## The knobs, in the model's frame: rings of STOVE_KNOB_RING round them,
+## on the front panel.
+const STOVE_KNOBS_X := [-0.5, 0.535]
+const STOVE_KNOB_Y := 0.021
+const STOVE_KNOB_Z := 0.572
+const STOVE_KNOB_RING := 0.07
 const STOVE_AT := Vector2(5.86, -5.1)   # (x, z) of its centre on the counter
 const BEZEL_W := 0.055
 const BEZEL_D := 0.035
@@ -179,8 +185,36 @@ func _build() -> void:
 	stove.scale = Vector3.ONE * STOVE_SCALE
 	stove.position = Vector3(STOVE_AT.x, SILL_Y + 0.04 + STOVE_BOTTOM * STOVE_SCALE, STOVE_AT.y)
 	add_child(stove)
-	# Only the rings round the knobs and the centre display glow: those
-	# faces carry their own emissive material in the model (StoveGlow).
+	# Only the rings round the knobs and the centre display glow: the
+	# stove shader adds a glow map traced at texture resolution.
+	var sm := ShaderMaterial.new()
+	sm.shader = load("res://ship/stove.gdshader")
+	var dir := "res://ship/models/stove/"
+	sm.set_shader_parameter("albedo_tex", load(dir + "stove_Image_1.jpg"))
+	sm.set_shader_parameter("normal_tex", load(dir + "stove_Image_2.jpg"))
+	sm.set_shader_parameter("mr_tex", load(dir + "stove_Image_0.jpg"))
+	sm.set_shader_parameter("glow_tex", load(dir + "stove_glow.png"))
+	for mi: MeshInstance3D in stove.find_children("*", "MeshInstance3D", true, false):
+		mi.material_override = sm
+	# A thin, round glowing ring set round each knob (in the stove's frame).
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.albedo_color = Color(0.9, 0.35, 0.05)
+	ring_mat.emission_enabled = true
+	ring_mat.emission = Color(1.0, 0.36, 0.04)
+	ring_mat.emission_energy_multiplier = 1.6
+	for kx in STOVE_KNOBS_X:
+		var tm := TorusMesh.new()
+		tm.inner_radius = STOVE_KNOB_RING - 0.006
+		tm.outer_radius = STOVE_KNOB_RING + 0.006
+		tm.rings = 48
+		tm.ring_segments = 8
+		var ring := MeshInstance3D.new()
+		ring.name = "KnobRing"
+		ring.mesh = tm
+		ring.material_override = ring_mat
+		ring.rotation.x = PI / 2
+		ring.position = Vector3(kx, STOVE_KNOB_Y, STOVE_KNOB_Z)
+		stove.add_child(ring)
 	var burn := OmniLight3D.new()
 	burn.name = "StoveGlow"
 	burn.light_color = Color(1.0, 0.5, 0.18)
