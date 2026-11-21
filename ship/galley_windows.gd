@@ -179,6 +179,8 @@ func _build() -> void:
 	stove.scale = Vector3.ONE * STOVE_SCALE
 	stove.position = Vector3(STOVE_AT.x, SILL_Y + 0.04 + STOVE_BOTTOM * STOVE_SCALE, STOVE_AT.y)
 	add_child(stove)
+	# Only the rings round the knobs and the centre display glow: those
+	# faces carry their own emissive material in the model (StoveGlow).
 	var burn := OmniLight3D.new()
 	burn.name = "StoveGlow"
 	burn.light_color = Color(1.0, 0.5, 0.18)
