@@ -154,6 +154,17 @@ func _build() -> void:
 	cab.position = Vector3((AFT_COUNTER_X0 + 5.505) * 0.5, SILL_Y + 0.04 + CABINET_HALF.y * CABINET_SCALE,
 		aft - CABINET_HALF.z * CABINET_SCALE)
 	add_child(cab)
+	# Painted, not chrome: the model's metal map read its cream panels as
+	# bare polished metal. Keep its maps, damp the shine.
+	for mi: MeshInstance3D in cab.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(i) as StandardMaterial3D
+			if src:
+				var m := src.duplicate() as StandardMaterial3D
+				m.metallic = 0.25
+				m.roughness = 1.0
+				m.metallic_specular = 0.35
+				mi.set_surface_override_material(i, m)
 	# Warm light from under the cabinets onto the worktop.
 	var under := OmniLight3D.new()
 	under.name = "UnderCabinetLight"
