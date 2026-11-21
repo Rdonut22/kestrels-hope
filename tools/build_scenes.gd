@@ -2542,7 +2542,7 @@ func _crates() -> void:
 	var handle := _rounded_box_mesh(Vector3(0.24, 0.035, 0.07), 0.015)
 	# [position on the floor, yaw, how many stacked]
 	var spots := [[Vector3(1.66, 0, 6.05), PI / 2 + 0.04, 2], [Vector3(-1.97, 0, 7.85), PI / 2 - 0.06, 1],
-		[Vector3(-3.2, 0, 2.95), 0.05, 2], [Vector3(1.4, 0, 8.55), -PI / 2 + 0.1, 1]]
+		[Vector3(-3.2, 0, 2.95), 0.05, 2], [Vector3(-1.0, 0, 8.6), 0.15, 1]]
 	for i in spots.size():
 		var base: Vector3 = spots[i][0]
 		for level in spots[i][2]:
