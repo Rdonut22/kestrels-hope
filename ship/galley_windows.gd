@@ -42,6 +42,13 @@ const CORNER_R := 0.07
 # The second counter along the aft wall: from here to the window counter.
 const AFT_COUNTER_X0 := 3.1
 const AFT_COUNTER_D := 0.62
+## The user's kitchen wall unit (Meshy, decimated): upper cabinets, a vent
+## block and a utensil rail, on the aft wall above the aft counter, facing
+## into the kitchen. Its model is 1.9 x 0.9 x 0.39 m, centred on its origin,
+## facing +Z.
+const CABINET_PATH := "res://ship/models/kitchen_cabinet/kitchen_cabinet.glb"
+const CABINET_SCALE := 1.25
+const CABINET_HALF := Vector3(0.952, 0.452, 0.196)
 const BEZEL_W := 0.055
 const BEZEL_D := 0.035
 # The bay's solid in (x, y): just inside the fuselage's curve below the
@@ -138,6 +145,23 @@ func _build() -> void:
 		# Cabinet door seams.
 		var x := AFT_COUNTER_X0 + 0.02 + (5.5 - AFT_COUNTER_X0 - 0.02) * float(k + 1) / 4.0
 		_slab("AftCabinetSeam%d" % k, Vector3(x - 0.006, 0.14, aft - AFT_COUNTER_D + 0.035), Vector3(x + 0.006, SILL_Y - 0.04, aft - AFT_COUNTER_D + 0.045), _steel)
+	# The wall unit above the aft counter: its bottom rail on the worktop,
+	# its back to the wall.
+	var cab: Node3D = (load(CABINET_PATH) as PackedScene).instantiate()
+	cab.name = "KitchenCabinet"
+	cab.rotation.y = PI
+	cab.scale = Vector3.ONE * CABINET_SCALE
+	cab.position = Vector3((AFT_COUNTER_X0 + 5.505) * 0.5, SILL_Y + 0.04 + CABINET_HALF.y * CABINET_SCALE,
+		aft - CABINET_HALF.z * CABINET_SCALE)
+	add_child(cab)
+	# Warm light from under the cabinets onto the worktop.
+	var under := OmniLight3D.new()
+	under.name = "UnderCabinetLight"
+	under.light_color = Color(1.0, 0.72, 0.42)
+	under.light_energy = 0.7
+	under.omni_range = 1.8
+	under.position = Vector3((AFT_COUNTER_X0 + 5.505) * 0.5, SILL_Y + 0.45, aft - 0.3)
+	add_child(under)
 	var body := StaticBody3D.new()
 	body.name = "AftCounterBody"
 	var cs := CollisionShape3D.new()
