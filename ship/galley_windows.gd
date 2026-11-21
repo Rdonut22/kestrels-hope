@@ -61,6 +61,13 @@ const STOVE_KNOBS_X := [-0.5, 0.535]
 const STOVE_KNOB_Y := 0.021
 const STOVE_KNOB_Z := 0.572
 const STOVE_KNOB_RING := 0.07
+## The wok (Meshy): 1.9 across its handles, bottom at y -0.238; scaled
+## and placed in the stove's frame (left burner at x -0.47).
+const PAN_PATH := "res://ship/models/pan/pan.glb"
+const PAN_SCALE := 0.58
+const PAN_BOTTOM := 0.238
+const PAN_AT := Vector2(-0.345, -0.1)
+const STOVE_GRATE_Y := 0.16
 const STOVE_AT := Vector2(5.86, -5.1)   # (x, z) of its centre on the counter
 const BEZEL_W := 0.055
 const BEZEL_D := 0.035
@@ -196,6 +203,14 @@ func _build() -> void:
 	sm.set_shader_parameter("glow_tex", load(dir + "stove_glow.png"))
 	for mi: MeshInstance3D in stove.find_children("*", "MeshInstance3D", true, false):
 		mi.material_override = sm
+	# The user's wok on the left burner (as you face the stove), on the
+	# grate, handles along the stove; in the stove's frame.
+	var pan: Node3D = (load(PAN_PATH) as PackedScene).instantiate()
+	pan.name = "Pan"
+	pan.scale = Vector3.ONE * PAN_SCALE
+	pan.rotation.y = 0.12
+	pan.position = Vector3(PAN_AT.x, STOVE_GRATE_Y + PAN_BOTTOM * PAN_SCALE, PAN_AT.y)
+	stove.add_child(pan)
 	# A thin, round glowing ring set round each knob (in the stove's frame).
 	var ring_mat := StandardMaterial3D.new()
 	ring_mat.albedo_color = Color(0.9, 0.35, 0.05)
