@@ -68,6 +68,12 @@ const PAN_SCALE := 0.58
 const PAN_BOTTOM := 0.238
 const PAN_AT := Vector2(-0.345, -0.1)
 const STOVE_GRATE_Y := 0.16
+## The kettle (Meshy): 1.9 tall with its handle, bottom at y -0.952, spout
+## toward -X; on the right burner, in the stove's frame.
+const KETTLE_PATH := "res://ship/models/kettle/kettle.glb"
+const KETTLE_SCALE := 0.4
+const KETTLE_BOTTOM := 0.952
+const KETTLE_AT := Vector2(0.4, -0.1)
 const STOVE_AT := Vector2(5.86, -5.1)   # (x, z) of its centre on the counter
 const BEZEL_W := 0.055
 const BEZEL_D := 0.035
@@ -211,6 +217,13 @@ func _build() -> void:
 	pan.rotation.y = 0.12
 	pan.position = Vector3(PAN_AT.x, STOVE_GRATE_Y + PAN_BOTTOM * PAN_SCALE, PAN_AT.y)
 	stove.add_child(pan)
+	# The user's kettle on the right burner, its spout toward the wok.
+	var kettle: Node3D = (load(KETTLE_PATH) as PackedScene).instantiate()
+	kettle.name = "Kettle"
+	kettle.scale = Vector3.ONE * KETTLE_SCALE
+	kettle.rotation.y = -0.15
+	kettle.position = Vector3(KETTLE_AT.x, STOVE_GRATE_Y + KETTLE_BOTTOM * KETTLE_SCALE, KETTLE_AT.y)
+	stove.add_child(kettle)
 	# A thin, round glowing ring set round each knob (in the stove's frame).
 	var ring_mat := StandardMaterial3D.new()
 	ring_mat.albedo_color = Color(0.9, 0.35, 0.05)
