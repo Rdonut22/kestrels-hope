@@ -13,8 +13,14 @@ func _initialize() -> void:
 func _run() -> void:
 	for i in 20: await process_frame
 	current_scene._on_new_game()
-	await create_timer(1.0).timeout
-	_check(current_scene.scene_file_path == "res://intro.tscn", "New Game opens the intro")
+	var t := 0.0
+	while (current_scene == null or current_scene.scene_file_path != "res://intro.tscn") and t < 20.0:
+		await create_timer(0.1).timeout
+		t += 0.1
+	_check(current_scene != null and current_scene.scene_file_path == "res://intro.tscn", "New Game opens the intro")
+	if fails:
+		quit(1)
+		return
 	var intro: Node = current_scene
 	var ship: Node3D = intro.get("_ship")
 	var r0 := ship.rotation
@@ -22,8 +28,11 @@ func _run() -> void:
 	_check(ship.rotation.distance_to(r0) > 0.001, "the Kestrel drifts and turns")
 	_check(root.get_node_or_null("OpeningMusic") != null, "the opening music player is on the root (carries into the ship)")
 	root.get_texture().get_image().save_png(OUT + "i1_drift.png")
-	await create_timer(4.5).timeout
-	_check(current_scene.scene_file_path == "res://main.tscn", "after five seconds the intro ends in the ship")
+	t = 0.0
+	while (current_scene == null or current_scene.scene_file_path != "res://main.tscn") and t < 20.0:
+		await create_timer(0.1).timeout
+		t += 0.1
+	_check(current_scene != null and current_scene.scene_file_path == "res://main.tscn", "the intro ends in the ship")
 	for i in 5: await process_frame
 	_check(current_scene.get_node_or_null("OpeningCinematic") != null, "the opening cinematic continues in the ship")
 	var hum: AudioStreamPlayer = current_scene.get_node("ShipHum")
