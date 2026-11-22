@@ -205,7 +205,6 @@ func _run() -> void:
 				stats.jump = maxf(stats.jump, cam.global_position.distance_to(last.origin) / dt)
 				stats.turn = maxf(stats.turn, rad_to_deg((-cam.global_basis.z).angle_to(-last.basis.z)) / dt)
 				stats.last = cam.global_transform
-	stats.t = Time.get_ticks_usec()
 				stats.t = now
 			return
 		if i == 0:
@@ -215,6 +214,7 @@ func _run() -> void:
 	for f in 4:
 		await process_frame
 	stats.last = cam.global_transform
+	stats.t = Time.get_ticks_usec()
 	_check(player.process_mode == Node.PROCESS_MODE_DISABLED, "control off at the window")
 	var w := await _play(cine, WINDOW, watch, true)
 	_check(w == WINDOW, "window scene: every line, speaker and order (%d of %d)" % [w.size(), WINDOW.size()])
