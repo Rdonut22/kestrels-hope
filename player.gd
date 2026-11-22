@@ -39,6 +39,8 @@ func _ready() -> void:
 	_add_key("drink", KEY_F)
 	_add_key("read", KEY_R)
 	spring_arm.add_excluded_object(get_rid())
+	spring_arm.collision_mask |= CAMERA_LAYER
+	_camera_blockers.call_deferred()
 	_setup_footsteps()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	# Coming from the intro's flyby: the opening cinematic in the quarters
@@ -58,6 +60,76 @@ func _ready() -> void:
 		var spawn: Dictionary = get_tree().root.get_meta("load_spawn")
 		get_tree().root.remove_meta("load_spawn")
 		_apply_save.call_deferred(spawn)
+
+
+## The camera sits SHOULDER m to Gana's side; where something's closer
+## than that (narrow cockpit, passages), the side offset shrinks so the
+## boom never starts on the far side of a wall.
+const SHOULDER := 0.5
+const SHOULDER_GAP := 0.22
+
+
+func _fit_shoulder(delta: float) -> void:
+	var from := pivot.global_position
+	var to := pivot.to_global(Vector3(SHOULDER + SHOULDER_GAP, 0, 0))
+	var q := PhysicsRayQueryParameters3D.create(from, to, 1 | CAMERA_LAYER, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	var want := SHOULDER
+	if hit:
+		want = clampf(from.distance_to(hit.position) - SHOULDER_GAP, 0.0, SHOULDER)
+	# Pull in at once, ease back out.
+	var x := spring_arm.position.x
+	spring_arm.position.x = want if want < x else move_toward(x, want, delta * 0.8)
+
+
+## The camera's own collision layer: everything you can see inside the ship
+## (models without physics too: the cockpit's wall sections, dashboard,
+## the kitchen cabinet and stove, pipes, crates) stops the camera boom, so
+## it pulls in toward Gana instead of passing through. Nothing walks on it.
+const CAMERA_LAYER := 1 << 18
+
+
+func _camera_blockers() -> void:
+	# The ship's runtime-built parts (cockpit, galley) are added in their
+	# own _ready; wait for them.
+	for i in 3:
+		await get_tree().process_frame
+	var scene := get_tree().current_scene
+	var ship: Node = null
+	for n in ["ShipInterior", "Ship"]:
+		ship = scene.get_node_or_null(n) if scene else null
+		if ship:
+			break
+	if ship == null:
+		return
+	for mi: MeshInstance3D in ship.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null or mi.transparency > 0.0:
+			continue
+		# Glass, glows and tiny bits don't stop the camera.
+		var nm := String(mi.name).to_lower()
+		if "glass" in nm or "window" in nm or "windshield" in nm or "glow" in nm or "light" in nm:
+			continue
+		if mi.get_aabb().size.length() * absf(mi.global_basis.get_scale().x) < 0.25:
+			continue
+		var faces := mi.mesh.get_faces()
+		if faces.is_empty():
+			continue
+		# In the ship's frame, unscaled (physics mishandles mirrored or
+		# scaled concave shapes: the right cockpit wall is a mirror).
+		var xf: Transform3D = (ship as Node3D).global_transform.affine_inverse() * mi.global_transform
+		for i in faces.size():
+			faces[i] = xf * faces[i]
+		var body := StaticBody3D.new()
+		body.name = "CameraBlocker"
+		body.collision_layer = CAMERA_LAYER
+		body.collision_mask = 0
+		var cs := CollisionShape3D.new()
+		var shape := ConcavePolygonShape3D.new()
+		shape.backface_collision = true
+		shape.set_faces(faces)
+		cs.shape = shape
+		body.add_child(cs)
+		ship.add_child(body)
 
 
 func _apply_save(spawn: Dictionary) -> void:
@@ -147,6 +219,7 @@ func _physics_process(delta: float) -> void:
 	# step still counted as the rock and the grass went silent.
 	_floor = _ground_below() if is_on_floor() else null
 	mesh.set_move(Vector2(velocity.x, velocity.z).length() / SPEED)
+	_fit_shoulder(delta)
 	# Hide the body when a wall shoves the camera right up against it.
 	mesh.visible = spring_arm.get_hit_length() > 0.9
 	_update_target(busy)
