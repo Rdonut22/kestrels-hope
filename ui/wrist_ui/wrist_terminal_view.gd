@@ -194,6 +194,11 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		if event.is_action_pressed(ACTION) and not event.is_echo() and not _raising:
 			var hud := _hud_node()
+			# Unavailable through the opening (GameState.opening_locked).
+			if Game.state().opening_locked():
+				if hud and not hud.is_busy():
+					hud.show_message("Wrist terminal unavailable", 1.5)
+				return
 			if hud == null or not hud.is_busy():
 				_raise_then_open()
 				get_viewport().set_input_as_handled()

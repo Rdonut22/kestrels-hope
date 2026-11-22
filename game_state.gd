@@ -88,6 +88,24 @@ func reset() -> void:
 	inventory_changed.emit()
 
 
+## The opening (ship/opening_cinematic.gd) sets "opening_started"; until
+## Gana has eaten ("ate_meal") the cockpit door, Meki's repairs and the
+## wrist terminal stay off.
+func opening_locked() -> bool:
+	return has_flag("opening_started") and not has_flag("ate_meal")
+
+
+## The current objective for the HUD ("" for none): [set by, done by, text].
+const OBJECTIVES := [["objective_eat", "ate_meal", "Make something to eat"]]
+
+
+func objective() -> String:
+	for o in OBJECTIVES:
+		if has_flag(o[0]) and not has_flag(o[1]):
+			return o[2]
+	return ""
+
+
 func has_flag(flag: String) -> bool:
 	return flags.get(flag, false)
 
@@ -129,6 +147,9 @@ func can_save() -> bool:
 		return false
 	var scene := tree.current_scene
 	if scene == null or not scene.scene_file_path in SAVE_SCENES or scene.get_node_or_null("Player") == null:
+		return false
+	# Not mid-cutscene.
+	if tree.get_first_node_in_group("cinematic"):
 		return false
 	var descent := scene.get_node_or_null("Descent")
 	return not (descent and descent.get("running"))

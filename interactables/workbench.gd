@@ -58,6 +58,10 @@ func get_prompt() -> String:
 
 
 func interact(_player: Node) -> void:
+	# No repairs through the opening (GameState.opening_locked).
+	if Game.state().opening_locked():
+		hud().show_message("Can't start repairs yet", 1.8)
+		return
 	if not _repairing():
 		hud().show_message(message)
 		return

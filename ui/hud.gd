@@ -6,6 +6,7 @@ var _sleeping := false
 var _reader: Control
 var _overlays: Array[Control] = []  # full-screen panels that pause the player
 var _thoughts: Control
+var _dialogue: DialogueBox
 
 @onready var prompt_label: Label = %PromptLabel
 @onready var message_label: Label = %MessageLabel
@@ -39,6 +40,10 @@ func _ready() -> void:
 	var vitals: Control = (load("res://ui/vitals/vitals_panel.gd") as GDScript).new()
 	add_child(vitals)
 	move_child(vitals, fade.get_index())
+	# The current objective (top right), ui/objective_tracker.gd.
+	var objective: Control = (load("res://ui/objective_tracker.gd") as GDScript).new()
+	add_child(objective)
+	move_child(objective, fade.get_index())
 	# Gana's wrist computer (Tab), ui/wrist_ui.
 	add_overlay((load("res://ui/wrist_ui/wrist_terminal_view.gd") as GDScript).new())
 
@@ -61,7 +66,19 @@ func is_busy() -> bool:
 	for o in _overlays:
 		if is_instance_valid(o) and (o.visible or (o.has_method("is_raising") and o.is_raising())):
 			return true
+	if _dialogue and _dialogue.is_open():
+		return true
 	return screen.visible or _sleeping or (_reader != null and _reader.visible)
+
+
+## The game's dialogue box (ui/dialogue): lines the player reads and
+## advances. The player can't move while it's open.
+func dialogue() -> DialogueBox:
+	if _dialogue == null:
+		_dialogue = (load("res://ui/dialogue/dialogue_box.tscn") as PackedScene).instantiate()
+		add_child(_dialogue)
+		move_child(_dialogue, fade.get_index())
+	return _dialogue
 
 
 ## Add a full-screen panel; the player is frozen while it's visible.

@@ -269,14 +269,7 @@ func _thought_zones() -> void:
 	add.call("LeavingCockpit", Vector3(4.0, 1.0, -6.0), Vector3(3.0, 2.0, 1.2), [
 		"Forty-three days since the pirates hit us.",
 		"Twenty minutes. That's all it took. Then nothing but the hum."])
-	add.call("Quarters", Vector3(-0.4, 1.0, -7.9), Vector3(4.0, 2.0, 3.2), [
-		"Hale's bunk. Still made. Never could bring myself to strip it.",
-		"When they boarded, he went aft to lock down engineering. Told me to stay at the helm.",
-		"By the time I got back there, the airlock had cycled.",
-		"No body. No message. He was just... gone."])
-	add.call("HalesLocker", Vector3(1.15, 1.0, -6.35), Vector3(1.2, 2.0, 0.9), [
-		"His locker's still pried open.",
-		"They went through Hale's things... and nothing else on the whole ship."])
+	# (The quarters are the opening's: ship/opening_cinematic.gd.)
 	add.call("CargoCrates", Vector3(1.0, 1.0, 6.05), Vector3(1.6, 2.0, 1.4), [
 		"Every crate still sealed. Six months of ore, right where we left it.",
 		"What kind of pirates leave the cargo?"])
@@ -671,24 +664,26 @@ func _build_ship() -> void:
 	var screen := _mesh_box(computer, "Screen", Vector3(0.1, 0.75, 0), Vector3(0.04, 0.45, 1.0), "screen_cyan")
 	screen.rotation.z = 0.17
 
-	var log_terminal := _interactable(use, "LogTerminal", "log_terminal", Vector3(1.55, 0.8, -7.4), {"prompt": "Read personal log", "needs_power": true})
+	# In space the desk display plays Gana's recorded emergency transmission
+	# (the opening); after the crash it's his personal log.
+	var log_terminal: Node3D
+	if crashed:
+		log_terminal = _interactable(use, "LogTerminal", "log_terminal", Vector3(1.55, 0.8, -7.4), {"prompt": "Read personal log", "needs_power": true})
+	else:
+		log_terminal = _interactable(use, "DeskDisplay", "desk_display", Vector3(1.55, 0.8, -7.4), {"prompt": "Desk display"})
 	_mesh_box(log_terminal, "Screen", Vector3(0.22, 0.65, 0), Vector3(0.04, 0.5, 0.75), "screen_amber")
 
 	_interactable(use, "Bed", "bunk", Vector3(-2.75, 1.0, -7.25), {"prompt": "Sleep", "interact_range": 1.8,
 		"highlight": PackedStringArray(["SleepPod1"])})
 
-	_thought(use, "Locker", Vector3(1.45, 1.0, -6.2), "Hale's locker", [
-		"Hale's locker. Pried open.",
-		"They went through his things... and nothing else on the whole ship.",
-		"What were you mixed up in, Hale?"], 1.4, PackedStringArray(["LockerDoor", "LockerInside"]))
 	_interactable(use, "PhotoHale", "photo", Vector3(1.6, 0.9, -7.82), {"prompt": "Look at photo", "interact_range": 1.3,
 		"highlight": PackedStringArray(["PhotoHaleFrame"]),
 		"image": load("res://ship/props/photo_gana_hale.png"),
-		"lines": "Asura, the draft. Hale and me, too young and too stupid to be scared.|He swore we'd always make it out together."})
+		"lines": "It was just supposed to be a job. We've done this hundreds of times...|Where are you, man?"})
 	_interactable(use, "PhotoAngel", "photo", Vector3(1.6, 0.9, -6.95), {"prompt": "Look at photo of Angel", "interact_range": 1.3,
 		"highlight": PackedStringArray(["PhotoAngelFrame"]),
 		"image": load("res://ship/props/photo_angel.png"),
-		"lines": "Angel.|Hang on. I'm coming home. I promised."})
+		"lines": "I promise I'm coming back."})
 	_thought(use, "CargoCrates", Vector3(1.35, 0.7, 6.05), "Cargo crates", [
 		"Every crate still sealed. Six months of ore, right where we left it.",
 		"What kind of pirates leave the cargo?"], 1.3)
@@ -796,6 +791,8 @@ func _doors() -> void:
 		door.rotation.y = d[2]
 		door.set("travel", 1.3 * ws)
 		door.set("sluggish", crashed)
+		# The cockpit stays shut through the opening, until Gana has eaten.
+		door.set("opening_lock", d[0] == "Cockpit" and not crashed)
 		_add(root, door, d[0])
 		# Frame sticks out a little past both wall faces so it doesn't flicker.
 		var frame := MeshInstance3D.new()

@@ -16,8 +16,9 @@ const GREEN := Color(0.62, 1.0, 0.66)
 const AMBER := Color(1.0, 0.82, 0.5)
 
 const SPEAKERS := {
-	"ganna": {"name": "Ganna", "portrait": "portrait_ganna.png", "region": Rect2(81, 27, 1064, 1214), "color": AMBER},
-	"ganna_thoughts": {"name": "Ganna · Thoughts", "portrait": "portrait_ganna.png", "region": Rect2(81, 27, 1064, 1214), "color": AMBER},
+	"ganna": {"name": "Gana", "portrait": "portrait_ganna.png", "region": Rect2(81, 27, 1064, 1214), "color": AMBER},
+	"ganna_thoughts": {"name": "Gana · Thoughts", "portrait": "portrait_ganna.png", "region": Rect2(81, 27, 1064, 1214), "color": AMBER},
+	"ganna_recording": {"name": "Gana · Recording", "portrait": "portrait_ganna.png", "region": Rect2(81, 27, 1064, 1214), "color": AMBER},
 	"ship_computer": {"name": "Ship Computer", "portrait": "portrait_ship_computer.png", "region": Rect2(183, 194, 876, 881), "color": GREEN},
 	"meki": {"name": "Meki", "portrait": "portrait_meki.png", "region": Rect2(67, 62, 1119, 1116), "color": GREEN},
 	"farm_droid": {"name": "Farm Droid", "portrait": "portrait_farm_droid.png", "region": Rect2(1, 8, 1253, 1246), "color": GREEN},

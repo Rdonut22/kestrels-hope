@@ -43,8 +43,8 @@ func _ready() -> void:
 	_camera_blockers.call_deferred()
 	_setup_footsteps()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	# Coming from the intro's flyby: the opening cinematic in the quarters
-	# (ship/opening_cinematic.gd), which ends by seating us in the cockpit.
+	# Coming from the intro's exterior shot: the montage, the quarters and
+	# the window scene (ship/opening_cinematic.gd).
 	if get_tree().root.has_meta("opening_cinematic"):
 		get_tree().root.remove_meta("opening_cinematic")
 		var cine := Node.new()
@@ -60,6 +60,15 @@ func _ready() -> void:
 		var spawn: Dictionary = get_tree().root.get_meta("load_spawn")
 		get_tree().root.remove_meta("load_spawn")
 		_apply_save.call_deferred(spawn)
+		# Saved after the window scene but before leaving the quarters: the
+		# hunger beat is still to come.
+		var gs := Game.state()
+		if gs.has_flag("opening_window_done") and not gs.has_flag("objective_eat"):
+			var cine := Node.new()
+			cine.name = "OpeningCinematic"
+			cine.set_script(load("res://ship/opening_cinematic.gd"))
+			cine.set("start_at", "hunger")
+			get_parent().add_child.call_deferred(cine)
 
 
 ## The camera sits SHOULDER m to Gana's side; where something's closer

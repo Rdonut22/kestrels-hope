@@ -10,6 +10,8 @@ extends Node3D
 @export var travel := 1.25
 ## Low power: the leaves stutter partway before finishing.
 @export var sluggish := false
+## Stays shut through the opening, until Gana has eaten (the cockpit).
+@export var opening_lock := false
 
 var _open := 0.0
 var _target := 0.0
@@ -31,6 +33,12 @@ func _ready() -> void:
 	sensor.body_exited.connect(_on_body_exited)
 
 func _on_body_entered(body: Node3D) -> void:
+	if opening_lock and Game.state().opening_locked():
+		if body.name == "Player":
+			var hud := get_tree().get_first_node_in_group("hud")
+			if hud:
+				hud.show_message("Locked", 1.5)
+		return
 	if body is CharacterBody3D:
 		_inside += 1
 		_set_target(1.0)

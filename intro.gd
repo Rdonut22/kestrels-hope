@@ -1,66 +1,34 @@
 extends Node3D
 
-## Opening cinematic for New Game, first half: stars and the space hum; the
-## camera tilts down until the forest planet fills the bottom of the frame;
-## the damaged Kestrel passes overhead under a low, uneven engine hum (one
-## engine sputtering) and moves away toward the horizon while letterbox
-## bars slide in and the title fades up. Then fade to black and on to the
-## quarters (ship/opening_cinematic.gd, in main.tscn). Hold Space / Enter
-## to skip the flyby.
+## Opening, shot 1 (00:00-00:05): the Kestrel drifting silently through
+## space, engines dark, turning slowly as the camera eases along beside it.
+## Soft piano begins (OpeningMusic, kept playing into the ship: see
+## ship/opening_cinematic.gd). No dialogue, no HUD. Then the interior
+## montage and the quarters scene play in the ship (main.tscn).
+## Hold Space / Enter to skip to the ship.
 
 const NEXT_SCENE := "res://main.tscn"
-const BURST := 10.5          # seconds: ship passes the camera, music starts
-const END := 27.0            # seconds: flyby shot fades to black
-const BARS := 0.12           # letterbox bar height (share of the screen)
-
-const PLANET_RADIUS := 6000.0
-# Planet directly below the camera so its edge is a wide, gentle arc across
-# the whole frame, about 16 degrees below eye level (cos 16 = R / (R + h)).
-const PLANET_CENTER := Vector3(0.0, -6242.0, 0.0)
-const THRUST_PEAK := 4.2     # seconds into thruster_flyby.ogg at its loudest
+const LENGTH := 5.0
+## Music slot: soft, melancholic piano (no suitable track in the project
+## yet; the scene plays without it until a file is put here).
+const PIANO := "res://audio/music/opening_piano.ogg"
+const PIANO_DB := -8.0
 
 var _t := 0.0
 var _cam: Camera3D
 var _ship: Node3D
-var _title: Label
 var _fade: ColorRect
-var _skip_hint: Label
-var _skip_held := 0.0
-var _hum: AudioStreamPlayer
-var _thrust: AudioStreamPlayer
-var _music: AudioStreamPlayer
-var _thrust_started := false
-var _music_started := false
 var _leaving := false
-var _flares: Array[Node3D] = []
-var _engine: AudioStreamPlayer
-var _bars: Array[ColorRect] = []
-var _bars_in := false
+var _skip_held := 0.0
+var _music: AudioStreamPlayer
 
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 	_build_space()
-	_build_planet()
 	_build_ship()
 	_build_ui()
-	_hum = _audio("res://audio/space_hum.ogg", -9.0, true)
-	_hum.play()
-	_thrust = _audio("res://audio/thruster_flyby.ogg", -15.0, false)
-	_music = _audio("res://audio/intro_music.ogg", -2.0, false)
-	# The damaged engines: the space hum pitched down, wobbling unevenly.
-	_engine = _audio("res://audio/space_hum.ogg", -60.0, true)
-	_engine.pitch_scale = 0.62
-
-
-func _audio(path: String, db: float, loop: bool) -> AudioStreamPlayer:
-	var p := AudioStreamPlayer.new()
-	p.stream = load(path)
-	if "loop" in p.stream:
-		p.stream.loop = loop
-	p.volume_db = db
-	add_child(p)
-	return p
+	_start_music()
 
 
 func _build_space() -> void:
@@ -73,237 +41,83 @@ func _build_space() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.25, 0.3, 0.45)
-	env.ambient_light_energy = 0.5
+	env.ambient_light_energy = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.glow_enabled = true
-	env.glow_intensity = 0.8
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()
-	sun.light_energy = 2.8
+	sun.light_energy = 2.4
 	sun.light_color = Color(1.0, 0.95, 0.88)
-	sun.basis = Basis.looking_at(-Vector3(0.25, 0.85, 0.45).normalized(), Vector3.UP)
+	sun.basis = Basis.looking_at(-Vector3(0.6, 0.5, 0.3).normalized(), Vector3.UP)
 	add_child(sun)
 	_cam = Camera3D.new()
-	_cam.fov = 60
+	_cam.fov = 50
 	_cam.far = 9000
-	_cam.rotation.x = deg_to_rad(55)
 	add_child(_cam)
 	_cam.make_current()
-
-
-func _build_planet() -> void:
-	var center := PLANET_CENTER
-	var planet := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = PLANET_RADIUS
-	sphere.height = PLANET_RADIUS * 2.0
-	sphere.radial_segments = 160
-	sphere.rings = 80
-	planet.mesh = sphere
-	var pm := ShaderMaterial.new()
-	pm.shader = load("res://world/planet.gdshader")
-	# Only a small cap of the planet is in frame, so scale the features up
-	# or it reads as one flat colour.
-	pm.set_shader_parameter("zoom", 7.0)
-	pm.set_shader_parameter("texel", 0.006)
-	planet.material_override = pm
-	planet.position = center
-	planet.rotation = Vector3(0.4, 1.2, 0.0)
-	add_child(planet)
-	var atmo := MeshInstance3D.new()
-	var shell := SphereMesh.new()
-	shell.radius = PLANET_RADIUS * 1.008
-	shell.height = shell.radius * 2.0
-	shell.radial_segments = 160
-	shell.rings = 80
-	atmo.mesh = shell
-	var am := ShaderMaterial.new()
-	am.shader = load("res://world/atmosphere.gdshader")
-	atmo.material_override = am
-	atmo.position = center
-	add_child(atmo)
 
 
 func _build_ship() -> void:
 	_ship = (load("res://ship/ship_interior.tscn") as PackedScene).instantiate()
 	add_child(_ship)
-	# Interior lights don't matter out here; hide them to save work.
 	for l in _ship.get_node("Lights").get_children():
 		l.visible = false
-	var glow := OmniLight3D.new()
-	glow.light_color = Color(0.4, 0.7, 1.0)
-	glow.light_energy = 3.0
-	glow.omni_range = 9.0
-	glow.position = Vector3(-1.0, 1.6, 12.0)
-	_ship.add_child(glow)
-	# Bright engine flares so the ship stays a glowing speck in the distance.
-	var flare_mat := StandardMaterial3D.new()
-	flare_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	flare_mat.albedo_color = Color(0.6, 0.85, 1.0)
-	flare_mat.emission_enabled = true
-	flare_mat.emission = Color(0.5, 0.8, 1.0)
-	flare_mat.emission_energy_multiplier = 6.0
-	for x in [-5.2, 3.85]:
-		var flare := MeshInstance3D.new()
-		var ball := SphereMesh.new()
-		ball.radius = 1.3
-		ball.height = 2.6
-		flare.mesh = ball
-		flare.material_override = flare_mat
-		flare.position = Vector3(x, 1.6, 11.4)
-		_ship.add_child(flare)
-		_flares.append(flare)
-	_flares.append(glow)
-	_ship.visible = false
+	# Engines cold: adrift.
+	var cold := StandardMaterial3D.new()
+	cold.albedo_color = Color(0.08, 0.09, 0.1)
+	for core in _ship.find_children("ThrusterCore*", "", true, false):
+		(core as MeshInstance3D).material_override = cold
 
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var font: FontFile = load("res://ui/fonts/Dena.otf")
-	_title = Label.new()
-	_title.text = "KESTREL'S HOPE"
-	_title.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_title.add_theme_font_override("font", font)
-	_title.add_theme_font_size_override("font_size", 84)
-	_title.add_theme_color_override("font_color", Color(1.0, 0.94, 0.86))
-	_title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
-	_title.add_theme_constant_override("shadow_offset_y", 4)
-	_title.modulate.a = 0.0
-	_title.offset_top = -200
-	layer.add_child(_title)
-	_skip_hint = Label.new()
-	_skip_hint.text = "hold SPACE to skip"
-	_skip_hint.add_theme_font_override("font", font)
-	_skip_hint.add_theme_font_size_override("font_size", 16)
-	_skip_hint.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_skip_hint.offset_left = -240
-	_skip_hint.offset_top = -48
-	_skip_hint.modulate.a = 0.0
-	layer.add_child(_skip_hint)
-	for top in [true, false]:
-		var bar := ColorRect.new()
-		bar.color = Color.BLACK
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		bar.anchor_right = 1.0
-		bar.anchor_top = 0.0 if top else 1.0
-		bar.anchor_bottom = 0.0 if top else 1.0
-		layer.add_child(bar)
-		_bars.append(bar)
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_fade)
-	create_tween().tween_property(_fade, "color:a", 0.0, 3.0)
+	create_tween().tween_property(_fade, "color:a", 0.0, 1.5)
+
+
+## The piano lives on the root, so it carries on into the ship.
+func _start_music() -> void:
+	var old := get_tree().root.get_node_or_null("OpeningMusic")
+	if old:
+		old.queue_free()
+	_music = AudioStreamPlayer.new()
+	_music.name = "OpeningMusic"
+	if ResourceLoader.exists(PIANO):
+		_music.stream = load(PIANO)
+		_music.volume_db = PIANO_DB
+	else:
+		push_warning("Opening: no music at %s (slot left empty)" % PIANO)
+	get_tree().root.add_child.call_deferred(_music)
+	if _music.stream:
+		_music.ready.connect(_music.play, CONNECT_ONE_SHOT)
 
 
 func _process(delta: float) -> void:
 	_t += delta
-	_update_camera()
-	_update_ship()
-	_update_audio_and_title()
-	_update_skip(delta)
-	_update_engine()
-	if not _bars_in and _t >= BURST + 2.0:
-		_bars_in = true
-		var tw := create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		tw.tween_property(_bars[0], "anchor_bottom", BARS, 4.0)
-		tw.tween_property(_bars[1], "anchor_top", 1.0 - BARS, 4.0)
-	if _t >= END and not _leaving:
-		_leave(2.5)
-
-
-func _update_camera() -> void:
-	# Slow tilt from the stars down to just above the horizon.
-	var k := smoothstep(0.5, 9.5, _t)
-	_cam.rotation.x = deg_to_rad(lerpf(55.0, 0.0, k))
-	_cam.position = Vector3.ZERO
-
-
-func _update_ship() -> void:
-	var start := BURST - 3.2
-	if _t < start:
-		return
-	_ship.visible = true
-	var pass_pos := Vector3(1.5, 2.0, -16.0)
-	if _t < BURST:
-		# From behind and above the camera to just past it, unhurried.
-		var a := (_t - start) / (BURST - start)
-		_ship.position = Vector3(2.0, 12.0, 55.0).lerp(pass_pos, a)
-		_ship.rotation = Vector3(-0.04, 0.0, 0.0)
-	else:
-		# Away toward the horizon, appearing to slow as it shrinks.
-		var a := clampf((_t - BURST) / (END + 4.0 - BURST), 0.0, 1.0)
-		# Accelerates away so it lingers large, then dwindles to a speck.
-		var e := pow(a, 1.5)
-		_ship.position = pass_pos.lerp(Vector3(-20.0, -500.0, -1740.0), e)
-		_ship.rotation = Vector3(-0.1 - 0.25 * e, 0.012 * e, 0.05 * sin(_t * 0.6) * (1.0 - e))
-
-
-func _update_audio_and_title() -> void:
-	if not _thrust_started and _t >= BURST - THRUST_PEAK:
-		_thrust_started = true
-		_thrust.play()
-		var tw := create_tween()
-		tw.tween_interval(THRUST_PEAK + 0.8)
-		tw.tween_property(_thrust, "volume_db", -45.0, 4.0)
-		create_tween().tween_property(_engine, "volume_db", -11.0, 3.0)
-		_engine.play()
-	if not _music_started and _t >= BURST + 1.5:
-		# (The title fades up over the receding ship; no music here: the
-		# piano begins in the quarters.)
-		_music_started = true
-		var tw := create_tween()
-		tw.tween_property(_title, "modulate:a", 0.85, 3.0)
-		tw.tween_interval(7.0)
-		tw.tween_property(_title, "modulate:a", 0.0, 3.0)
-		create_tween().tween_property(_hum, "volume_db", -16.0, 4.0)
-
-
-## The engine hum wobbles in pitch and loudness, a little out of true,
-## and fades as the ship draws away; one engine flare sputters with it.
-func _update_engine() -> void:
-	if not _engine.playing:
-		return
-	var w := sin(_t * 2.3) * 0.5 + sin(_t * 5.1 + 1.3) * 0.3 + sin(_t * 0.7) * 0.2
-	_engine.pitch_scale = 0.62 + 0.025 * w
-	var away := clampf((_t - BURST) / (END - BURST), 0.0, 1.0)
-	if _t > BURST + 3.0:
-		_engine.volume_db = lerpf(-11.0, -26.0, away) + 2.0 * w
-	if _flares.size() > 0:
-		_flares[0].visible = fmod(_t * 7.3, 1.0) > 0.18 or w > 0.4
-
-
-func _update_skip(delta: float) -> void:
+	# The ship turns slowly as it drifts; the camera eases along beside it.
+	var k := _t / LENGTH
+	_ship.rotation = Vector3(0.06 + 0.01 * k, 0.6 + 0.08 * k, 0.1 - 0.02 * k)
+	_ship.position = Vector3(0, 0, -0.8 * k)
+	_cam.position = Vector3(26.0 - 2.0 * k, 7.0 - 0.6 * k, 30.0 - 3.0 * k)
+	_cam.look_at(Vector3(0, 0, -2.0))
 	var held := Input.is_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_ENTER)
-	if held:
-		_skip_hint.modulate.a = 0.8
-		_skip_held += delta
-		if _skip_held > 0.9 and not _leaving:
-			_leave(0.8)
-	else:
-		_skip_held = 0.0
-		_skip_hint.modulate.a = move_toward(_skip_hint.modulate.a, 0.0, delta * 0.5)
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed:
-		_skip_hint.modulate.a = 0.8
+	_skip_held = _skip_held + delta if held else 0.0
+	if (_t >= LENGTH or _skip_held > 0.9) and not _leaving:
+		_leave(0.8)
 
 
 func _leave(duration: float) -> void:
 	_leaving = true
-	var tw := create_tween().set_parallel()
+	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", 1.0, duration)
-	for p in [_hum, _thrust, _engine]:
-		tw.tween_property(p, "volume_db", -50.0, duration)
 	await tw.finished
-	# The ship scene reads this and plays the quarters half of the opening
-	# (ship/opening_cinematic.gd), which ends in the pilot seat.
+	# The ship scene reads this and plays the montage and the quarters
+	# scene (ship/opening_cinematic.gd).
 	get_tree().root.set_meta("opening_cinematic", true)
 	get_tree().change_scene_to_file(NEXT_SCENE)
