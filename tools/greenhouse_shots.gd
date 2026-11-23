@@ -7,7 +7,7 @@ extends SceneTree
 const GH := Vector2(455.0, 14.5)
 
 var out := "user://greenhouse_shots/"
-var hour := 10.5
+var hour := 15.0
 
 
 func _initialize() -> void:
@@ -62,6 +62,24 @@ func _run() -> void:
 		cam.global_position = eye
 		cam.look_at(Vector3(GH.x, gh_y + float(v[3]), GH.y))
 		await _frames(30)
+		await RenderingServer.frame_post_draw
+		get_root().get_texture().get_image().save_png(out.path_join("%s.png" % v[0]))
+		print("shot ", v[0])
+	# Inside (interior coordinates: the model's frame in metres, from the
+	# floor; world/greenhouse.gd).
+	var inner := scene.get_node("CrashSite/Ruins/Greenhouse/Interior") as Node3D
+	var inside := [
+		["5_floor_up", Vector3(-2.0, 3.7, -10.0), Vector3(2.0, 24.0, 4.0)],
+		["6_floor_across", Vector3(8.0, 3.7, 6.0), Vector3(-12.0, 9.0, -8.0)],
+		["7_stairs", Vector3(-12.0, 3.7, -4.0), Vector3(-17.0, 8.0, -13.0)],
+		["8_walkway", Vector3(17.5, 19.8, -9.0), Vector3(-10.0, 12.0, 6.0)],
+	]
+	for v in inside:
+		var eye: Vector3 = inner.to_global(v[1])
+		player.global_position = eye
+		cam.global_position = eye
+		cam.look_at(inner.to_global(v[2]))
+		await _frames(40)
 		await RenderingServer.frame_post_draw
 		get_root().get_texture().get_image().save_png(out.path_join("%s.png" % v[0]))
 		print("shot ", v[0])
