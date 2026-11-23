@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dpmvdsk87q50p"
-path="res://.godot/imported/greenhouse_0.jpg-005fe196290e618a97e48a8ee9a1136e.ctex"
+path.s3tc="res://.godot/imported/greenhouse_0.jpg-005fe196290e618a97e48a8ee9a1136e.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b582776fe4958783965bc16bcf49a88f"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://world/models/greenhouse/greenhouse_0.jpg"
-dest_files=["res://.godot/imported/greenhouse_0.jpg-005fe196290e618a97e48a8ee9a1136e.ctex"]
+dest_files=["res://.godot/imported/greenhouse_0.jpg-005fe196290e618a97e48a8ee9a1136e.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
