@@ -4392,11 +4392,24 @@ func _greenhouse_sightline(p: Vector2) -> float:
 	return p.distance_to(a + ab * t)
 
 
+## Re-own a moved node and its children (reparent() can drop ownership).
+func _own_tree(n: Node) -> void:
+	n.owner = scene_root
+	for c in n.get_children():
+		if c.scene_file_path == "":
+			_own_tree(c)
+		else:
+			c.owner = scene_root
+
+
 func _build_greenhouse(site: Node3D, ground_y: float) -> void:
 	var T := load("res://world/east_terrain.gd")
+	# Built before the ruins (the east forest comes first): _build_ruins
+	# moves it under Ruins. (Don't make a Ruins node here: a second one
+	# would be renamed and take the Great Ring's path, CrashSite/Ruins.)
 	var ruins: Node = site.get_node_or_null("Ruins")
 	if ruins == null:
-		ruins = _add(site, Node3D.new(), "Ruins")
+		ruins = site
 	var model: Node3D = (load("res://world/models/greenhouse/greenhouse.glb") as PackedScene).instantiate()
 	var mesh_aabb := AABB()
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
@@ -5809,6 +5822,11 @@ func _build_ruins(site: Node) -> void:
 	m.take_over_path("res://world/materials/ruin.tres")
 	mats["ruin"] = m
 	var ruins := _add(site, Node3D.new(), "Ruins")
+	# The greenhouse (built with the east forest, before this) belongs here.
+	var gh := site.get_node_or_null("Greenhouse")
+	if gh:
+		gh.reparent(ruins)
+		_own_tree(gh)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2600
 
