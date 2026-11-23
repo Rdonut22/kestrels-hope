@@ -63,7 +63,7 @@ func _ready() -> void:
 		# Saved after the window scene but before leaving the quarters: the
 		# hunger beat is still to come.
 		var gs := Game.state()
-		if gs.has_flag("opening_window_done") and not gs.has_flag("objective_eat"):
+		if gs.has_flag("opening_window_done") and not gs.has_objective(gs.EAT_TASK):
 			var cine := Node.new()
 			cine.name = "OpeningCinematic"
 			cine.set_script(load("res://ship/opening_cinematic.gd"))

@@ -186,7 +186,7 @@ func _run() -> void:
 		if d.get("opening_lock") == true:
 			door = d
 	_check(door != null and door.name.contains("Cockpit"), "the cockpit door is locked for the opening")
-	_check(gs.opening_locked(), "wrist terminal and Meki's repairs stay locked (opening_locked)")
+	_check(gs.opening_locked(), "Meki's repairs stay locked (opening_locked)")
 	# The window.
 	player.global_position = ship.to_global(Vector3(-0.4, 1.0, -8.7))
 	await create_timer(0.3).timeout
@@ -225,22 +225,23 @@ func _run() -> void:
 	_check(player.process_mode != Node.PROCESS_MODE_DISABLED, "control restored after the window")
 	_check(gs.has_flag("opening_window_done"), "window scene recorded (opening_window_done)")
 	_check(gs.can_save(), "saving allowed again")
-	_check(gs.objective() == "", "no objective yet (still in the quarters)")
+	_check(gs.objective_ids().is_empty(), "no objective yet (still in the quarters)")
 	# Leaving the quarters: the hunger beat and the objective.
 	player.global_position = ship.to_global(Vector3(-0.15, 1.0, -4.6))
 	var t := 0.0
-	while not gs.has_flag("objective_eat") and t < 30.0:
+	while not gs.has_objective(gs.EAT_TASK) and t < 30.0:
 		await create_timer(0.25).timeout
 		t += 0.25
 		if t > 1.5 and t < 1.8:
 			await _shot("9_hunger_thought")
-	_check(gs.objective() == "Make something to eat", "objective \"Make something to eat\" after leaving the quarters")
+	_check(gs.objective_tracked(gs.EAT_TASK) and gs.focused_objective() == gs.EAT_TASK, "the required task \"Make something to eat\" after leaving the quarters")
 	await create_timer(1.0).timeout
 	await _shot("10_objective_banner")
-	var tracker: Node = hud.find_children("*", "Control", true, false).filter(func(n: Node) -> bool: return n.get_script() and (n.get_script() as Script).resource_path.ends_with("objective_tracker.gd")).front()
-	_check(tracker != null and (tracker.get("_banner") as Control).visible, "NEW OBJECTIVE banner on screen")
+	var ohud: Node = hud.get_node("ObjectiveHUD")
+	_check(ohud.is_notifying(), "NEW TASK notification on screen")
+	_check((hud.get_node("VitalsPanel").get("highlights") as Dictionary).has("hunger"), "the hunger vital is highlighted")
 	await create_timer(7.0).timeout
-	_check(tracker != null and (tracker.get("_corner") as Control).visible and not (tracker.get("_banner") as Control).visible, "then a small objective line stays in the corner")
+	_check(not ohud.is_notifying() and ohud.badge_id() == gs.EAT_TASK, "then the persistent task badge stays in the corner")
 	await _shot("11_objective_corner")
 	_check(not is_instance_valid(cine), "the opening cinematic ends")
 	_check(gs.opening_locked(), "locks stay on until Gana eats")

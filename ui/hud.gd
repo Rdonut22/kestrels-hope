@@ -7,6 +7,7 @@ var _reader: Control
 var _overlays: Array[Control] = []  # full-screen panels that pause the player
 var _thoughts: Control
 var _dialogue: DialogueBox
+var _wrist: Control
 
 @onready var prompt_label: Label = %PromptLabel
 @onready var message_label: Label = %MessageLabel
@@ -40,12 +41,15 @@ func _ready() -> void:
 	var vitals: Control = (load("res://ui/vitals/vitals_panel.gd") as GDScript).new()
 	add_child(vitals)
 	move_child(vitals, fade.get_index())
-	# The current objective (top right), ui/objective_tracker.gd.
-	var objective: Control = (load("res://ui/objective_tracker.gd") as GDScript).new()
+	# Gana's wrist computer (Tab), ui/wrist_ui; its Discoveries section is
+	# ui/discoveries.
+	_wrist = (load("res://ui/wrist_ui/wrist_terminal_view.gd") as GDScript).new()
+	add_overlay(_wrist)
+	# Objective notifications and the badge (top right), ui/discoveries.
+	# Above the wrist terminal, so the badge stays with Discoveries.
+	var objective: Control = (load("res://ui/discoveries/objective_hud.gd") as GDScript).new()
 	add_child(objective)
-	move_child(objective, fade.get_index())
-	# Gana's wrist computer (Tab), ui/wrist_ui.
-	add_overlay((load("res://ui/wrist_ui/wrist_terminal_view.gd") as GDScript).new())
+	move_child(objective, _wrist.get_index() + 1)
 
 
 func _input(event: InputEvent) -> void:
@@ -69,6 +73,15 @@ func is_busy() -> bool:
 	if _dialogue and _dialogue.is_open():
 		return true
 	return screen.visible or _sleeping or (_reader != null and _reader.visible)
+
+
+## True when the gameplay HUD (vitals, compass, objective badge) should be
+## out of the way: whenever the player is busy, except in Discoveries,
+## which sits under the HUD like the approved mockup.
+func hides_chrome() -> bool:
+	if not is_busy():
+		return false
+	return not (_wrist and _wrist.visible and _wrist.discoveries_open())
 
 
 ## The game's dialogue box (ui/dialogue): lines the player reads and

@@ -43,6 +43,11 @@ const FOLD_SECS := 0.25
 @export_range(0.0, 1.0) var opacity := 0.72
 
 var values := {"health": 100.0, "hunger": 80.0, "hydration": 75.0, "temp": 36.6}
+## Rows lit in a colour (row id -> Color), e.g. hunger while the "Make
+## something to eat" task is active (ui/discoveries/objective_hud.gd).
+var highlights := {}
+var _glows := {}  # row id -> TextureRect over the row's icon and label
+var _pulse := 0.0
 var _labels := {}
 var _clip: Control
 var _rows: Control
@@ -140,6 +145,40 @@ func _ready() -> void:
 	_fit()
 
 
+## Light rows up: {row id: Color}; rows not listed go back to normal.
+func set_highlights(want: Dictionary) -> void:
+	if want == highlights:
+		return
+	highlights = want.duplicate()
+	for r in ROWS:
+		var id: String = r[0]
+		var on := highlights.has(id)
+		if on and not _glows.has(id):
+			# The row's icon and label from the art, drawn again on top in the
+			# highlight colour.
+			var y: float = float(r[1])
+			var t := TextureRect.new()
+			t.name = id.capitalize() + "Highlight"
+			var at := AtlasTexture.new()
+			at.atlas = ART
+			# Icon, label and the row's line (down to just under the line).
+			at.region = Rect2(RING_WIDTH, y - 44.0, LINE_END - RING_WIDTH, 49.0)
+			t.texture = at
+			t.position = Vector2(RING_WIDTH, y - 44.0)
+			t.size = at.region.size
+			t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			t.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			_rows.add_child(t)
+			_rows.move_child(t, 1)
+			_glows[id] = t
+		if _glows.has(id):
+			(_glows[id] as TextureRect).visible = on
+		var l: Label = _labels.get(id)
+		if l:
+			l.add_theme_color_override("font_color", highlights[id] if on else color)
+	_rows.queue_redraw()
+
+
 ## health / hunger / hydration in percent, temp in °C.
 func set_value(id: String, v: float) -> void:
 	values[id] = v
@@ -158,8 +197,10 @@ func _refresh() -> void:
 func _draw_lines() -> void:
 	for r in ROWS:
 		var y: float = float(r[1]) + 0.5
-		_rows.draw_line(Vector2(LINE_END - 2.0, y), Vector2(VALUE_RIGHT, y), Color(color, 0.95), 2.4, true)
-		_rows.draw_line(Vector2(VALUE_RIGHT - 1.0, y - 3.0), Vector2(VALUE_RIGHT - 1.0, y + 3.0), Color(color, 0.95), 2.0, true)
+		var c: Color = highlights.get(r[0], color)
+		_rows.draw_line(Vector2(LINE_END - 2.0, y), Vector2(VALUE_RIGHT, y), Color(c, 0.95), 2.4, true)
+		_rows.draw_line(Vector2(VALUE_RIGHT - 1.0, y - 3.0), Vector2(VALUE_RIGHT - 1.0, y + 3.0), Color(c, 0.95), 2.0, true)
+
 
 
 func _fit() -> void:
@@ -212,7 +253,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var hud := get_parent()
-	visible = not (hud != null and hud.has_method("is_busy") and hud.is_busy())
+	if hud != null and hud.has_method("hides_chrome"):
+		visible = not hud.hides_chrome()
+	else:
+		visible = not (hud != null and hud.has_method("is_busy") and hud.is_busy())
 	modulate.a = opacity
+	# Highlighted rows breathe slowly.
+	if not _glows.is_empty():
+		_pulse += delta
+		for id in _glows:
+			var t: TextureRect = _glows[id]
+			if t.visible:
+				t.modulate = Color(highlights.get(id, color), 0.75 + 0.25 * sin(_pulse * 2.2))

@@ -12,10 +12,11 @@ extends Node
 ##             fills the frame, a five-second hold, then the computer.
 ##   hunger    control restored. The first time Gana leaves the quarters
 ##             his stomach growls, he thinks out loud, and the objective
-##             "Make something to eat" comes up (GameState.objective()).
+##             "Make something to eat" comes up: a required Task in
+##             Discoveries (discoveries/objectives/make_something_to_eat.tres).
 ##
-## Until Gana eats ("ate_meal"), GameState.opening_locked() keeps the
-## cockpit door shut, Meki's repairs off and the wrist terminal away.
+## Until that task is done, GameState.opening_locked() keeps the
+## cockpit door shut and Meki's repairs off (the ship is free to explore).
 ## Started by player.gd (root meta "opening_cinematic", or `start_at`
 ## "hunger" when a save from before the growl is loaded).
 ## Positions are in the ship's frame (forward -Z, floor y 0).
@@ -290,7 +291,7 @@ func _hunger() -> void:
 	await _wait(0.8)
 	if _hud:
 		await _hud.think(["I haven't eaten in days...", "Not like these rations are gonna last forever.", "Better make something."])
-	Game.state().set_flag("objective_eat")
+	Game.state().add_objective(Game.state().EAT_TASK)
 	queue_free()
 
 

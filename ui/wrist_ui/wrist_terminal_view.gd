@@ -10,8 +10,16 @@ extends Control
 ## Esc/Backspace back (closes from the home screen), H home, Tab close.
 ## The mouse works on the screen itself (hover selects, click opens).
 ## Reopening shows the section that was open last.
+##
+## Available from the start of the game; single sections can wait on an
+## objective (TerminalUI.SECTION_UNLOCKS). DISCOVERIES opens as a flat
+## panel over the game (ui/discoveries/discoveries_panel.gd) instead of
+## on the little screen; J (or clicking the HUD's objective badge) opens it
+## straight on an objective. There, Esc closes the terminal (the design's
+## "ESC Close") and Backspace goes back to the home screen.
 
 const ACTION := "wrist_terminal"
+const DISCOVERIES_ACTION := "discoveries"
 const UI_SIZE := Vector2i(1280, 800)
 
 var ui: TerminalUI
@@ -23,6 +31,8 @@ var _ui_vp: SubViewport
 var _view_vp: SubViewport
 var _cam: Camera3D
 var _hud: Node
+var _panel: DiscoveriesPanel
+var _pending_objective := ""
 
 
 func _ready() -> void:
@@ -30,13 +40,27 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
-	if not InputMap.has_action(ACTION):
-		InputMap.add_action(ACTION)
-		var ev := InputEventKey.new()
-		ev.physical_keycode = KEY_TAB
-		InputMap.action_add_event(ACTION, ev)
+	add_to_group("wrist_terminal_view")
+	for a in [[ACTION, KEY_TAB], [DISCOVERIES_ACTION, KEY_J]]:
+		if not InputMap.has_action(a[0]):
+			InputMap.add_action(a[0])
+			var ev := InputEventKey.new()
+			ev.physical_keycode = a[1]
+			InputMap.action_add_event(a[0], ev)
 	_build_ui_viewport()
 	_build_view()
+	_panel = DiscoveriesPanel.new()
+	add_child(_panel)
+	_panel.back_requested.connect(func() -> void: ui.home())
+	_panel.close_requested.connect(close)
+	ui.section_opened.connect(_on_section_opened)
+	ui.home_shown.connect(_hide_discoveries)
+	ui.section_locked.connect(func(_i: int) -> void:
+		var hud := _hud_node()
+		if hud:
+			hud.show_message("Not available yet", 1.5))
+	# A new objective lights the DISCOVERIES tile until it's opened.
+	Game.state().objective_added.connect(func(_id: String) -> void: set_unread("discoveries"))
 
 
 func _build_ui_viewport() -> void:
@@ -150,6 +174,45 @@ func _raise_then_open() -> void:
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.25)
 
 
+# ---------------------------------------------------------------- discoveries
+
+const DISCOVERIES := "discoveries"
+
+
+func discoveries_open() -> bool:
+	return visible and _panel != null and _panel.visible
+
+
+## Open the terminal straight on DISCOVERIES, on objective `id` if given.
+func open_discoveries(id := "") -> void:
+	_pending_objective = id
+	if visible:
+		ui.open_section(ui.section_index(DISCOVERIES))
+		return
+	last_section = ui.section_index(DISCOVERIES)
+	var hud := _hud_node()
+	if not _raising and (hud == null or not hud.is_busy()):
+		_raise_then_open()
+
+
+func _on_section_opened(i: int) -> void:
+	if ui.SECTIONS[i][0] != DISCOVERIES:
+		_hide_discoveries()
+		return
+	_panel.open_to(_pending_objective)
+	_pending_objective = ""
+	# The flat panel replaces the close-up of the device.
+	$View.visible = false
+	$Dim.visible = false
+
+
+func _hide_discoveries() -> void:
+	if _panel:
+		_panel.visible = false
+	$View.visible = true
+	$Dim.visible = true
+
+
 func open() -> void:
 	if visible:
 		return
@@ -167,6 +230,7 @@ func close() -> void:
 	if not visible:
 		return
 	last_section = ui.section
+	_hide_discoveries()
 	visible = false
 	modulate.a = 1.0
 	var m := _gana_model()
@@ -192,16 +256,17 @@ func _hud_node() -> Node:
 
 func _input(event: InputEvent) -> void:
 	if not visible:
-		if event.is_action_pressed(ACTION) and not event.is_echo() and not _raising:
-			var hud := _hud_node()
-			# Unavailable through the opening (GameState.opening_locked).
-			if Game.state().opening_locked():
-				if hud and not hud.is_busy():
-					hud.show_message("Wrist terminal unavailable", 1.5)
-				return
-			if hud == null or not hud.is_busy():
-				_raise_then_open()
-				get_viewport().set_input_as_handled()
+		if event.is_echo() or _raising:
+			return
+		var hud := _hud_node()
+		if hud != null and hud.is_busy():
+			return
+		if event.is_action_pressed(ACTION):
+			_raise_then_open()
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed(DISCOVERIES_ACTION):
+			open_discoveries(Game.state().focused_objective())
+			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouse:
 		return  # handled in _gui_input
@@ -211,6 +276,10 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.is_action(ACTION) and not event.is_echo():
 		close()
+	elif _panel.visible and _panel.key_input(event):
+		pass
+	elif event.is_action(DISCOVERIES_ACTION) and not event.is_echo():
+		open_discoveries(Game.state().focused_objective())
 	elif event.is_action("ui_cancel") or _key(event, KEY_BACKSPACE):
 		if not ui.back():
 			close()

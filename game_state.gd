@@ -13,6 +13,11 @@ signal flag_set(flag: String)
 signal inventory_changed
 signal day_changed(day: int)
 signal vines_changed
+## Discoveries (discoveries/objectives.gd): a Mission or Task was unlocked,
+## changed (tracked, untracked, finished) or finished.
+signal objective_added(id: String)
+signal objective_changed(id: String)
+signal objective_completed(id: String)
 
 ## Everything that can be carried. Tools aren't used up by repairs.
 const ITEMS := {
@@ -59,6 +64,12 @@ var day := 1:
 			day_changed.emit(value)
 ## Vine and plant groups cut back from the wreck (world/vine_growth.gd ids).
 var cut_vines: Array[String] = []
+## Discovered objectives (definitions in discoveries/objectives/), by id:
+## {"tracked": bool, "done": bool, "order": int (discovery order)}.
+var objectives := {}
+## The tracked objective the player chose to emphasise on the HUD ("" =
+## automatic). See focused_objective().
+var objective_focus := ""
 
 const SAVE_PATH := "user://savegame.json"
 const SAVE_VERSION := 1
@@ -72,7 +83,7 @@ var _loading := false
 
 
 func _ready() -> void:
-	for sig in [flag_set, inventory_changed, meki_online_changed, power_restored_changed, day_changed, vines_changed]:
+	for sig in [flag_set, inventory_changed, meki_online_changed, power_restored_changed, day_changed, vines_changed, objective_changed]:
 		sig.connect(func(_a = null) -> void: _queue_autosave())
 
 
@@ -85,25 +96,152 @@ func reset() -> void:
 	hale_file = 0.0
 	day = 1
 	cut_vines.clear()
+	objectives.clear()
+	objective_focus = ""
 	inventory_changed.emit()
 
 
+## The opening's first task: Gana makes something to eat.
+##
+## HOOK (cooking, not built yet): when Gana has prepared and eaten his
+## meal, call
+##     Game.state().complete_objective(Game.state().EAT_TASK)
+## That finishes the task (its badge goes, a "TASK COMPLETE" notification
+## shows), unlocks the cockpit door and Meki's repairs (opening_locked),
+## and emits objective_completed("make_something_to_eat") for whatever
+## comes next to start from.
+const EAT_TASK := "make_something_to_eat"
+
+
 ## The opening (ship/opening_cinematic.gd) sets "opening_started"; until
-## Gana has eaten ("ate_meal") the cockpit door, Meki's repairs and the
-## wrist terminal stay off.
+## the "Make something to eat" task is done the cockpit door and Meki's
+## repairs stay off (the scripted gate). Exploring the ship stays open.
 func opening_locked() -> bool:
-	return has_flag("opening_started") and not has_flag("ate_meal")
+	return has_flag("opening_started") and not objective_done(EAT_TASK)
 
 
-## The current objective for the HUD ("" for none): [set by, done by, text].
-const OBJECTIVES := [["objective_eat", "ate_meal", "Make something to eat"]]
+# --------------------------------------------------------------- objectives
+# Discoveries: Missions and Tasks. Definitions are data (ObjectiveDef in
+# discoveries/objectives/); what's been found, tracked and finished lives
+# here and is saved.
+
+## Unlock an objective: it appears in Discoveries and the HUD announces it.
+## False if it's unknown or already discovered (so a clue found twice
+## doesn't add it twice).
+func add_objective(id: String) -> bool:
+	var def := Objectives.get_def(id)
+	if def == null:
+		push_error("No objective with id '%s' (discoveries/objectives/)" % id)
+		return false
+	if objectives.has(id):
+		return false
+	objectives[id] = {"tracked": def.required or def.track_on_discovery, "done": false, "order": objectives.size()}
+	objective_added.emit(id)
+	objective_changed.emit(id)
+	return true
 
 
-func objective() -> String:
-	for o in OBJECTIVES:
-		if has_flag(o[0]) and not has_flag(o[1]):
-			return o[2]
-	return ""
+## Finish an objective (discovering it first if need be). Required ones
+## release their gate (see opening_locked).
+func complete_objective(id: String) -> bool:
+	if not objectives.has(id) and not add_objective(id):
+		return false
+	var o: Dictionary = objectives[id]
+	if o["done"]:
+		return false
+	o["done"] = true
+	o["tracked"] = false
+	if objective_focus == id:
+		objective_focus = ""
+	objective_completed.emit(id)
+	objective_changed.emit(id)
+	return true
+
+
+func has_objective(id: String) -> bool:
+	return objectives.has(id)
+
+
+func objective_done(id: String) -> bool:
+	return objectives.has(id) and objectives[id]["done"]
+
+
+func objective_active(id: String) -> bool:
+	return objectives.has(id) and not objectives[id]["done"]
+
+
+## Tracked: shown on the HUD and the compass. Required objectives always
+## are while they're active.
+func objective_tracked(id: String) -> bool:
+	if not objective_active(id):
+		return false
+	var def := Objectives.get_def(id)
+	return (def != null and def.required) or objectives[id]["tracked"]
+
+
+## Only active, optional objectives can be untracked.
+func can_untrack(id: String) -> bool:
+	var def := Objectives.get_def(id)
+	return objective_active(id) and def != null and not def.required
+
+
+## Track or untrack an objective; false when that isn't allowed (required,
+## finished or unknown).
+func set_objective_tracked(id: String, on: bool) -> bool:
+	if not objective_active(id) or (not on and not can_untrack(id)):
+		return false
+	if objectives[id]["tracked"] == on:
+		return true
+	objectives[id]["tracked"] = on
+	if not on and objective_focus == id:
+		objective_focus = ""
+	objective_changed.emit(id)
+	return true
+
+
+## Choose which tracked objective the HUD emphasises.
+func set_objective_focus(id: String) -> bool:
+	if not objective_tracked(id):
+		return false
+	objective_focus = id
+	objective_changed.emit(id)
+	return true
+
+
+## Active objectives in discovery order, optionally only one category.
+func objective_ids(category := "", include_done := false) -> Array[String]:
+	var ids: Array[String] = []
+	for id: String in objectives:
+		var def := Objectives.get_def(id)
+		if def == null or (category != "" and def.category != category):
+			continue
+		if include_done or not objectives[id]["done"]:
+			ids.append(id)
+	ids.sort_custom(func(a: String, b: String) -> bool:
+		var da: bool = objectives[a]["done"]
+		var db: bool = objectives[b]["done"]
+		if da != db:
+			return db  # finished ones last
+		return int(objectives[a]["order"]) < int(objectives[b]["order"]))
+	return ids
+
+
+func tracked_objectives() -> Array[String]:
+	return objective_ids().filter(func(id: String) -> bool: return objective_tracked(id))
+
+
+## The one objective the HUD emphasises: a required progression objective
+## that takes precedence, else the player's choice, else the most recently
+## discovered tracked one. "" when nothing is tracked.
+func focused_objective() -> String:
+	var tracked := tracked_objectives()
+	for id in tracked:
+		var def := Objectives.get_def(id)
+		if def.required and def.takes_precedence:
+			return id
+	if objective_focus in tracked:
+		return objective_focus
+	return tracked[-1] if not tracked.is_empty() else ""
 
 
 func has_flag(flag: String) -> bool:
@@ -174,6 +312,8 @@ func save_game() -> bool:
 		"hale_file": hale_file,
 		"day": day,
 		"cut_vines": Array(cut_vines),
+		"objectives": objectives,
+		"objective_focus": objective_focus,
 		"flags": flags.keys().filter(func(f: String) -> bool: return not f in TRANSIENT_FLAGS),
 		"player": {
 			"position": [player.global_position.x, player.global_position.y, player.global_position.z],
@@ -220,6 +360,17 @@ func load_game() -> bool:
 		cut_vines.append(String(id))
 	for f in data.get("flags", []):
 		flags[String(f)] = true
+	var saved_objectives: Variant = data.get("objectives", {})
+	if saved_objectives is Dictionary:
+		for id: String in saved_objectives:
+			var o: Dictionary = saved_objectives[id]
+			if Objectives.get_def(id) == null:
+				continue  # an objective that no longer exists
+			objectives[id] = {"tracked": bool(o.get("tracked", true)), "done": bool(o.get("done", false)), "order": int(o.get("order", objectives.size()))}
+	objective_focus = String(data.get("objective_focus", ""))
+	# Saves from before Discoveries kept the eat task as a flag.
+	if flags.has("objective_eat") and not objectives.has(EAT_TASK):
+		objectives[EAT_TASK] = {"tracked": true, "done": flags.has("ate_meal"), "order": objectives.size()}
 	inventory_changed.emit()
 	var spawn: Dictionary = data.get("player", {})
 	if data.has("hour"):

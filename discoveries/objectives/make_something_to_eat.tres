@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ObjectiveDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://discoveries/objective_def.gd" id="1_def"]
+[ext_resource type="Texture2D" path="res://discoveries/images/make_something_to_eat.png" id="2_img"]
+
+[resource]
+script = ExtResource("1_def")
+id = "make_something_to_eat"
+category = "task"
+title = "Make something to eat"
+summary = "Restore your energy and stabilize."
+description = "You haven't eaten in days. Make a meal to restore your energy and stabilize."
+required = true
+takes_precedence = true
+track_on_discovery = true
+image = ExtResource("2_img")
+highlight_vital = "hunger"
+waypoint_node = NodePath("ShipInterior/GalleyWindows/Stove")
+waypoint_offset = Vector3(0, 0, 0)
+waypoint_scene = "res://main.tscn"

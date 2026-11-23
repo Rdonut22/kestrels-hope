@@ -19,6 +19,11 @@ extends Control
 ## The waypoint is set with set_waypoint() (a Node3D or a Vector3); with
 ## none set, the first active NavWaypoint in the scene is tracked (one
 ## with hide_within only once the camera is that far from it).
+##
+## Tracked objectives (Discoveries) with a known destination get their own
+## markers too: an amber diamond for a Task, a green one for a Mission
+## (ui/discoveries/art/compass_*). Untracked objectives get none, and
+## neither do objectives without a waypoint.
 
 const GLYPHS := "res://ui/nav_compass/glyphs/"
 
@@ -79,6 +84,11 @@ var _marker: TextureRect
 var _waypoint: TextureRect
 var _letters := {}  # heading -> TextureRect
 var _letter_top := {}  # heading -> resting top edge
+var _objective_markers := {}  # objective id -> TextureRect
+## Objective ids shown on the strip this frame (for tests).
+var objective_markers_shown: Array[String] = []
+const OBJECTIVE_MARKER_GAP := 30.0
+const OBJECTIVE_MARKER_SIZE := 110.0
 
 
 func _ready() -> void:
@@ -179,7 +189,11 @@ func _edge_alpha(x: float) -> float:
 func _process(_delta: float) -> void:
 	var cam := get_viewport().get_camera_3d()
 	var hud := get_parent()
-	var busy: bool = hud != null and hud.has_method("is_busy") and hud.is_busy()
+	var busy: bool
+	if hud != null and hud.has_method("hides_chrome"):
+		busy = hud.hides_chrome()
+	else:
+		busy = hud != null and hud.has_method("is_busy") and hud.is_busy()
 	visible = cam != null and not busy
 	if not visible:
 		return
@@ -211,7 +225,45 @@ func _process(_delta: float) -> void:
 		_waypoint.position.x = x - _waypoint.size.x * 0.5
 		_waypoint.modulate.a = _edge_alpha(x)
 		_waypoint.visible = _waypoint.modulate.a > 0.0
+	_update_objective_markers(cam)
 	_track.queue_redraw()
+
+
+## One marker per tracked objective with a destination in this scene; the
+## HUD's focused objective at full strength, the others a little fainter.
+func _update_objective_markers(cam: Camera3D) -> void:
+	var gs := Game.state()
+	var focus: String = gs.focused_objective()
+	var seen := {}
+	objective_markers_shown.clear()
+	for id in gs.tracked_objectives():
+		var pos: Variant = Objectives.waypoint(id, get_tree())
+		if pos == null:
+			continue
+		var d: Vector3 = (pos as Vector3) - cam.global_position
+		if Vector2(d.x, d.z).length() < 0.5:
+			continue
+		seen[id] = true
+		var m: TextureRect = _objective_markers.get(id)
+		if m == null:
+			var def := Objectives.get_def(id)
+			m = _glyph("Objective_" + id, load("res://ui/discoveries/art/compass_%s_tracked.svg" % def.category))
+			# The art is 72 px; the strip's units are about half a 1080p pixel.
+			m.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			m.size = Vector2(OBJECTIVE_MARKER_SIZE, OBJECTIVE_MARKER_SIZE)
+			m.position.y = LINE_Y - m.size.y * 0.5
+			move_child(m, _marker.get_index())
+			_objective_markers[id] = m
+		var x := x_of(heading_of(d))
+		m.position.x = x - m.size.x * 0.5
+		m.modulate.a = _edge_alpha(x) * (1.0 if id == focus else 0.65)
+		m.visible = m.modulate.a > 0.0
+		if m.visible:
+			objective_markers_shown.append(id)
+	for id in _objective_markers.keys():
+		if not seen.has(id):
+			(_objective_markers[id] as TextureRect).queue_free()
+			_objective_markers.erase(id)
 
 
 ## True when the waypoint is shown on the strip.
@@ -234,6 +286,11 @@ func _gaps() -> Array:
 	if _waypoint.visible:
 		var wx := _waypoint.position.x + _waypoint.size.x * 0.5
 		g.append([wx - WAYPOINT_GAP, wx + WAYPOINT_GAP])
+	for id in _objective_markers:
+		var m: TextureRect = _objective_markers[id]
+		if m.visible:
+			var mx := m.position.x + m.size.x * 0.5
+			g.append([mx - OBJECTIVE_MARKER_GAP, mx + OBJECTIVE_MARKER_GAP])
 	return g
 
 

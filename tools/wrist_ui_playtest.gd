@@ -140,10 +140,15 @@ func _run() -> void:
 	var at := view.control_point(tile)
 	var back: Variant = view.screen_point(at)
 	_check(back != null and (back as Vector2).distance_to(tile) < 4.0, "mouse maps onto the screen (%s -> %s)" % [tile, back])
-	await _click(at)
-	_check(view.ui.section == 1, "clicking a tile opens it (DISCOVERIES)")
+	await _click(view.control_point(view.ui._tile_rect(2).get_center()))
+	_check(view.ui.section == 2, "clicking a tile opens it (COMMS)")
 	await _click(view.control_point(view.ui._back_rect().get_center()))
 	_check(view.ui.section == -1, "clicking BACK returns home")
+	# DISCOVERIES opens its own panel (ui/discoveries); Esc comes back.
+	await _click(at)
+	_check(view.ui.section == 1 and view.discoveries_open(), "clicking DISCOVERIES opens the Discoveries panel")
+	await _key(KEY_BACKSPACE)
+	_check(view.ui.section == -1 and not view.discoveries_open(), "Backspace returns from Discoveries to the home screen")
 	await _click(view.control_point(view.ui._tile_rect(5).get_center()), MOUSE_BUTTON_RIGHT)
 	_check(not view.visible, "right-click on the home screen closes it")
 
