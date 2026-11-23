@@ -13,6 +13,6 @@ metallic_texture_channel = 2
 roughness_texture = ExtResource("3_mr")
 roughness_texture_channel = 1
 normal_enabled = true
-normal_scale = 1.4
+normal_scale = 1.0
 normal_texture = ExtResource("2_nor")
 texture_filter = 5

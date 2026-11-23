@@ -3,8 +3,9 @@ extends Node3D
 ## The ruined greenhouse in the east forest (tools/build_scenes.gd
 ## _build_greenhouse). Gives its model a sharper material than the glTF's
 ## own: the colour texture sharpened and stored lossless
-## (greenhouse_albedo.png), anisotropic filtering so it stays crisp at
-## grazing angles, and a slightly deeper normal map.
+## (greenhouse_albedo.png, rebuilt from greenhouse_0.jpg with a gentle
+## unsharp mask), and anisotropic filtering so it stays crisp at grazing
+## angles. Normal and metal/roughness maps are the glTF's own.
 
 const MATERIAL := preload("res://world/models/greenhouse/greenhouse_material.tres")
 
