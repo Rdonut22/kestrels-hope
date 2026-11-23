@@ -15,8 +15,8 @@ extends Control
 ## objective (TerminalUI.SECTION_UNLOCKS). DISCOVERIES opens as a flat
 ## panel over the game (ui/discoveries/discoveries_panel.gd) instead of
 ## on the little screen; J (or clicking the HUD's objective badge) opens it
-## straight on an objective. There, Esc closes the terminal (the design's
-## "ESC Close") and Backspace goes back to the home screen.
+## straight on an objective. There, Esc or Backspace goes back to the home
+## screen, and Tab closes the terminal.
 
 const ACTION := "wrist_terminal"
 const DISCOVERIES_ACTION := "discoveries"

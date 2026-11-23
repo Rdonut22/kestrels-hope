@@ -248,6 +248,10 @@ P = feather_edges(P, (x0, y0, x1, y1))
 # Footer: "View on Map" goes (the F key cap stays for "HUD Focus").
 x0, y0, x1, y1 = pr(318, 806, 436, 848)
 copy_block(P, (x0, y0, x1, y1), (pr(470, 0, 0, 0)[0], y0))
+# ...and "Close" after the ESC key cap: Esc goes back to the terminal's
+# home screen, so its label ("Back") is live.
+x0, y0, x1, y1 = pr(1480, 820, 1536, 856)
+copy_block(P, (x0, y0, x1, y1), (pr(1300, 0, 0, 0)[0], y0))
 # Its outline (measured on the mockup): 24 px chamfers.
 outline = [(61, 194), (85, 170), (1534, 170), (1558, 194), (1558, 846), (1536, 868), (83, 868), (61, 846)]
 save("panel_plate", polygon_alpha(P, [(x - PX, y - PY) for x, y in outline]), "RGBA")

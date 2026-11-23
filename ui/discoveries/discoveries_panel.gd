@@ -16,8 +16,8 @@ extends Control
 ##           CONTINUE" for a required one, or TRACK / HUD FOCUS buttons
 ##
 ## Keys: W/S or Up/Down select, A/D or Left/Right switch category, E/Enter
-## track or untrack, F make it the HUD's focus, Esc close, Backspace back
-## to the terminal's home screen. The mouse works on everything.
+## track or untrack, F make it the HUD's focus, Esc / Backspace back to the
+## terminal's home screen (Tab closes the terminal). The mouse works on everything.
 
 signal back_requested
 signal close_requested
@@ -49,6 +49,7 @@ const DESC_W := 520.0
 const FOOT_F_LABEL := Vector2(338, 846)
 const FOOT_F_RECT := Rect2(288, 822, 150, 32)
 const FOOT_ESC_RECT := Rect2(1420, 822, 110, 32)
+const FOOT_ESC_LABEL := Vector2(1488, 846)
 
 const INK := Color("#2a1a0c")
 
@@ -188,9 +189,7 @@ func focus(id := "") -> bool:
 func key_input(event: InputEvent) -> bool:
 	if not event.is_pressed():
 		return false
-	if event.is_action("ui_cancel"):
-		close_requested.emit()
-	elif _key(event, KEY_BACKSPACE):
+	if event.is_action("ui_cancel") or _key(event, KEY_BACKSPACE):
 		back_requested.emit()
 	elif event.is_action("ui_up") or event.is_action("move_forward"):
 		select_step(-1)
@@ -246,6 +245,7 @@ func click(p: Vector2) -> void:
 				"track": selected = h[2]; toggle_track(h[2])
 				"focus": focus(h[2])
 				"close": close_requested.emit()
+				"back": back_requested.emit()
 			return
 
 
@@ -429,4 +429,6 @@ func _draw_footer() -> void:
 	# Map"); its label is live.
 	_text("HUD Focus", FOOT_F_LABEL, 21, S.IVORY, 400)
 	_hit(FOOT_F_RECT, "focus", selected)
-	_hit(FOOT_ESC_RECT, "close")
+	# Likewise "Back" after the ESC key cap.
+	_text("Back", FOOT_ESC_LABEL, 21, S.IVORY, 400)
+	_hit(FOOT_ESC_RECT, "back")
