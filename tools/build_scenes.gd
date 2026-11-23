@@ -5825,7 +5825,9 @@ func _build_ruins(site: Node) -> void:
 	# The greenhouse (built with the east forest, before this) belongs here.
 	var gh := site.get_node_or_null("Greenhouse")
 	if gh:
-		gh.reparent(ruins)
+		# Keep its local transform: the scene isn't in the tree while it's built,
+		# so there are no global transforms to keep (Ruins sits at the origin).
+		gh.reparent(ruins, false)
 		_own_tree(gh)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2600
