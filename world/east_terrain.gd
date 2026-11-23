@@ -5,17 +5,31 @@ extends RefCounted
 ## terrain mesh, its collision and the trees on it, and world/grass_field.gd,
 ## which grows grass on it. Flat up to the Great Ring's clearing, then gently
 ## rolling forest floor that rises towards the valley between the eastern
-## mountains (around x = 930), its sides climbing into the foothills.
+## mountains (around x = 930), its sides climbing into the foothills. The
+## ground is levelled under the ruined greenhouse deep in the forest.
 
 const RING := Vector2(132.0, -16.0)
 const VALLEY_X := 930.0
 const VALLEY_Z := -16.0
+## The ruined greenhouse (tools/build_scenes.gd _build_greenhouse): level
+## ground within FLAT m of its centre, blending back out by BLEND.
+const GREENHOUSE := Vector2(455.0, 14.5)
+const GREENHOUSE_FLAT := 34.0
+const GREENHOUSE_BLEND := 54.0
 
 static var _hills: FastNoiseLite
 static var _bumps: FastNoiseLite
 
 
 static func height(x: float, z: float) -> float:
+	var d := Vector2(x, z).distance_to(GREENHOUSE)
+	if d < GREENHOUSE_BLEND:
+		var k := 1.0 - smoothstep(GREENHOUSE_FLAT, GREENHOUSE_BLEND, d)
+		return lerpf(_raw_height(x, z), _raw_height(GREENHOUSE.x, GREENHOUSE.y), k)
+	return _raw_height(x, z)
+
+
+static func _raw_height(x: float, z: float) -> float:
 	if x < 100.0:
 		return 0.0
 	if _hills == null:

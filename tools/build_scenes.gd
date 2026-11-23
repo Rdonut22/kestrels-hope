@@ -4259,6 +4259,9 @@ func _build_east_forest(site: Node3D, meshes: Array, rmats: Array, ground_y: flo
 			var foot: float = REDWOOD_KINDS[k]["trunk_radius"] * sc * 3.0
 			if absf(p.y - _trail_z(p.x)) < 3.5 + foot or p.distance_to(village) < 20.0 + foot * 0.5:
 				continue
+			# The greenhouse's clearing, and a gap from the trail to it.
+			if p.distance_to(GREENHOUSE_POS) < GREENHOUSE_CLEAR + foot * 0.5 or _greenhouse_sightline(p) < 5.0 + foot:
+				continue
 			var cell := Vector2i(floori(p.x / 16.0), floori(p.y / 16.0))
 			var crowded := false
 			for cx in range(cell.x - 1, cell.x + 2):
@@ -4361,6 +4364,64 @@ func _build_east_forest(site: Node3D, meshes: Array, rmats: Array, ground_y: flo
 	field.position = Vector3(EAST_GRASS_CENTRE.x, ground_y, EAST_GRASS_CENTRE.y)
 	_add(site, field, "GrassEast")
 	print("east forest: ", inside.size(), " walkable, ", outside.size(), " beyond the walls")
+	_build_greenhouse(site, ground_y)
+
+
+## The ruined greenhouse: a great domed glasshouse of the old builders,
+## deep in the old-growth forest beyond the Great Ring, about 70 m north of
+## the trail (glimpsed through a gap in the trees). The user's model,
+## decimated by tools/simplify_glb.py (world/models/greenhouse), with a
+## 6k-triangle copy as its collision. On levelled ground (world/east_terrain.gd
+## GREENHOUSE), sunk a little into it, under Ruins (the ruins' music plays
+## near it).
+const GREENHOUSE_POS := Vector2(455.0, 14.5)
+const GREENHOUSE_SCALE := 30.0
+const GREENHOUSE_YAW := 0.35
+const GREENHOUSE_SINK := 1.2
+const GREENHOUSE_CLEAR := 36.0
+
+
+## Distance from a point to the gap between the trail and the greenhouse
+## (a large number off its length).
+func _greenhouse_sightline(p: Vector2) -> float:
+	var a := Vector2(GREENHOUSE_POS.x, _trail_z(GREENHOUSE_POS.x))
+	var ab := GREENHOUSE_POS - a
+	var t := (p - a).dot(ab) / ab.length_squared()
+	if t < 0.0 or t > 1.0:
+		return 1e9
+	return p.distance_to(a + ab * t)
+
+
+func _build_greenhouse(site: Node3D, ground_y: float) -> void:
+	var T := load("res://world/east_terrain.gd")
+	var ruins: Node = site.get_node_or_null("Ruins")
+	if ruins == null:
+		ruins = _add(site, Node3D.new(), "Ruins")
+	var model: Node3D = (load("res://world/models/greenhouse/greenhouse.glb") as PackedScene).instantiate()
+	var mesh_aabb := AABB()
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		mesh_aabb = (mi as MeshInstance3D).get_aabb()
+	var floor_y := ground_y + float(T.call("height", GREENHOUSE_POS.x, GREENHOUSE_POS.y))
+	var xf := Transform3D(Basis(Vector3.UP, GREENHOUSE_YAW).scaled(Vector3.ONE * GREENHOUSE_SCALE),
+		Vector3(GREENHOUSE_POS.x, floor_y - mesh_aabb.position.y * GREENHOUSE_SCALE - GREENHOUSE_SINK, GREENHOUSE_POS.y))
+	var root := Node3D.new()
+	root.transform = xf
+	_add(ruins, root, "Greenhouse")
+	root.add_child(model)
+	model.name = "Model"
+	model.owner = scene_root
+	# Solid, from both sides, from the low-poly copy.
+	var col: Node3D = (load("res://world/models/greenhouse/greenhouse_collision.glb") as PackedScene).instantiate()
+	var cmesh: Mesh = (col.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+	col.free()
+	var shape := cmesh.create_trimesh_shape()
+	shape.backface_collision = true
+	var body := StaticBody3D.new()
+	_add(root, body, "Body")
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	_add(body, cs, "Shape")
+	print("greenhouse at ", xf.origin, ", ", mesh_aabb.size * GREENHOUSE_SCALE, " m")
 
 
 ## Detail distances for the east forest's trees (tune these for speed).
@@ -4399,6 +4460,7 @@ func _grass_map_east(trunks: Array, glades: FastNoiseLite, village: Vector2) -> 
 			var tall := lerpf(0.45, 0.85, patch)
 			var open := maxf(smoothstep(0.35, 0.55, glades.get_noise_2dv(p)), 1.0 - smoothstep(16.0, 24.0, p.distance_to(village)))
 			open = maxf(open, 1.0 - smoothstep(40.0, 60.0, p.distance_to(Vector2(RING_POS.x, RING_POS.z))))
+			open = maxf(open, 1.0 - smoothstep(30.0, 42.0, p.distance_to(GREENHOUSE_POS)))
 			dens = lerpf(dens, 0.95, open)
 			tall = lerpf(tall, 1.0, open * 0.6)
 			var trail := 1.0 - smoothstep(1.2, 3.0, absf(p.y - _trail_z(p.x)))
