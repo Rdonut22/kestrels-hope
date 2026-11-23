@@ -4405,6 +4405,7 @@ func _build_greenhouse(site: Node3D, ground_y: float) -> void:
 	var xf := Transform3D(Basis(Vector3.UP, GREENHOUSE_YAW).scaled(Vector3.ONE * GREENHOUSE_SCALE),
 		Vector3(GREENHOUSE_POS.x, floor_y - mesh_aabb.position.y * GREENHOUSE_SCALE - GREENHOUSE_SINK, GREENHOUSE_POS.y))
 	var root := Node3D.new()
+	root.set_script(load("res://world/greenhouse.gd"))
 	root.transform = xf
 	_add(ruins, root, "Greenhouse")
 	root.add_child(model)
