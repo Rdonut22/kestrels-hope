@@ -3934,6 +3934,13 @@ func _build_crash_site() -> void:
 
 	_build_ruins(site)
 
+	# Nothing past the fog's end is drawn (world/render_budget.gd).
+	var draw := Node.new()
+	draw.name = "RenderBudget"
+	draw.set_script(load("res://world/render_budget.gd"))
+	R.add_child(draw)
+	draw.owner = R
+
 	_save(R, "res://crash_site.tscn")
 
 

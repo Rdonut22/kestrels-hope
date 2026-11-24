@@ -63,6 +63,7 @@ var _map := PackedByteArray()
 var _map_w := 1
 var _map_h := 1
 var _meshes := []
+var _built := {}  # Vector2i chunk -> Array of its MultiMeshInstance3Ds
 var _pending: Array[Vector2i] = []
 var _sorted_at := Vector2(INF, INF)
 
@@ -98,40 +99,59 @@ func _build() -> void:
 	_map_h = img.get_height()
 	for s in SHAPES:
 		_meshes.append(Tuft.build(22 if not s[1] else 16, 0.62 if not s[1] else 0.5, s[0], s[1]))
-	var n := int(ceil(area_size / chunk_size))
-	for cz in n:
-		for cx in n:
-			_pending.append(Vector2i(cx, cz))
 	# What's around the camera right away; the rest streams in (_process).
-	_stream(9999, view_distance + chunk_size)
+	_stream(9999)
 
 
-## Build up to `budget` not-yet-built chunks, nearest the camera first (only
-## those within `reach` metres).
-func _stream(budget: int, reach := INF) -> void:
-	if _pending.is_empty():
+## Chunks are built when the camera comes within reach of them and freed
+## once it is well past (they're the same each time, from the seed), so only
+## the grass around the camera exists. Builds up to `budget` chunks, nearest
+## first.
+func _stream(budget: int) -> void:
+	if _map.is_empty():
 		return
 	var cam := get_viewport().get_camera_3d()
 	var eye := to_local(cam.global_position) if cam else Vector3.ZERO
-	var half := area_size / 2.0
-	var centre := func(c: Vector2i) -> Vector2:
-		return Vector2(-half + (c.x + 0.5) * chunk_size, -half + (c.y + 0.5) * chunk_size)
-	# Re-sort only once the camera has moved a little (big fields have
-	# thousands of chunks).
-	if _sorted_at.distance_to(Vector2(eye.x, eye.z)) > 6.0:
-		_sorted_at = Vector2(eye.x, eye.z)
-		_pending.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-			return centre.call(a).distance_squared_to(Vector2(eye.x, eye.z)) < centre.call(b).distance_squared_to(Vector2(eye.x, eye.z)))
+	var at := Vector2(eye.x, eye.z)
+	var reach := view_distance + chunk_size
+	var moved := _sorted_at.distance_to(at)
+	if moved > chunk_size * 0.25:
+		# After a jump (a load, a teleport) fill in round the camera at once.
+		if moved > reach:
+			budget = 9999
+		_sorted_at = at
+		var half := area_size / 2.0
+		var n := int(ceil(area_size / chunk_size))
+		# Free chunks left well behind.
+		for c: Vector2i in _built.keys():
+			if _centre(c).distance_to(at) > reach + chunk_size:
+				for mmi: Node in _built[c]:
+					mmi.queue_free()
+				_built.erase(c)
+		# Queue the missing ones in reach, nearest first.
+		_pending.clear()
+		var lo := Vector2i(clampi(int(floor((at.x - reach + half) / chunk_size)), 0, n - 1), clampi(int(floor((at.y - reach + half) / chunk_size)), 0, n - 1))
+		var hi := Vector2i(clampi(int(floor((at.x + reach + half) / chunk_size)), 0, n - 1), clampi(int(floor((at.y + reach + half) / chunk_size)), 0, n - 1))
+		for cz in range(lo.y, hi.y + 1):
+			for cx in range(lo.x, hi.x + 1):
+				var c := Vector2i(cx, cz)
+				if not _built.has(c) and _centre(c).distance_to(at) <= reach:
+					_pending.append(c)
+		_pending.sort_custom(func(p: Vector2i, q: Vector2i) -> bool:
+			return _centre(p).distance_squared_to(at) < _centre(q).distance_squared_to(at))
 	while budget > 0 and not _pending.is_empty():
-		var c: Vector2i = _pending[0]
-		if (centre.call(c) as Vector2).distance_to(Vector2(eye.x, eye.z)) > reach:
-			return
-		_pending.pop_front()
-		_build_chunk(c)
-		budget -= 1
+		var c: Vector2i = _pending.pop_front()
+		if not _built.has(c):
+			_built[c] = _build_chunk(c)
+			budget -= 1
 
 
-func _build_chunk(c: Vector2i) -> void:
+func _centre(c: Vector2i) -> Vector2:
+	var half := area_size / 2.0
+	return Vector2(-half + (c.x + 0.5) * chunk_size, -half + (c.y + 0.5) * chunk_size)
+
+
+func _build_chunk(c: Vector2i) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector3i(seed, c.x, c.y))
 	var half := area_size / 2.0
@@ -158,6 +178,7 @@ func _build_chunk(c: Vector2i) -> void:
 		# MultiMesh buffer layout: 3x4 transform rows, then the colour.
 		(bufs[shape] as Array).append_array([b.x.x, b.y.x, b.z.x, x, b.x.y, b.y.y, b.z.y, y,
 			b.x.z, b.y.z, b.z.z, z, tint.r, tint.g, tint.b, 1.0])
+	var made := []
 	for i in SHAPES.size():
 		if (bufs[i] as Array).is_empty():
 			continue
@@ -179,6 +200,8 @@ func _build_chunk(c: Vector2i) -> void:
 		mmi.visibility_range_end = view_distance + chunk_size * 0.75
 		mmi.visibility_range_end_margin = 4.0
 		add_child(mmi)
+		made.append(mmi)
+	return made
 
 
 ## Bilinear lookup in the density map at a local ground point:
@@ -203,7 +226,7 @@ func _px(x: int, y: int) -> Vector2:
 
 
 func _process(_delta: float) -> void:
-	_stream(2)
+	_stream(1)
 	if not _player or not is_instance_valid(_player):
 		var scene := get_tree().current_scene
 		_player = scene.get_node_or_null("Player") if scene else null
