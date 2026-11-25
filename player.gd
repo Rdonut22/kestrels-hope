@@ -456,7 +456,11 @@ func mount(bike: Node3D, _instant := false) -> void:
 	_look_idle = 0.0
 	ride_follow(bike)
 	_ride_cam.make_current()
+	# The bike was the thing being looked at: its outline and [E] go.
+	if current_target and is_instance_valid(current_target):
+		current_target.set_highlighted(false)
 	current_target = null
+	_target_usable = false
 
 
 ## Get off on whichever side is clear, standing beside the bike and facing

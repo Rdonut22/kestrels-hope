@@ -117,6 +117,8 @@ func _run() -> void:
 	var cam := root.get_viewport().get_camera_3d()
 	_check(cam != null and cam.name == "RideCamera", "riding is seen in first person")
 	_check(not (player.get_node("Model") as Node3D).visible, "with Gana's body hidden")
+	var key: Node3D = bike.get_node("Seat").get("_key")
+	_check(key == null or not key.visible, "and the bike's [E] hint gone")
 	var eye: float = cam.global_position.y - bike.global_position.y if cam else 0.0
 	_check(eye > 1.4 and eye < 2.2, "from about a seated rider's eye height (%.2f m)" % eye)
 	await _shot("hoverbike_2_mounted")
@@ -159,7 +161,8 @@ func _run() -> void:
 	_check(player.global_position.distance_to(bike.global_position) < 3.5, "beside the bike (%.1f m)" % player.global_position.distance_to(bike.global_position))
 	await _shot("hoverbike_7_dismounted")
 	var before: Vector3 = player.global_position
-	player.pivot.rotation.y = bike.rotation.y + PI / 2
+	var away: Vector3 = player.global_position - bike.global_position
+	player.pivot.rotation.y = atan2(-away.x, -away.z)
 	await _hold(["move_forward"], 1.0)
 	_check(before.distance_to(player.global_position) > 2.0, "and walks off again")
 

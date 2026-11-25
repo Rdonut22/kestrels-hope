@@ -35,11 +35,11 @@ const NEAR_DISTANCE := 8.0
 ## mesh), and how far above them his eyes are when sat (metres) and how far
 ## he leans forward toward the handlebars.
 const MODEL_HIPS := Vector3(0.33, 0.11, 0.0)
-const EYE_HEIGHT := 0.78
+const EYE_HEIGHT := 0.72
 const EYE_FORWARD := 0.12
 ## The first-person view looks down this much (radians), so the
 ## handlebars and the front of the bike are in view.
-const EYE_PITCH := -0.16
+const EYE_PITCH := -0.24
 
 var rider: Node3D               # the player while riding
 var speed := 0.0                # along the bike's facing, m/s
