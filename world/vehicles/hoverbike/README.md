@@ -10,3 +10,11 @@ metal-roughness / normal textures), simplified with `tools/simplify_glb.py`:
 The far and shadow versions use the near one's material (world/vehicles/hoverbike.gd).
 Model frame: the front (turbine intake, "B26" fairing) is -X, up is +Y, about
 1.9 units long; the game scales it by 1.35.
+
+The handlebars are straightened first (the original's grips were bent unevenly,
+one swept forward and drooping): each grip turns to a mirror-symmetric pose,
+level sideways with an 8 degree droop, and the bar bends smoothly to meet it:
+
+    straighten_handlebars.py Hoverbike.glb Hoverbike_straight.glb 0 0 8
+
+and the three versions above are made from Hoverbike_straight.glb.
