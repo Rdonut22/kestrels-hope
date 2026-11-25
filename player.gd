@@ -31,8 +31,12 @@ var _pivot_offset := Vector3.ZERO  # the camera pivot's place above Gana
 
 ## The camera pivot follows Gana's smoothed position every frame (it's
 ## top-level, so it doesn't step with the 60 Hz physics); riding, the
-## first-person view follows the bike's.
-func _process(_delta: float) -> void:
+## first-person view follows the bike's. Run from the tree's frame signal,
+## not _process, so it keeps following while Gana's processing is switched
+## off (cutscenes move him that way).
+func _follow_camera() -> void:
+	if not is_inside_tree():
+		return
 	pivot.global_position = get_global_transform_interpolated().origin + _pivot_offset
 	if _bike and _ride_cam:
 		var eye: Transform3D = _bike.get_global_transform_interpolated() * _bike.eye_local()
@@ -58,6 +62,7 @@ func _ready() -> void:
 	pivot.top_level = true
 	pivot.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	pivot.global_position = global_position + _pivot_offset
+	get_tree().process_frame.connect(_follow_camera)
 	_add_key("move_forward", KEY_W)
 	_add_key("move_back", KEY_S)
 	_add_key("move_left", KEY_A)
