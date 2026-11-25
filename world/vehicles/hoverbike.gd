@@ -20,7 +20,7 @@ extends CharacterBody3D
 @export var acceleration := 7.0
 @export var boost_acceleration := 10.0
 @export var braking := 14.0
-@export var coasting := 2.5
+@export var coasting := 3.5
 @export var turn_rate := 1.9       # radians a second at speed
 @export var grip := 6.0            # how fast sideways drift dies away
 

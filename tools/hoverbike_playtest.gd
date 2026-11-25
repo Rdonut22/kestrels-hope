@@ -133,11 +133,11 @@ func _run() -> void:
 	var turned: float = absf(angle_difference(yaw0, bike.rotation.y))
 	_check(turned > 0.5, "A steers (%.2f rad)" % turned)
 	await _side_shot("hoverbike_6_turning", Vector3(2.5, 1.3, 3.5))
-	await _wait(240)
-	_check(absf(float(bike.get("speed"))) < 2.0, "letting go, it coasts to a stop (%.1f m/s)" % float(bike.get("speed")))
+	await _wait(300)
+	_check(absf(float(bike.get("speed"))) < 1.0, "letting go, it coasts to a stop (%.1f m/s)" % float(bike.get("speed")))
 
-	# It can't go through the wreck.
-	bike.global_position = Vector3(26.0, _ground(Vector3(26, 0, 0)), 0.0)
+	# It can't go through the wreck (aimed at solid hull, away from the breach).
+	bike.global_position = Vector3(26.0, _ground(Vector3(26, 0, -7)), -7.0)
 	bike.rotation = Vector3(0, PI / 2, 0)   # facing -X, at the wreck
 	bike.set("speed", 0.0)
 	await _wait(10)
