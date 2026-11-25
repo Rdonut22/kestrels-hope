@@ -21,6 +21,7 @@ GameState="*res://game_state.gd"
 PauseMenu="*res://ui/pause_menu.gd"
 Screenshot="*res://ui/screenshot.gd"
 AmbientMusic="*res://world/ambient_music.gd"
+PerfOverlay="*res://ui/perf_overlay.gd"
 
 [display]
 
