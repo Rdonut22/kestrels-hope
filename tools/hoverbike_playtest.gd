@@ -146,7 +146,8 @@ func _run() -> void:
 	bike.set("speed", 0.0)
 	await _wait(10)
 	await _hold(["move_forward"], 4.0)
-	_check(bike.global_position.x > 12.0, "it stops at the wreck's hull (x %.1f)" % bike.global_position.x)
+	# The hull there is at x 6.3-7; the bike's nose is 1.2 m ahead of its middle.
+	_check(bike.global_position.x > 7.2, "it stops at the wreck's hull (x %.1f)" % bike.global_position.x)
 	await _wait(60)
 
 	# Get off.

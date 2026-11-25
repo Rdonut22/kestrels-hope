@@ -213,6 +213,9 @@ func _physics_process(delta: float) -> void:
 	if _seat:
 		_update_seated_prompt()
 		return
+	if _bike:
+		_riding_update(delta)
+		return
 
 	if not is_on_floor():
 		velocity += get_gravity() * delta
