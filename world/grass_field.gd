@@ -66,6 +66,12 @@ var _meshes := []
 var _built := {}  # Vector2i chunk -> Array of its MultiMeshInstance3Ds
 var _pending: Array[Vector2i] = []
 var _sorted_at := Vector2(INF, INF)
+## The chunk being worked out on a worker thread (Vector2i(-1, -1) when none),
+## its task and its result (one instance buffer per tuft shape).
+var _job_chunk := Vector2i(-1, -1)
+var _job_task := -1
+var _job_bufs := []
+var _origin := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -99,6 +105,9 @@ func _build() -> void:
 	_map_h = img.get_height()
 	for s in SHAPES:
 		_meshes.append(Tuft.build(22 if not s[1] else 16, 0.62 if not s[1] else 0.5, s[0], s[1]))
+	_origin = position
+	if follow_terrain:
+		Terrain.height(0.0, 0.0)  # its noise is set up here, not on a worker
 	# What's around the camera right away; the rest streams in (_process).
 	_stream(9999)
 
@@ -139,11 +148,32 @@ func _stream(budget: int) -> void:
 					_pending.append(c)
 		_pending.sort_custom(func(p: Vector2i, q: Vector2i) -> bool:
 			return _centre(p).distance_squared_to(at) < _centre(q).distance_squared_to(at))
-	while budget > 0 and not _pending.is_empty():
+	# At the start or after a jump: build what's in reach right away.
+	if budget > 1:
+		while budget > 0 and not _pending.is_empty():
+			var c: Vector2i = _pending.pop_front()
+			if not _built.has(c) and c != _job_chunk:
+				_built[c] = _make_chunk(c, _chunk_buffers(c))
+				budget -= 1
+		return
+	# Walking about: one chunk at a time is worked out on a worker thread,
+	# so building grass never holds up a frame.
+	if _job_task >= 0:
+		if not WorkerThreadPool.is_task_completed(_job_task):
+			return
+		WorkerThreadPool.wait_for_task_completion(_job_task)
+		_job_task = -1
+		var c := _job_chunk
+		_job_chunk = Vector2i(-1, -1)
+		if not _built.has(c) and _centre(c).distance_to(at) <= reach + chunk_size:
+			_built[c] = _make_chunk(c, _job_bufs)
+		_job_bufs = []
+	while not _pending.is_empty():
 		var c: Vector2i = _pending.pop_front()
 		if not _built.has(c):
-			_built[c] = _build_chunk(c)
-			budget -= 1
+			_job_chunk = c
+			_job_task = WorkerThreadPool.add_task(func() -> void: _job_bufs = _chunk_buffers(c), false, "grass chunk")
+			return
 
 
 func _centre(c: Vector2i) -> Vector2:
@@ -151,7 +181,9 @@ func _centre(c: Vector2i) -> Vector2:
 	return Vector2(-half + (c.x + 0.5) * chunk_size, -half + (c.y + 0.5) * chunk_size)
 
 
-func _build_chunk(c: Vector2i) -> Array:
+## A chunk's tufts: one MultiMesh buffer per tuft shape (empty for shapes
+## it has none of). Safe to run on a worker thread: it only reads.
+func _chunk_buffers(c: Vector2i) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector3i(seed, c.x, c.y))
 	var half := area_size / 2.0
@@ -173,16 +205,22 @@ func _build_chunk(c: Vector2i) -> Array:
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(size * rng.randf_range(0.85, 1.25), size, size * rng.randf_range(0.85, 1.25)))
 		var y := 0.0
 		if follow_terrain:
-			y = Terrain.height(position.x + x, position.z + z)
+			y = Terrain.height(_origin.x + x, _origin.z + z)
 		var tint := Color(1, 1, 1).lerp(Color(1.12, 1.08, 0.8), rng.randf() * 0.5).lerp(Color(0.8, 0.9, 0.8), rng.randf() * 0.3)
 		# MultiMesh buffer layout: 3x4 transform rows, then the colour.
 		(bufs[shape] as Array).append_array([b.x.x, b.y.x, b.z.x, x, b.x.y, b.y.y, b.z.y, y,
 			b.x.z, b.y.z, b.z.z, z, tint.r, tint.g, tint.b, 1.0])
+	var out := []
+	for b in bufs:
+		out.append(PackedFloat32Array(b))
+	return out
+
+
+## The chunk's nodes from its buffers (on the main thread).
+func _make_chunk(c: Vector2i, bufs: Array) -> Array:
 	var made := []
-	for i in SHAPES.size():
-		if (bufs[i] as Array).is_empty():
-			continue
-		var buf := PackedFloat32Array(bufs[i])
+	for i in mini(bufs.size(), SHAPES.size()):
+		var buf: PackedFloat32Array = bufs[i]
 		if buf.is_empty():
 			continue
 		var mm := MultiMesh.new()
@@ -223,6 +261,12 @@ func _sample(x: float, z: float) -> Vector2:
 func _px(x: int, y: int) -> Vector2:
 	var i := (y * _map_w + x) * 3
 	return Vector2(_map[i] / 255.0, _map[i + 1] / 255.0)
+
+
+func _exit_tree() -> void:
+	if _job_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_job_task)
+		_job_task = -1
 
 
 func _process(_delta: float) -> void:
