@@ -198,6 +198,8 @@ func _enable_control() -> void:
 	_actor = null
 	var yaw := atan2(-(WINDOW_HOOK.x - GANA_AT.x), -(WINDOW_HOOK.z - GANA_AT.z))
 	(_player as Node3D).global_position = _ship.to_global(GANA_AT + Vector3(0, 1.0, 0))
+	if _player.has_method("_jumped"):
+		_player.call("_jumped")
 	(_player.get("pivot") as Node3D).rotation = Vector3(-0.1, yaw, 0)
 	(_player.get("mesh") as Node3D).rotation.y = yaw
 	(_player.get("mesh") as Node3D).visible = true

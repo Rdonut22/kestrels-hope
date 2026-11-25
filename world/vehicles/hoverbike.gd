@@ -56,6 +56,8 @@ var _t := 0.0
 
 func _ready() -> void:
 	add_to_group("hoverbike")
+	# Smoothed between physics steps (see game_state.gd _ready).
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	_build_model()
 	_build_collision()
@@ -137,8 +139,14 @@ func model_point(p: Vector3) -> Vector3:
 
 ## The rider's eyes on the seat: up and forward with the bike as it tips.
 func eye_transform() -> Transform3D:
-	var b := _body.global_basis
-	var hips := model_point(MODEL_HIPS)
+	return global_transform * eye_local()
+
+
+## The same in the bike's own frame (the rider's camera follows the bike's
+## smoothed transform with it: player.gd _process).
+func eye_local() -> Transform3D:
+	var b := _body.basis
+	var hips := _body.transform * (_model.transform * MODEL_HIPS)
 	var at := hips + b.y * EYE_HEIGHT - b.z * EYE_FORWARD
 	return Transform3D(b * Basis(Vector3.RIGHT, EYE_PITCH), at)
 
@@ -285,3 +293,4 @@ func load_state(d: Dictionary) -> void:
 	rotation.y = float(d.get("yaw", rotation.y))
 	velocity = Vector3.ZERO
 	speed = 0.0
+	reset_physics_interpolation()

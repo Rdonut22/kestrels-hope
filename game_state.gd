@@ -86,6 +86,11 @@ var _loading := false
 
 
 func _ready() -> void:
+	# Physics interpolation (project setting) smooths movement between the
+	# 60 Hz physics steps on faster screens. Only what the player watches
+	# move takes part (player.gd, the hover bike turn it on for themselves);
+	# everything else stays as it is, moved where its scripts put it.
+	get_tree().root.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	for sig in [flag_set, inventory_changed, meki_online_changed, power_restored_changed, day_changed, vines_changed, objective_changed]:
 		sig.connect(func(_a = null) -> void: _queue_autosave())
 

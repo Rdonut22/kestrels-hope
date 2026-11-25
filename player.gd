@@ -26,6 +26,24 @@ var _bike: Node3D  # the hover bike we're riding, if any (world/vehicles/hoverbi
 var _ride_cam: Camera3D  # first-person view while riding
 var _ride_look := Vector2.ZERO  # yaw, pitch of the riding view off straight ahead
 var _look_idle := 0.0  # seconds since the mouse last turned the riding view
+var _pivot_offset := Vector3.ZERO  # the camera pivot's place above Gana
+
+
+## The camera pivot follows Gana's smoothed position every frame (it's
+## top-level, so it doesn't step with the 60 Hz physics); riding, the
+## first-person view follows the bike's.
+func _process(_delta: float) -> void:
+	pivot.global_position = get_global_transform_interpolated().origin + _pivot_offset
+	if _bike and _ride_cam:
+		var eye: Transform3D = _bike.get_global_transform_interpolated() * _bike.eye_local()
+		var look := Basis(Vector3.UP, _ride_look.x) * Basis(Vector3.RIGHT, _ride_look.y)
+		_ride_cam.global_transform = Transform3D(eye.basis * look, eye.origin)
+
+
+## After a jump (teleport, sitting, getting off): no smoothing across it.
+func _jumped() -> void:
+	reset_physics_interpolation()
+	pivot.global_position = global_position + _pivot_offset
 
 @onready var pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -33,6 +51,13 @@ var _look_idle := 0.0  # seconds since the mouse last turned the riding view
 @onready var hud: Node = get_tree().get_first_node_in_group("hud")
 
 func _ready() -> void:
+	# Smoothed between physics steps on faster screens (see game_state.gd
+	# _ready); the camera follows the smoothed position (_process).
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
+	_pivot_offset = pivot.position
+	pivot.top_level = true
+	pivot.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	pivot.global_position = global_position + _pivot_offset
 	_add_key("move_forward", KEY_W)
 	_add_key("move_back", KEY_S)
 	_add_key("move_left", KEY_A)
@@ -166,6 +191,7 @@ func _apply_save(spawn: Dictionary) -> void:
 	var p: Array = spawn.get("position", [])
 	if p.size() == 3:
 		global_position = Vector3(p[0], p[1], p[2])
+		_jumped()
 	velocity = Vector3.ZERO
 	pivot.rotation = Vector3(float(spawn.get("pitch", pivot.rotation.x)), float(spawn.get("yaw", pivot.rotation.y)), 0.0)
 	mesh.rotation.y = float(spawn.get("model_yaw", mesh.rotation.y))
@@ -334,6 +360,7 @@ func sit(seat: Node3D) -> void:
 	mesh.set_move(0.0)
 	mesh.visible = false
 	global_position = seat.global_position + Vector3(0, 0.5, 0)
+	_jumped()
 	if not _sit_cam:
 		_sit_cam = Camera3D.new()
 		_sit_cam.fov = 70
@@ -354,6 +381,7 @@ func stand() -> void:
 	if seat.has_method("stand_position"):
 		var spot: Transform3D = seat.stand_position()
 		global_position = spot.origin
+		_jumped()
 		var face := -spot.basis.z
 		var y := atan2(-face.x, -face.z)
 		pivot.rotation = Vector3(-0.15, y, 0)
@@ -366,6 +394,7 @@ func stand() -> void:
 	ahead.y = 0
 	ahead = ahead.normalized()
 	global_position = seat.global_position + ahead * 0.85 + Vector3(0, 1.0, 0)
+	_jumped()
 	var yaw := atan2(-ahead.x, -ahead.z)
 	pivot.rotation = Vector3(-0.15, yaw, 0)
 	mesh.rotation.y = yaw
@@ -455,6 +484,7 @@ func mount(bike: Node3D, _instant := false) -> void:
 	_ride_look = Vector2.ZERO
 	_look_idle = 0.0
 	ride_follow(bike)
+	_jumped()
 	_ride_cam.make_current()
 	# The bike was the thing being looked at: its outline and [E] go.
 	if current_target and is_instance_valid(current_target):
@@ -474,6 +504,7 @@ func dismount() -> void:
 	_bike = null
 	($CollisionShape3D as CollisionShape3D).disabled = false
 	global_position = spot
+	_jumped()
 	velocity = Vector3.ZERO
 	var fwd := -bike.global_basis.z
 	var yaw := atan2(-fwd.x, -fwd.z)
@@ -512,9 +543,9 @@ const RIDE_FOV_BOOST := 10.0
 ## with it (for saving, the compass, the grass) and the camera sits at his
 ## eyes, tipping with the bike.
 func ride_follow(bike: Node3D) -> void:
-	var eye: Transform3D = bike.eye_transform()
 	global_position = bike.global_position + Vector3.UP * 1.0
 	if _ride_cam:
+		var eye: Transform3D = bike.eye_transform()
 		var look := Basis(Vector3.UP, _ride_look.x) * Basis(Vector3.RIGHT, _ride_look.y)
 		_ride_cam.global_transform = Transform3D(eye.basis * look, eye.origin)
 
