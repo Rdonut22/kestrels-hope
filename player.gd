@@ -23,9 +23,9 @@ var _seat: Node3D  # couch seat we're sitting on, if any
 var _sit_cam: Camera3D
 var _sit_look := Vector2.ZERO  # yaw, pitch offsets while seated
 var _bike: Node3D  # the hover bike we're riding, if any (world/vehicles/hoverbike.gd)
-var _ride_pose: Node  # character/ride_pose.gd on the model's skeleton
-var _ride_tween: Tween
-var _look_idle := 0.0  # seconds since the mouse last turned the camera
+var _ride_cam: Camera3D  # first-person view while riding
+var _ride_look := Vector2.ZERO  # yaw, pitch of the riding view off straight ahead
+var _look_idle := 0.0  # seconds since the mouse last turned the riding view
 
 @onready var pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -433,37 +433,31 @@ func _has_power(target: Interactable) -> bool:
 
 # ---------- riding the hover bike ----------
 
-const RIDE_CAMERA_LENGTH := 4.2
-const RIDE_PIVOT_HEIGHT := 1.05
-const WALK_PIVOT_HEIGHT := 0.75
-
-## Get on the hover bike: Gana is carried by it (ride_follow) and posed on
-## its seat; the camera pulls back and follows behind.
-func mount(bike: Node3D, instant := false) -> void:
+## Get on the hover bike: a first-person view from the seat, past the
+## handlebars (the bike places it: ride_follow). Gana's body is hidden, as
+## in the other seats.
+func mount(bike: Node3D, _instant := false) -> void:
 	_bike = bike
 	velocity = Vector3.ZERO
 	mesh.set_move(0.0)
+	mesh.visible = false
 	($CollisionShape3D as CollisionShape3D).disabled = true
-	spring_arm.add_excluded_object(bike.get_rid())
 	bike.mount(self)
-	if _ride_pose == null:
-		var sk: Skeleton3D = mesh.find_children("*", "Skeleton3D", true, false)[0]
-		_ride_pose = load("res://character/ride_pose.gd").new()
-		_ride_pose.name = "RidePose"
-		sk.add_child(_ride_pose)
-	_ride_pose.set("active", true)
-	if _ride_tween:
-		_ride_tween.kill()
-	_ride_tween = create_tween().set_parallel().set_trans(Tween.TRANS_SINE)
-	var t := 0.01 if instant else 0.35
-	_ride_tween.tween_property(_ride_pose, "amount", 1.0, t)
-	_ride_tween.tween_property(spring_arm, "spring_length", RIDE_CAMERA_LENGTH, t * 2.0)
-	_ride_tween.tween_property(pivot, "position:y", RIDE_PIVOT_HEIGHT, t * 2.0)
+	if _ride_cam == null:
+		_ride_cam = Camera3D.new()
+		_ride_cam.name = "RideCamera"
+		_ride_cam.near = 0.05
+		get_parent().add_child(_ride_cam)
+	_ride_cam.fov = RIDE_FOV
+	_ride_look = Vector2.ZERO
+	_look_idle = 0.0
 	ride_follow(bike)
+	_ride_cam.make_current()
 	current_target = null
 
 
-## Get off on whichever side is clear, standing beside the bike.
+## Get off on whichever side is clear, standing beside the bike and facing
+## the way it points.
 func dismount() -> void:
 	var bike := _bike
 	if bike == null:
@@ -471,19 +465,15 @@ func dismount() -> void:
 	var spot := _dismount_spot(bike)
 	bike.dismount()
 	_bike = null
-	spring_arm.remove_excluded_object(bike.get_rid())
 	($CollisionShape3D as CollisionShape3D).disabled = false
 	global_position = spot
 	velocity = Vector3.ZERO
-	mesh.position = Vector3(0, -1, 0)
 	var fwd := -bike.global_basis.z
-	mesh.rotation = Vector3(0, atan2(-fwd.x, -fwd.z), 0)
-	if _ride_tween:
-		_ride_tween.kill()
-	_ride_tween = create_tween().set_parallel().set_trans(Tween.TRANS_SINE)
-	_ride_tween.tween_property(_ride_pose, "amount", 0.0, 0.25)
-	_ride_tween.tween_property(spring_arm, "spring_length", 2.4, 0.5)
-	_ride_tween.tween_property(pivot, "position:y", WALK_PIVOT_HEIGHT, 0.5)
+	var yaw := atan2(-fwd.x, -fwd.z)
+	mesh.rotation = Vector3(0, yaw, 0)
+	mesh.visible = true
+	pivot.rotation = Vector3(-0.15, yaw, 0)
+	($CameraPivot/SpringArm3D/Camera3D as Camera3D).make_current()
 
 
 ## Beside the bike (left, then right, then behind), where Gana's capsule fits
@@ -507,28 +497,25 @@ func _dismount_spot(bike: Node3D) -> Vector3:
 	return bike.global_position + Vector3.UP * 2.2
 
 
-## Called by the bike each physics frame after it moves: Gana sits on it.
+const RIDE_FOV := 74.0
+## How much wider the view gets at boost speed (a sense of speed).
+const RIDE_FOV_BOOST := 10.0
+
+## Called by the bike each physics frame after it moves: Gana's body goes
+## with it (for saving, the compass, the grass) and the camera sits at his
+## eyes, tipping with the bike.
 func ride_follow(bike: Node3D) -> void:
-	var seat: Transform3D = bike.rider_transform()
-	var hips_up: float = mesh.hip_height() if mesh.has_method("hip_height") else 0.95
-	# The model's feet are hip height below the hips, along the bike's up.
-	var feet := seat.origin - seat.basis.y * hips_up
-	mesh.global_transform = Transform3D(seat.basis, feet)
-	global_position = Vector3(feet.x, feet.y + 1.0, feet.z)
-	if _ride_pose:
-		var g: Array = bike.grips()
-		var f: Array = bike.footrests()
-		_ride_pose.set("left_hand", g[0])
-		_ride_pose.set("right_hand", g[1])
-		_ride_pose.set("left_foot", f[0])
-		_ride_pose.set("right_foot", f[1])
-		_ride_pose.set("forward", -bike.global_basis.z)
+	var eye: Transform3D = bike.eye_transform()
+	global_position = bike.global_position + Vector3.UP * 1.0
+	if _ride_cam:
+		var look := Basis(Vector3.UP, _ride_look.x) * Basis(Vector3.RIGHT, _ride_look.y)
+		_ride_cam.global_transform = Transform3D(eye.basis * look, eye.origin)
 
 
 func _riding_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		pivot.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
-		pivot.rotation.x = clamp(pivot.rotation.x - event.relative.y * MOUSE_SENSITIVITY, deg_to_rad(-50), deg_to_rad(25))
+		_ride_look.x = clampf(_ride_look.x - event.relative.x * MOUSE_SENSITIVITY, -1.7, 1.7)
+		_ride_look.y = clampf(_ride_look.y - event.relative.y * MOUSE_SENSITIVITY, -0.7, 0.55)
 		_look_idle = 0.0
 	if event is InputEventMouseButton and event.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -540,13 +527,11 @@ func _riding_input(event: InputEvent) -> void:
 func _riding_update(delta: float) -> void:
 	current_target = null
 	hud.set_prompt("[W/S] Throttle      [A/D] Steer      [Shift] Boost      [E] Get off")
-	# Once the mouse has been left alone a moment, the camera swings round
-	# behind the bike while it's moving.
+	# Once the mouse has been left alone a moment, the view eases back to
+	# straight ahead while the bike is moving.
 	_look_idle += delta
 	var spd: float = absf(float(_bike.get("speed")))
 	if _look_idle > 1.0 and spd > 2.0:
-		var fwd := -_bike.global_basis.z
-		var behind := atan2(-fwd.x, -fwd.z)
-		var k := clampf(delta * 2.5 * clampf(spd / 8.0, 0.3, 1.0), 0.0, 1.0)
-		pivot.rotation.y = lerp_angle(pivot.rotation.y, behind, k)
-		pivot.rotation.x = lerp_angle(pivot.rotation.x, -0.2, k)
+		_ride_look = _ride_look.lerp(Vector2.ZERO, clampf(delta * 2.0, 0.0, 1.0))
+	var top: float = float(_bike.get("boost_speed"))
+	_ride_cam.fov = RIDE_FOV + RIDE_FOV_BOOST * clampf((spd - 8.0) / (top - 8.0), 0.0, 1.0)

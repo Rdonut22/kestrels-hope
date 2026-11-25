@@ -114,9 +114,12 @@ func _run() -> void:
 	await _press("interact")
 	await _wait(30)
 	_check(player.get("_bike") == bike and bike.get("rider") == player, "E gets Gana on the bike")
+	var cam := root.get_viewport().get_camera_3d()
+	_check(cam != null and cam.name == "RideCamera", "riding is seen in first person")
+	_check(not (player.get_node("Model") as Node3D).visible, "with Gana's body hidden")
+	var eye: float = cam.global_position.y - bike.global_position.y if cam else 0.0
+	_check(eye > 1.4 and eye < 2.2, "from about a seated rider's eye height (%.2f m)" % eye)
 	await _shot("hoverbike_2_mounted")
-	await _side_shot("hoverbike_3_mounted_side", Vector3(-3.2, 1.4, 0.6))
-	await _side_shot("hoverbike_4_mounted_front", Vector3(-1.6, 1.6, -3.2))
 
 	# Ride forward (the bike starts facing east, away from the wreck).
 	var start: Vector3 = bike.global_position
@@ -125,14 +128,15 @@ func _run() -> void:
 	_check(went > 15.0, "W drives it forward (%.1f m in 3 s)" % went)
 	gap = bike.global_position.y - _ground(bike.global_position)
 	_check(absf(gap) < 0.35, "it keeps hovering while it moves (%.2f m off)" % gap)
-	var rider_off: float = (player.get_node("Model") as Node3D).global_position.distance_to(bike.global_position)
-	_check(rider_off < 1.5, "Gana stays on it (%.2f m from the bike)" % rider_off)
+	var rider_off: float = player.global_position.distance_to(bike.global_position)
+	_check(rider_off < 1.5, "Gana goes with it (%.2f m from the bike)" % rider_off)
 	await _shot("hoverbike_5_riding")
 	var yaw0: float = bike.rotation.y
 	await _hold(["move_forward", "move_left"], 1.5)
 	var turned: float = absf(angle_difference(yaw0, bike.rotation.y))
 	_check(turned > 0.5, "A steers (%.2f rad)" % turned)
-	await _side_shot("hoverbike_6_turning", Vector3(2.5, 1.3, 3.5))
+	await _shot("hoverbike_6_turning")
+	await _side_shot("hoverbike_6b_turning_outside", Vector3(2.5, 1.3, 3.5))
 	await _wait(300)
 	_check(absf(float(bike.get("speed"))) < 1.0, "letting go, it coasts to a stop (%.1f m/s)" % float(bike.get("speed")))
 
@@ -150,6 +154,7 @@ func _run() -> void:
 	await _wait(40)
 	_check(player.get("_bike") == null and bike.get("rider") == null, "E gets Gana off")
 	_check(player.is_on_floor(), "he lands standing on the ground")
+	_check((player.get_node("Model") as Node3D).visible, "seen again in third person")
 	_check(player.global_position.distance_to(bike.global_position) < 3.5, "beside the bike (%.1f m)" % player.global_position.distance_to(bike.global_position))
 	await _shot("hoverbike_7_dismounted")
 	var before: Vector3 = player.global_position

@@ -7,8 +7,8 @@ extends CharacterBody3D
 ##
 ## It floats `hover_height` above whatever is below it, found with rays
 ## each physics frame, and tips with the ground, its turns and its
-## acceleration. While ridden it carries the player (player.gd ride_follow)
-## and poses him on the seat (character/ride_pose.gd).
+## acceleration. While ridden it carries the player (player.gd ride_follow),
+## who sees it in first person from the seat (eye_transform).
 ##
 ## Frames: the bike faces -Z, its origin is on the ground below its middle.
 ## The model's own frame faces -X (MODEL_*), scaled by MODEL_SCALE.
@@ -31,13 +31,15 @@ const MODEL_SCALE := 1.35
 const MODEL_BOTTOM := -0.344        # the model's lowest point (model units)
 ## Beyond this the lighter model is drawn (it looks the same from there).
 const NEAR_DISTANCE := 8.0
-## Where the rider touches the bike, in the model's frame (measured from the
-## mesh): hips over the seat, hands on the grips, feet on the side pods.
+## The rider's hips over the seat, in the model's frame (measured from the
+## mesh), and how far above them his eyes are when sat (metres) and how far
+## he leans forward toward the handlebars.
 const MODEL_HIPS := Vector3(0.33, 0.11, 0.0)
-const MODEL_LEFT_GRIP := Vector3(-0.19, 0.225, 0.405)
-const MODEL_RIGHT_GRIP := Vector3(-0.04, 0.249, -0.409)
-const MODEL_LEFT_FOOT := Vector3(0.0, -0.14, 0.36)
-const MODEL_RIGHT_FOOT := Vector3(0.0, -0.14, -0.36)
+const EYE_HEIGHT := 0.78
+const EYE_FORWARD := 0.12
+## The first-person view looks down this much (radians), so the
+## handlebars and the front of the bike are in view.
+const EYE_PITCH := -0.16
 
 var rider: Node3D               # the player while riding
 var speed := 0.0                # along the bike's facing, m/s
@@ -133,18 +135,12 @@ func model_point(p: Vector3) -> Vector3:
 	return _model.global_transform * p
 
 
-## Where the rider's hips go and which way is up and forward for him.
-func rider_transform() -> Transform3D:
-	return Transform3D(_body.global_basis, model_point(MODEL_HIPS))
-
-
-func grips() -> Array:
-	return [model_point(MODEL_LEFT_GRIP), model_point(MODEL_RIGHT_GRIP)]
-
-
-func footrests() -> Array:
-	var lift := Vector3(0, 0.08, 0)  # the ankle sits above the sole
-	return [model_point(MODEL_LEFT_FOOT) + lift, model_point(MODEL_RIGHT_FOOT) + lift]
+## The rider's eyes on the seat: up and forward with the bike as it tips.
+func eye_transform() -> Transform3D:
+	var b := _body.global_basis
+	var hips := model_point(MODEL_HIPS)
+	var at := hips + b.y * EYE_HEIGHT - b.z * EYE_FORWARD
+	return Transform3D(b * Basis(Vector3.RIGHT, EYE_PITCH), at)
 
 
 func outline_targets() -> Array[Node]:
