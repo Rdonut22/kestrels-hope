@@ -2,11 +2,13 @@ extends CanvasLayer
 
 ## Performance readout for tracking down lag (autoload "PerfOverlay").
 ##
-##   F3  show / hide the readout
+##   ` (backtick, left of 1) or F3: show / hide the readout
 ##   While it's showing, these switch things off for a moment to see what the
-##   lag comes from (nothing is saved; F3 again or a restart puts them back):
-##   F4  sun shadows        F5  grass         F6  3D at half resolution
-##   F7  trees              F8  the wreck     F9  copy the readout to the clipboard
+##   lag comes from (nothing is saved; hiding the readout or a restart puts
+##   them back). On a Mac the F keys need fn held, so each has a plain key too:
+##   1 / F4  sun shadows    2 / F5  grass     3 / F6  3D at half resolution
+##   4 / F7  trees          5 / F8  the wreck
+##   C / F9  copy the readout to the clipboard
 ##
 ## "Freezes" counts frames that took over 50 ms in the last 10 seconds.
 
@@ -20,6 +22,7 @@ var _off := {}            # toggle name -> true while switched off
 var _hidden: Array[Node3D] = []
 var _shadow_lights: Array[Light3D] = []
 var _report := ""
+var _copied := 0.0        # seconds left showing "copied"
 
 
 func _ready() -> void:
@@ -45,24 +48,29 @@ func _unhandled_input(event: InputEvent) -> void:
 	var k := event as InputEventKey
 	if k == null or not k.pressed or k.echo:
 		return
-	match k.keycode:
-		KEY_F3:
-			visible = not visible
-			if not visible:
-				_restore()
-		KEY_F4:
-			if visible: _toggle("shadows")
-		KEY_F5:
-			if visible: _toggle("grass")
-		KEY_F6:
-			if visible: _toggle("half_res")
-		KEY_F7:
-			if visible: _toggle("trees")
-		KEY_F8:
-			if visible: _toggle("wreck")
-		KEY_F9:
-			if visible:
-				DisplayServer.clipboard_set(_report)
+	var key := k.physical_keycode if k.physical_keycode != KEY_NONE else k.keycode
+	if key == KEY_F3 or key == KEY_QUOTELEFT:
+		visible = not visible
+		if not visible:
+			_restore()
+		get_viewport().set_input_as_handled()
+		return
+	if not visible:
+		return
+	match key:
+		KEY_F4, KEY_1:
+			_toggle("shadows")
+		KEY_F5, KEY_2:
+			_toggle("grass")
+		KEY_F6, KEY_3:
+			_toggle("half_res")
+		KEY_F7, KEY_4:
+			_toggle("trees")
+		KEY_F8, KEY_5:
+			_toggle("wreck")
+		KEY_F9, KEY_C:
+			DisplayServer.clipboard_set(_report)
+			_copied = 2.0
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -75,11 +83,12 @@ func _process(_delta: float) -> void:
 	while not _times.is_empty() and now - int(_times[0][0]) > 10_000_000:
 		_times.pop_front()
 	_t += _delta
+	_copied = maxf(_copied - _delta, 0.0)
 	if not visible or _t < 0.5:
 		return
 	_t = 0.0
 	_report = _make_report(now)
-	_label.text = _report
+	_label.text = _report + ("\n\nCOPIED - paste it to Claude" if _copied > 0.0 else "")
 
 
 func _make_report(now: int) -> String:
@@ -124,12 +133,12 @@ func _make_report(now: int) -> String:
 		var p := cam.global_position
 		lines.append("camera at (%.0f, %.0f, %.0f)" % [p.x, p.y, p.z])
 	lines.append("")
-	var names := {"shadows": "F4 shadows", "grass": "F5 grass", "half_res": "F6 half-res 3D", "trees": "F7 trees", "wreck": "F8 wreck"}
+	var names := {"shadows": "1 shadows", "grass": "2 grass", "half_res": "3 half-res 3D", "trees": "4 trees", "wreck": "5 wreck"}
 	var state := PackedStringArray()
 	for k in names:
 		state.append("%s %s" % [names[k], "OFF" if _off.get(k, false) else "on"])
 	lines.append("   ".join(state.slice(0, 3)))
-	lines.append("   ".join(state.slice(3)) + "   F9 copy")
+	lines.append("   ".join(state.slice(3)) + "   C copy")
 	return "\n".join(lines)
 
 
