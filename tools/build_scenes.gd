@@ -3564,6 +3564,16 @@ func _build_crash_site() -> void:
 	R.add_child(droid)
 	droid.owner = R
 
+	# The Kestrel's hover bike, parked by the wreck facing out toward the
+	# Great Ring (world/vehicles/hoverbike.gd builds its model and seat).
+	var bike := CharacterBody3D.new()
+	bike.name = "Hoverbike"
+	bike.set_script(load("res://world/vehicles/hoverbike.gd"))
+	bike.position = Vector3(14.0, GROUND_Y, 13.0)
+	bike.rotation.y = -PI / 2 + 0.25
+	R.add_child(bike)
+	bike.owner = R
+
 	# Player wakes up in the quarters, facing the hatch.
 	var player: Node3D = R.get_node("Player")
 	player.position = ship.transform * Vector3(-1.2, 1.1, -7.0)

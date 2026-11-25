@@ -70,6 +70,9 @@ var objectives := {}
 ## The tracked objective the player chose to emphasise on the HUD ("" =
 ## automatic). See focused_objective().
 var objective_focus := ""
+## Where the hover bike was left (world/vehicles/hoverbike.gd save_state),
+## from the save file; {} = where the scene puts it.
+var hoverbike := {}
 
 const SAVE_PATH := "user://savegame.json"
 const SAVE_VERSION := 1
@@ -98,6 +101,7 @@ func reset() -> void:
 	cut_vines.clear()
 	objectives.clear()
 	objective_focus = ""
+	hoverbike = {}
 	inventory_changed.emit()
 
 
@@ -321,8 +325,12 @@ func save_game() -> bool:
 			"pitch": pivot.rotation.x,
 			"model_yaw": model.rotation.y,
 			"pilot_seat": seat != null and seat.is_in_group("pilot_seat"),
+			"riding": player.get("_bike") != null,
 		},
 	}
+	var bike := get_tree().get_first_node_in_group("hoverbike")
+	if bike and bike.get_tree().current_scene == scene:
+		data["hoverbike"] = bike.save_state()
 	var clock := get_tree().get_first_node_in_group("day_night")
 	if clock:
 		data["hour"] = clock.get("hour")
@@ -368,6 +376,8 @@ func load_game() -> bool:
 				continue  # an objective that no longer exists
 			objectives[id] = {"tracked": bool(o.get("tracked", true)), "done": bool(o.get("done", false)), "order": int(o.get("order", objectives.size()))}
 	objective_focus = String(data.get("objective_focus", ""))
+	var saved_bike: Variant = data.get("hoverbike", {})
+	hoverbike = saved_bike if saved_bike is Dictionary else {}
 	# Saves from before Discoveries kept the eat task as a flag.
 	if flags.has("objective_eat") and not objectives.has(EAT_TASK):
 		objectives[EAT_TASK] = {"tracked": true, "done": flags.has("ate_meal"), "order": objectives.size()}
