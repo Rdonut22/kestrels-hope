@@ -304,11 +304,12 @@ func outline_targets() -> Array[Node]:
 
 ## Starting up: once on, Gana flips the switch panel's toggles (Space), left
 ## then right; the engine revs, and the bike lifts off the ground to hover.
-## Getting off shuts it down: it settles back onto the ground. Getting off
-## while it's moving, it drifts on a little first.
+## Getting off shuts it down: it powers down (its sound), still hovering,
+## and drops to the ground as the sound ends. Getting off while it's moving,
+## it drifts on a little first.
 const REV_TIME := 0.95           # seconds from the start-up sound to its loud part, when it lifts
 const LIFT_TIME := 1.1           # seconds to rise to hover height
-const SETTLE_TIME := 0.9         # seconds to sink back down when shut off
+const DROP_TIME := 0.3           # seconds to drop to the ground once powered down
 const DRIFT_SLOWING := 5.0       # m/s each second, riderless and still on
 const SHUT_OFF_SPEED := 1.5      # a riderless bike stops its engine below this
 const GROUND_FRICTION := 14.0    # m/s each second, resting on the ground
@@ -320,6 +321,7 @@ var switches: Array[bool] = [false, false]   # left, right: flipped up
 var _switch_at: Array[float] = [0.0, 0.0]   # 0 down .. 1 up, as drawn
 var _lift := 0.0                 # 0 resting on the ground .. 1 hovering
 var _since_start := -1.0         # seconds since the second toggle went up
+var _powering_down := 0.0        # seconds left of the power-down sound (it hovers till then)
 var _rev := 0.0                  # 0..1: high while starting (the body shakes)
 var _run_level := 0.0            # the running sound, 0 silent .. 1 full
 var _accel := 0.0                # 0..1, how hard it's speeding up (a little louder)
@@ -340,9 +342,14 @@ const IDLE_DB := -11.0
 const ACCEL_DB := 4.0            # extra while accelerating
 const RUN_FADE_IN_AT := 5.5      # seconds into the start-up the loop starts
 const RUN_FADE_IN := 2.0
-const RUN_FADE_OUT := 1.6        # shutting down
+const RUN_FADE_OUT := 0.5        # shutting down (the power-down sound takes over)
+## Shutting down: the user's FF_FM_foley_mechanical_machine_power_down_full.wav,
+## its first 3.6 s (the rest is silence).
+const SOUND_POWER_DOWN := "res://audio/hoverbike/power_down.wav"
+const POWER_DOWN_DB := -4.0
 var _start_sound: AudioStreamPlayer3D
 var _run_sound: AudioStreamPlayer3D
+var _down_sound: AudioStreamPlayer3D
 
 
 ## Ready to drive: started and up at hover height.
@@ -363,6 +370,9 @@ func flip_switch() -> bool:
 	if not switches.has(false):
 		running = true
 		_since_start = 0.0
+		_powering_down = 0.0
+		if _down_sound and _down_sound.playing:
+			_down_sound.stop()
 		if _start_sound and _start_sound.is_inside_tree():
 			_start_sound.volume_db = START_DB
 			_start_sound.play()
@@ -372,10 +382,14 @@ func flip_switch() -> bool:
 func shut_down() -> void:
 	if not running and not switches.has(true):
 		return
+	var was_running := running
 	running = false
 	switches = [false, false]
 	_since_start = -1.0
 	_play_click()
+	if was_running and _down_sound and _down_sound.is_inside_tree():
+		_powering_down = _down_sound.stream.get_length()
+		_down_sound.play()
 
 
 ## What the rider can do now (the HUD's prompt while riding).
@@ -403,6 +417,7 @@ func _build_power() -> void:
 	_click.position = SWITCHES_AT
 	_start_sound = _engine_player("StartSound", SOUND_START, START_DB)
 	_run_sound = _engine_player("RunSound", SOUND_RUNNING, -80.0)
+	_down_sound = _engine_player("PowerDownSound", SOUND_POWER_DOWN, POWER_DOWN_DB)
 
 
 func _engine_player(n: String, path: String, db: float) -> AudioStreamPlayer3D:
@@ -427,7 +442,11 @@ func _power(delta: float, throttle: float, braking_hard: bool) -> void:
 	if _since_start >= 0.0:
 		_since_start += delta
 	var lifting := running and _since_start > REV_TIME
-	_lift = move_toward(_lift, 1.0 if lifting else 0.0, delta / (LIFT_TIME if lifting else SETTLE_TIME))
+	_powering_down = maxf(_powering_down - delta, 0.0)
+	if lifting:
+		_lift = move_toward(_lift, 1.0, delta / LIFT_TIME)
+	elif _powering_down <= 0.0:
+		_lift = move_toward(_lift, 0.0, delta / DROP_TIME)
 	_rev = move_toward(_rev, 1.0 if running and _since_start < REV_TIME + 0.4 else 0.0, delta * 2.5)
 	_engine_sounds(delta, throttle)
 	# The controls as drawn.
@@ -619,7 +638,9 @@ func _lean(delta: float, steer: float) -> void:
 	if running and _since_start < REV_TIME + LIFT_TIME:
 		shake = 0.005 * _rev * sin(_t * 71.0)
 	_body.basis = Basis(Vector3.RIGHT, _tilt.x + shake) * Basis(Vector3.FORWARD, -_tilt.y + shake * 0.7)
-	_body.position.y = -hover_height * (1.0 - smoothstep(0.0, 1.0, _lift))
+	# Rising eases in and out; dropping (lift falling fast) falls.
+	var up := smoothstep(0.0, 1.0, _lift) if running else 1.0 - pow(1.0 - _lift, 2.0)
+	_body.position.y = -hover_height * (1.0 - up)
 
 
 # ------------------------------------------------------------------ saving

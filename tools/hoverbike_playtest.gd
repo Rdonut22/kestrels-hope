@@ -4,9 +4,9 @@ extends SceneTree
 ## ground, off. Gana gets on with E; the switch panel glows, Space flips its
 ## toggles left then right, and the engine starts and lifts it to hover.
 ## He rides (throttle twisting the grip, steering, coasting, B braking with
-## the lever), can't drive through the wreck, gets off with E (it shuts off
-## and settles) and walks again; getting off at speed, it drifts on, then
-## shuts off. Saving while riding and loading puts him back on the running
+## the lever), can't drive through the wreck, gets off with E (it powers
+## down, still hovering, and drops as the power-down sound ends) and walks
+## again; getting off at speed, it drifts on first. Saving while riding and loading puts him back on the running
 ## bike where it was.
 ##   godot --path . -s tools/hoverbike_playtest.gd [-- <shots dir>]
 
@@ -213,8 +213,12 @@ func _run() -> void:
 	_check(player.is_on_floor(), "he lands standing on the ground")
 	_check((player.get_node("Model") as Node3D).visible, "seen again in third person")
 	_check(not bike.get("running"), "getting off stopped, the bike shuts off")
-	await _wait(70)
-	_check(_body_drop() > 0.4, "and settles onto the ground (body %.2f m down)" % _body_drop())
+	var down_sound: AudioStreamPlayer3D = bike.get("_down_sound")
+	_check(down_sound != null and down_sound.playing, "powering down (its sound)")
+	await _wait(60)
+	_check(_body_drop() < 0.02, "still hovering while it powers down (body %.2f m down)" % _body_drop())
+	await _wait(int(down_sound.stream.get_length() * 60.0) - 40 if down_sound else 180)
+	_check(_body_drop() > 0.4, "and drops to the ground as the sound ends (body %.2f m down)" % _body_drop())
 	_check(player.global_position.distance_to(bike.global_position) < 3.5, "beside the bike (%.1f m)" % player.global_position.distance_to(bike.global_position))
 	await _shot("hoverbike_7_dismounted")
 	var before: Vector3 = player.global_position
@@ -238,7 +242,7 @@ func _run() -> void:
 	await _press("interact")
 	await _wait(20)
 	_check(player.get("_bike") == null and bike.get("running"), "getting off at speed (%.1f m/s), it keeps going a moment" % at_speed)
-	await _wait(220)
+	await _wait(440)   # drifting, then powering down, then dropping
 	var drift: float = was.distance_to(bike.global_position)
 	_check(drift > 2.0 and drift < 20.0, "drifting on %.1f m" % drift)
 	_check(not bike.get("running") and absf(float(bike.get("speed"))) < 0.3, "then it shuts off and stops")
