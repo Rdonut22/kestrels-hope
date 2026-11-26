@@ -12,6 +12,9 @@ extends Node
 ## stretch for that area; walking into one during the quiet starts a cue
 ## a little early. Inside the wreck it plays faintly.
 
+## Off for now (the user's call): set true to bring the music back.
+const ENABLED := false
+
 const STREAM := "res://audio/music/acoustic_chill.mp3"
 ## Which slice of the mix (0..1) each area draws from.
 const AREAS := {
@@ -76,7 +79,7 @@ func _area(site: Node) -> String:
 func _process(delta: float) -> void:
 	_clock += delta
 	var site := _site()
-	if site == null or not site.get_node("OutdoorMusic").get("_started"):
+	if not ENABLED or site == null or not site.get_node("OutdoorMusic").get("_started"):
 		if _cue:
 			_fade_out()
 		return

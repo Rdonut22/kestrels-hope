@@ -333,20 +333,21 @@ var _click: AudioStreamPlayer3D
 ## Engine sound (audio/hoverbike/, cut from the user's
 ## SpaceshipStartUp_HV.770_1.wav): the start-up from its 8 s mark (its loud
 ## part, REV_TIME in, is when it lifts) and a loop from its steady middle,
-## which fades in as the start-up fades out, quieter at idle and a little
-## louder while accelerating.
+## which fades in as the start-up fades out: quiet when slow or stopped,
+## louder with speed, and a little louder again while accelerating.
 const SOUND_START := "res://audio/hoverbike/start.wav"
 const SOUND_RUNNING := "res://audio/hoverbike/running.wav"
-const START_DB := -3.0
-const IDLE_DB := -11.0
-const ACCEL_DB := 4.0            # extra while accelerating
+const START_DB := -10.0
+const IDLE_DB := -24.0           # stopped or slow
+const SPEED_DB := 10.0           # extra at top speed (boost speed: a little more)
+const ACCEL_DB := 3.0            # extra while accelerating
 const RUN_FADE_IN_AT := 5.5      # seconds into the start-up the loop starts
 const RUN_FADE_IN := 2.0
 const RUN_FADE_OUT := 0.5        # shutting down (the power-down sound takes over)
 ## Shutting down: the user's FF_FM_foley_mechanical_machine_power_down_full.wav,
 ## its first 3.6 s (the rest is silence).
 const SOUND_POWER_DOWN := "res://audio/hoverbike/power_down.wav"
-const POWER_DOWN_DB := -4.0
+const POWER_DOWN_DB := -12.0
 var _start_sound: AudioStreamPlayer3D
 var _run_sound: AudioStreamPlayer3D
 var _down_sound: AudioStreamPlayer3D
@@ -479,7 +480,8 @@ func _engine_sounds(delta: float, throttle: float) -> void:
 	if _run_level > 0.0:
 		if not _run_sound.playing:
 			_run_sound.play()
-		_run_sound.volume_db = IDLE_DB + ACCEL_DB * _accel + linear_to_db(_run_level)
+		var fast := clampf(absf(speed) / max_speed, 0.0, 1.3)
+		_run_sound.volume_db = IDLE_DB + SPEED_DB * fast + ACCEL_DB * _accel + linear_to_db(_run_level)
 		_run_sound.pitch_scale = 1.0 if running else lerpf(0.8, 1.0, _run_level)
 	elif _run_sound.playing:
 		_run_sound.stop()

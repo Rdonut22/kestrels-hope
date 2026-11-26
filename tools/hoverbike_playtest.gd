@@ -161,7 +161,7 @@ func _run() -> void:
 	var grip: Node3D = bike.get("_twist_grip")
 	_check(grip != null and grip.rotation.x > 0.4, "the throttle grip twists (%.2f rad)" % (grip.rotation.x if grip else 0.0))
 	var louder: float = run_sound.volume_db - idle_db if run_sound else 0.0
-	_check(louder > 1.5 and louder < 6.0, "the engine gets a little louder speeding up (+%.1f dB)" % louder)
+	_check(louder > 4.0 and louder < 14.0, "the engine gets louder speeding up (+%.1f dB)" % louder)
 	await _wait(120)
 	Input.action_release("move_forward")
 	var went: float = start.distance_to(bike.global_position)
@@ -180,6 +180,7 @@ func _run() -> void:
 	await _wait(300)
 	_check(absf(float(bike.get("speed"))) < 1.0, "letting go, it coasts to a stop (%.1f m/s)" % float(bike.get("speed")))
 	_check(bike.get("running") and _body_drop() < 0.02, "and stays running, hovering")
+	_check(run_sound != null and absf(run_sound.volume_db - idle_db) < 1.0, "stopped, the engine is quiet again (%.1f dB, idle %.1f)" % [run_sound.volume_db if run_sound else 0.0, idle_db])
 
 	# B brakes hard, pulling the lever in (facing the open ground again).
 	bike.rotation.y = yaw_start
