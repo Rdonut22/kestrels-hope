@@ -72,6 +72,7 @@ func _ready() -> void:
 	_add_key("interact", KEY_E)
 	_add_key("drink", KEY_F)
 	_add_key("read", KEY_R)
+	_add_key("brake", KEY_B)
 	spring_arm.add_excluded_object(get_rid())
 	spring_arm.collision_mask |= CAMERA_LAYER
 	_camera_blockers.call_deferred()
@@ -562,6 +563,10 @@ func _riding_input(event: InputEvent) -> void:
 		_look_idle = 0.0
 	if event is InputEventMouseButton and event.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if event.is_action_pressed("jump"):
+		# Starting up: the switch panel's toggles, one at a time.
+		_bike.flip_switch()
+		get_viewport().set_input_as_handled()
 	if event.is_action_pressed("interact"):
 		dismount()
 		get_viewport().set_input_as_handled()
@@ -569,7 +574,7 @@ func _riding_input(event: InputEvent) -> void:
 
 func _riding_update(delta: float) -> void:
 	current_target = null
-	hud.set_prompt("[W/S] Throttle      [A/D] Steer      [Shift] Boost      [E] Get off")
+	hud.set_prompt(_bike.riding_prompt())
 	# Once the mouse has been left alone a moment, the view eases back to
 	# straight ahead while the bike is moving.
 	_look_idle += delta

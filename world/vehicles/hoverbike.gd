@@ -2,10 +2,12 @@ class_name Hoverbike
 extends CharacterBody3D
 
 ## The Kestrel's hover bike (model: world/vehicles/hoverbike/). Gana gets on
-## with E (the "Seat" interactable), rides with W/S (throttle and brake),
-## A/D (steer) and Shift (boost), and gets off with E.
+## with E (the "Seat" interactable), starts it with Space (the switch panel's
+## two toggles: see "power"), rides with W/S (throttle, slowing and
+## reversing), A/D (steer), Shift (boost) and B (brake), and gets off with E,
+## which shuts it down.
 ##
-## It floats `hover_height` above whatever is below it, found with rays
+## Started, it floats `hover_height` above whatever is below it, found with rays
 ## each physics frame, and tips with the ground, its turns and its
 ## acceleration. While ridden it carries the player (player.gd ride_follow),
 ## who sees it in first person from the seat (eye_transform).
@@ -61,6 +63,7 @@ func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	_build_model()
 	_build_collision()
+	_build_power()
 	var seat := Node3D.new()
 	seat.name = "Seat"
 	seat.set_script(load("res://world/vehicles/hoverbike_seat.gd"))
@@ -139,21 +142,54 @@ const CONSOLE_FOOT := Vector3(-0.06, 0.245, 0.0)   # middle of its bottom edge
 const CONSOLE_TILT := 0.44                         # radians back from upright
 const CONSOLE_HALF_HEIGHT := 0.823
 
+## The switch panel lies on the fairing ahead of the console, tipped toward
+## the rider; its toggles (left, then right) start the bike.
+const PART_SWITCHES := "res://world/vehicles/hoverbike/parts/switch_panel.glb"
+const SWITCHES_SCALE := 0.075
+const SWITCHES_AT := Vector3(-0.5, 0.225, 0.0)     # middle of its back, on the fairing
+const SWITCHES_TILT := 0.21                       # radians toward the rider
+const SWITCHES_BACK := 0.952                      # its back plate, from its middle
+## Moving pieces, in their part's own frame: where each turns, and how far.
+const TOGGLE_PIVOTS := {"ToggleL": Vector3(-0.235, 0.0, -0.40), "ToggleR": Vector3(0.235, 0.0, -0.40)}
+const TOGGLE_DOWN := 0.55        # radians: leaning toward the rider (off)
+const TOGGLE_UP := -0.55         # leaning away (on)
+const LEVER_PIVOT := Vector3(0.12, 0.40, 0.0)
+const LEVER_PULL := 0.13         # radians: the lever's tip comes in to the grip
+const THROTTLE_PIVOT := Vector3(0.0, -0.016, 0.0)
+const THROTTLE_TWIST := 0.75     # radians at full throttle (the top rolls back)
+
 var _cockpit: Array[Node] = []
+var _toggles: Array[Node3D] = []
+var _lever: Node3D
+var _twist_grip: Node3D
+var _switch_panel: Node3D
 
 
 func _build_cockpit() -> void:
 	# Throttle: its housing is at the model's -X end, its markings face +Z.
 	var t_scale := (BAR_END - THROTTLE_INNER) / cos(BAR_DROOP) / PART_LENGTH
-	_add_part("Throttle", PART_THROTTLE, _grip_transform(-1.0, THROTTLE_INNER, t_scale, THROTTLE_AXIS, false, 0.0))
+	var throttle := _add_part("Throttle", PART_THROTTLE, _grip_transform(-1.0, THROTTLE_INNER, t_scale, THROTTLE_AXIS, false, 0.0), {"Grip": THROTTLE_PIVOT})
+	_twist_grip = throttle.get("Grip")
 	# Brake lever grip: its housing is at +X, buttons facing +Z, lever on top.
 	var b_inner := BAR_END - BRAKE_SCALE * PART_LENGTH * cos(BAR_DROOP)
-	_add_part("BrakeLever", PART_BRAKE, _grip_transform(1.0, b_inner, BRAKE_SCALE, BRAKE_AXIS, true, BRAKE_ROLL))
+	var brake := _add_part("BrakeLever", PART_BRAKE, _grip_transform(1.0, b_inner, BRAKE_SCALE, BRAKE_AXIS, true, BRAKE_ROLL), {"Lever": LEVER_PIVOT})
+	_lever = brake.get("Lever")
 	# Console: screen (+Z) toward the rider (+X), its right (+X) to his right (-Z).
 	var n := Vector3(cos(CONSOLE_TILT), sin(CONSOLE_TILT), 0.0)
 	var up := Vector3(-sin(CONSOLE_TILT), cos(CONSOLE_TILT), 0.0)
 	var b := Basis(Vector3(0, 0, -1), up, n).scaled_local(Vector3.ONE * CONSOLE_SCALE)
 	_add_part("Console", PART_CONSOLE, Transform3D(b, CONSOLE_FOOT + up * CONSOLE_HALF_HEIGHT * CONSOLE_SCALE))
+	# Switch panel: its face (+Z) up and toward the rider, its -X end on his
+	# left (+Z), so ToggleL is the left one.
+	var sn := Vector3(sin(SWITCHES_TILT), cos(SWITCHES_TILT), 0.0)
+	var sx := Vector3(0, 0, -1)
+	var sb := Basis(sx, sn.cross(sx), sn).scaled_local(Vector3.ONE * SWITCHES_SCALE)
+	var panel := _add_part("Switches", PART_SWITCHES, Transform3D(sb, SWITCHES_AT + sn * SWITCHES_BACK * SWITCHES_SCALE), TOGGLE_PIVOTS)
+	_switch_panel = _cockpit.back()
+	_toggles = [panel.get("ToggleL"), panel.get("ToggleR")]
+	for t in _toggles:
+		if t:
+			t.rotation.x = TOGGLE_DOWN
 
 
 ## A grip on one side (`side` +1 or -1 in z), from |z| = inner out to the
@@ -170,16 +206,47 @@ func _grip_transform(side: float, inner: float, part_scale: float, axis: Vector2
 	return Transform3D(b, centre - b * Vector3(0, axis.x, axis.y))
 
 
-func _add_part(part_name: String, path: String, xf: Transform3D) -> void:
-	var mi := MeshInstance3D.new()
-	mi.name = part_name
-	mi.mesh = _glb_mesh(path)
-	mi.transform = xf
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.visibility_range_end = NEAR_DISTANCE
-	mi.visibility_range_end_margin = 1.0
-	_model.add_child(mi)
-	_cockpit.append(mi)
+## One part model, placed at `xf`. Its pieces named in `pivots` turn about
+## the given points (in the part's frame): returns each one's pivot node.
+func _add_part(part_name: String, path: String, xf: Transform3D, pivots := {}) -> Dictionary:
+	var root := Node3D.new()
+	root.name = part_name
+	root.transform = xf
+	_model.add_child(root)
+	_cockpit.append(root)
+	var moving := {}
+	var meshes := _glb_meshes(path)
+	for piece: String in meshes:
+		var mi := MeshInstance3D.new()
+		mi.name = piece
+		mi.mesh = meshes[piece]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = NEAR_DISTANCE
+		mi.visibility_range_end_margin = 1.0
+		if pivots.has(piece):
+			var pivot := Node3D.new()
+			pivot.name = piece + "Pivot"
+			pivot.position = pivots[piece]
+			root.add_child(pivot)
+			mi.position = -pivots[piece]
+			pivot.add_child(mi)
+			moving[piece] = pivot
+		else:
+			root.add_child(mi)
+	return moving
+
+
+## Every mesh in a model file, by its node's name.
+func _glb_meshes(path: String) -> Dictionary:
+	var out := {}
+	var scene := load(path) as PackedScene
+	if scene == null:
+		return out
+	var root := scene.instantiate()
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		out[String(mi.name)] = mi.mesh
+	root.free()
+	return out
 
 
 func _glb_mesh(path: String) -> Mesh:
@@ -233,6 +300,177 @@ func outline_targets() -> Array[Node]:
 	return t
 
 
+# ------------------------------------------------------------------ power
+
+## Starting up: once on, Gana flips the switch panel's toggles (Space), left
+## then right; the engine revs, and the bike lifts off the ground to hover.
+## Getting off shuts it down: it settles back onto the ground. Getting off
+## while it's moving, it drifts on a little first.
+const REV_TIME := 0.95           # seconds from the start-up sound to its loud part, when it lifts
+const LIFT_TIME := 1.1           # seconds to rise to hover height
+const SETTLE_TIME := 0.9         # seconds to sink back down when shut off
+const DRIFT_SLOWING := 5.0       # m/s each second, riderless and still on
+const SHUT_OFF_SPEED := 1.5      # a riderless bike stops its engine below this
+const GROUND_FRICTION := 14.0    # m/s each second, resting on the ground
+const SWITCH_TIME := 0.12        # seconds for a toggle to flip
+const BRAKE_FORCE := 1.6         # B brakes this much harder than S
+
+var running := false             # engine on (it hovers once lifted)
+var switches: Array[bool] = [false, false]   # left, right: flipped up
+var _switch_at: Array[float] = [0.0, 0.0]   # 0 down .. 1 up, as drawn
+var _lift := 0.0                 # 0 resting on the ground .. 1 hovering
+var _since_start := -1.0         # seconds since the second toggle went up
+var _rev := 0.0                  # 0..1: high while starting (the body shakes)
+var _run_level := 0.0            # the running sound, 0 silent .. 1 full
+var _accel := 0.0                # 0..1, how hard it's speeding up (a little louder)
+var _twist := 0.0                # throttle grip, 0..1 as drawn
+var _pull := 0.0                 # brake lever, 0..1 as drawn
+var _switches_lit := false
+var _switches_glow: Node3D       # outlines the switch panel (hoverbike_switches.gd)
+var _click: AudioStreamPlayer3D
+## Engine sound (audio/hoverbike/, cut from the user's
+## SpaceshipStartUp_HV.770_1.wav): the start-up from its 8 s mark (its loud
+## part, REV_TIME in, is when it lifts) and a loop from its steady middle,
+## which fades in as the start-up fades out, quieter at idle and a little
+## louder while accelerating.
+const SOUND_START := "res://audio/hoverbike/start.wav"
+const SOUND_RUNNING := "res://audio/hoverbike/running.wav"
+const START_DB := -3.0
+const IDLE_DB := -11.0
+const ACCEL_DB := 4.0            # extra while accelerating
+const RUN_FADE_IN_AT := 5.5      # seconds into the start-up the loop starts
+const RUN_FADE_IN := 2.0
+const RUN_FADE_OUT := 1.6        # shutting down
+var _start_sound: AudioStreamPlayer3D
+var _run_sound: AudioStreamPlayer3D
+
+
+## Ready to drive: started and up at hover height.
+func can_drive() -> bool:
+	return running and _lift > 0.95
+
+
+## Space while riding: flips the next toggle up (left, then right); the
+## second starts the engine. False if there was nothing to flip.
+func flip_switch() -> bool:
+	if running:
+		return false
+	var i := switches.find(false)
+	if i < 0:
+		return false
+	switches[i] = true
+	_play_click()
+	if not switches.has(false):
+		running = true
+		_since_start = 0.0
+		if _start_sound and _start_sound.is_inside_tree():
+			_start_sound.volume_db = START_DB
+			_start_sound.play()
+	return true
+
+
+func shut_down() -> void:
+	if not running and not switches.has(true):
+		return
+	running = false
+	switches = [false, false]
+	_since_start = -1.0
+	_play_click()
+
+
+## What the rider can do now (the HUD's prompt while riding).
+func riding_prompt() -> String:
+	if not running:
+		return "[Space] Flip the %s switch      [E] Get off" % ("left" if not switches[0] else "right")
+	if not can_drive():
+		return "Starting up...      [E] Get off"
+	return "[W/S] Throttle      [A/D] Steer      [Shift] Boost      [B] Brake      [E] Get off"
+
+
+func _build_power() -> void:
+	_switches_glow = Node3D.new()
+	_switches_glow.name = "SwitchGlow"
+	_switches_glow.set_script(load("res://world/vehicles/hoverbike_switches.gd"))
+	var glow: Array[Node] = [_switch_panel]
+	_switches_glow.set("targets", glow)
+	add_child(_switches_glow)
+	_click = AudioStreamPlayer3D.new()
+	_click.name = "Click"
+	_click.stream = load("res://audio/sfx/click.ogg")
+	_click.volume_db = -4.0
+	_click.unit_size = 2.0
+	_model.add_child(_click)
+	_click.position = SWITCHES_AT
+	_start_sound = _engine_player("StartSound", SOUND_START, START_DB)
+	_run_sound = _engine_player("RunSound", SOUND_RUNNING, -80.0)
+
+
+func _engine_player(n: String, path: String, db: float) -> AudioStreamPlayer3D:
+	var a := AudioStreamPlayer3D.new()
+	a.name = n
+	a.stream = load(path)
+	a.volume_db = db
+	a.unit_size = 5.0
+	a.max_db = 3.0
+	_body.add_child(a)
+	a.position = Vector3(0, 0.8, 0)
+	return a
+
+
+func _play_click() -> void:
+	if _click and _click.is_inside_tree():
+		_click.play()
+
+
+## Each physics frame: lift and settling, revs, and the moving controls.
+func _power(delta: float, throttle: float, braking_hard: bool) -> void:
+	if _since_start >= 0.0:
+		_since_start += delta
+	var lifting := running and _since_start > REV_TIME
+	_lift = move_toward(_lift, 1.0 if lifting else 0.0, delta / (LIFT_TIME if lifting else SETTLE_TIME))
+	_rev = move_toward(_rev, 1.0 if running and _since_start < REV_TIME + 0.4 else 0.0, delta * 2.5)
+	_engine_sounds(delta, throttle)
+	# The controls as drawn.
+	for i in 2:
+		_switch_at[i] = move_toward(_switch_at[i], 1.0 if switches[i] else 0.0, delta / SWITCH_TIME)
+		if i < _toggles.size() and _toggles[i]:
+			_toggles[i].rotation.x = lerpf(TOGGLE_DOWN, TOGGLE_UP, smoothstep(0.0, 1.0, _switch_at[i]))
+	_twist = lerpf(_twist, clampf(throttle, 0.0, 1.0), clampf(delta * 10.0, 0.0, 1.0))
+	if _twist_grip:
+		_twist_grip.rotation.x = THROTTLE_TWIST * _twist
+	_pull = move_toward(_pull, 1.0 if braking_hard else 0.0, delta * 9.0)
+	if _lever:
+		_lever.rotation.z = LEVER_PULL * _pull
+	# The switch panel glows while it's waiting to be used.
+	var lit := rider != null and not running
+	if lit != _switches_lit and _switches_glow:
+		_switches_lit = lit
+		_switches_glow.call("set_highlighted", lit, false)
+
+
+## The running loop: in as the start-up fades, steady at idle, a little
+## louder while speeding up; out (and down in pitch) when shut off.
+func _engine_sounds(delta: float, throttle: float) -> void:
+	if _run_sound == null or not _run_sound.is_inside_tree():
+		return
+	var on := running and _since_start >= RUN_FADE_IN_AT
+	_run_level = move_toward(_run_level, 1.0 if on else 0.0, delta / (RUN_FADE_IN if on else RUN_FADE_OUT))
+	var speeding_up := can_drive() and throttle > 0.0 and speed < (boost_speed if Input.is_action_pressed("walk") else max_speed) - 0.5
+	_accel = move_toward(_accel, 1.0 if speeding_up else 0.0, delta * 2.0)
+	if _run_level > 0.0:
+		if not _run_sound.playing:
+			_run_sound.play()
+		_run_sound.volume_db = IDLE_DB + ACCEL_DB * _accel + linear_to_db(_run_level)
+		_run_sound.pitch_scale = 1.0 if running else lerpf(0.8, 1.0, _run_level)
+	elif _run_sound.playing:
+		_run_sound.stop()
+	if not running and _start_sound.playing:
+		# Shut off mid start-up: it dies away.
+		_start_sound.volume_db -= delta * 40.0
+		if _start_sound.volume_db < -50.0:
+			_start_sound.stop()
+
+
 # ------------------------------------------------------------------ riding
 
 func mount(player: Node3D) -> void:
@@ -240,10 +478,14 @@ func mount(player: Node3D) -> void:
 	add_collision_exception_with(player)
 
 
+## Getting off: stopped, the engine shuts off at once; moving, it drifts on
+## and shuts off as it slows (_physics_process).
 func dismount() -> void:
 	if rider:
 		remove_collision_exception_with(rider)
 	rider = null
+	if absf(speed) < SHUT_OFF_SPEED:
+		shut_down()
 
 
 func _physics_process(delta: float) -> void:
@@ -251,11 +493,27 @@ func _physics_process(delta: float) -> void:
 	var throttle := 0.0
 	var steer := 0.0
 	var boost := false
+	var braking_hard := false
+	var twist := 0.0                # the grip turns with W, started or not
 	if rider and not _busy():
-		throttle = Input.get_axis("move_back", "move_forward")
-		steer = Input.get_axis("move_right", "move_left")
-		boost = Input.is_action_pressed("walk")
+		braking_hard = Input.is_action_pressed("brake")
+		twist = maxf(Input.get_axis("move_back", "move_forward"), 0.0)
+		if can_drive():
+			throttle = Input.get_axis("move_back", "move_forward")
+			steer = Input.get_axis("move_right", "move_left")
+			boost = Input.is_action_pressed("walk")
 	_drive(delta, throttle, steer, boost)
+	if can_drive() and braking_hard:
+		speed = move_toward(speed, 0.0, braking * BRAKE_FORCE * delta)
+	if rider == null and running:
+		# Riderless: it drifts on, slowing, and shuts off.
+		speed = move_toward(speed, 0.0, DRIFT_SLOWING * delta)
+		if absf(speed) < SHUT_OFF_SPEED:
+			shut_down()
+	if _lift < 0.5:
+		# On (or nearly on) the ground: it scrapes to a stop.
+		speed = move_toward(speed, 0.0, GROUND_FRICTION * delta)
+	_power(delta, twist, braking_hard)
 	_hover(delta)
 	var before := velocity
 	move_and_slide()
@@ -298,8 +556,9 @@ func _drive(delta: float, throttle: float, steer: float, boost: bool) -> void:
 	velocity.z = flat.z
 
 
-## Floats `hover_height` above the ground: a spring toward the height the
-## rays find, falling when there's nothing below.
+## Keeps its origin on the ground below it, found with rays: a spring
+## toward the height they find, falling when there's nothing below. (The
+## model sits hover_height above that once lifted: _lean.)
 func _hover(delta: float) -> void:
 	var f: Variant = _ground_at(Vector3(0, 0, -1.0))
 	var b: Variant = _ground_at(Vector3(0, 0, 1.0))
@@ -316,7 +575,7 @@ func _hover(delta: float) -> void:
 		mean += float(h)
 	mean /= hits.size()
 	var ground := maxf(mean, top - 0.25)
-	var bob := sin(_t * 2.1) * 0.025 * (1.0 - clampf(absf(speed) / 4.0, 0.0, 1.0))
+	var bob := sin(_t * 2.1) * 0.025 * (1.0 - clampf(absf(speed) / 4.0, 0.0, 1.0)) * _lift
 	var err := ground + bob - global_position.y
 	velocity.y += (err * 45.0 - velocity.y * 10.0) * delta
 	if f != null and b != null:
@@ -348,20 +607,25 @@ func _bump(before: Vector3) -> void:
 
 
 ## Tips the body with the ground's slope, into turns and back under
-## acceleration.
+## acceleration; lowers it onto the ground when it isn't hovering, and
+## shakes it a little as the engine revs up.
 func _lean(delta: float, steer: float) -> void:
 	var accel := (speed - _last_speed) / maxf(delta, 0.001)
 	_last_speed = speed
 	var pitch := _slope + clampf(accel * 0.012, -0.12, 0.12)
 	var roll := steer * clampf(absf(speed) / max_speed, 0.0, 1.0) * 0.28
 	_tilt = _tilt.lerp(Vector2(pitch, roll), clampf(6.0 * delta, 0.0, 1.0))
-	_body.basis = Basis(Vector3.RIGHT, _tilt.x) * Basis(Vector3.FORWARD, -_tilt.y)
+	var shake := 0.0
+	if running and _since_start < REV_TIME + LIFT_TIME:
+		shake = 0.005 * _rev * sin(_t * 71.0)
+	_body.basis = Basis(Vector3.RIGHT, _tilt.x + shake) * Basis(Vector3.FORWARD, -_tilt.y + shake * 0.7)
+	_body.position.y = -hover_height * (1.0 - smoothstep(0.0, 1.0, _lift))
 
 
 # ------------------------------------------------------------------ saving
 
 func save_state() -> Dictionary:
-	return {"position": [global_position.x, global_position.y, global_position.z], "yaw": rotation.y}
+	return {"position": [global_position.x, global_position.y, global_position.z], "yaw": rotation.y, "running": running}
 
 
 func load_state(d: Dictionary) -> void:
@@ -371,4 +635,12 @@ func load_state(d: Dictionary) -> void:
 	rotation.y = float(d.get("yaw", rotation.y))
 	velocity = Vector3.ZERO
 	speed = 0.0
+	running = bool(d.get("running", false))
+	switches = [running, running]
+	_switch_at = [1.0 if running else 0.0, 1.0 if running else 0.0]
+	_since_start = 99.0 if running else -1.0
+	_lift = 1.0 if running else 0.0
+	_run_level = 1.0 if running else 0.0
+	_rev = 0.0
+	_lean(0.0, 0.0)
 	reset_physics_interpolation()

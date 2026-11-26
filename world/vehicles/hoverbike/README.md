@@ -38,3 +38,19 @@ _build_cockpit places them: the throttle on the rider's right, the brake
 lever grip on his left (turned forward so the lever is ahead of the grip),
 the console on the stem. They're drawn within NEAR_DISTANCE, like the near
 model. The console model has a mirrored copy of its screen on its back.
+
+Moving pieces: `tools/split_glb.py` splits the switch panel (from the user's
+Switch_Panel_60k, halved like the others) into its plate and two toggles, the
+brake grip into its body and lever, and the throttle into its housing and
+twist grip; hoverbike.gd turns each about its pivot:
+
+    split_glb.py switch_panel_simplified.glb switch_panel.glb "ToggleL:(z>-0.36)&(x<0)" "ToggleR:(z>-0.36)&(x>0)"
+    split_glb.py brake_lever_grip_simplified.glb brake_lever_grip.glb "Lever:(x<0.12)&(y>0.15)"
+    split_glb.py throttle_grip_simplified.glb throttle_grip.glb "Grip:x>-0.40"
+
+## Engine sound (audio/hoverbike/)
+
+Cut from the user's SpaceshipStartUp_HV.770_1.wav (68 s): `start.wav` is
+8-16 s (its loud part, 0.95 s in, is when the bike lifts; it fades out over
+its last 2 s), `running.wav` is 24-34 s with its last second blended into its
+first, so it loops (loop_mode 2 in its .import).
