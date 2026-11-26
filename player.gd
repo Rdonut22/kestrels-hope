@@ -73,6 +73,7 @@ func _ready() -> void:
 	_add_key("drink", KEY_F)
 	_add_key("read", KEY_R)
 	_add_key("brake", KEY_B)
+	_add_key("headlight", KEY_L)
 	spring_arm.add_excluded_object(get_rid())
 	spring_arm.collision_mask |= CAMERA_LAYER
 	_camera_blockers.call_deferred()
@@ -566,6 +567,9 @@ func _riding_input(event: InputEvent) -> void:
 	if event.is_action_pressed("jump"):
 		# Starting up: the switch panel's toggles, one at a time.
 		_bike.flip_switch()
+		get_viewport().set_input_as_handled()
+	if event.is_action_pressed("headlight"):
+		_bike.toggle_headlight()
 		get_viewport().set_input_as_handled()
 	if event.is_action_pressed("interact"):
 		dismount()

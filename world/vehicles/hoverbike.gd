@@ -404,7 +404,7 @@ func riding_prompt() -> String:
 		return "[Space] Flip the %s switch      [E] Get off" % ("left" if not switches[0] else "right")
 	if not can_drive():
 		return "Starting up...      [E] Get off"
-	return "[W/S] Throttle      [A/D] Steer      [Shift] Boost      [B] Brake      [E] Get off"
+	return "[W/S] Throttle      [A/D] Steer      [Shift] Boost      [B] Brake      [L] Light %s      [E] Get off" % ("off" if lights_on else "on")
 
 
 func _build_power() -> void:
@@ -499,14 +499,17 @@ func _engine_sounds(delta: float, throttle: float) -> void:
 
 # ------------------------------------------------------------------ headlight
 
-## A headlight from the light panel below the turbine intake, on while the
-## engine runs at night (day_night.gd set_night). It fades in and out.
+## A headlight from the light panel below the turbine intake. It shines
+## while the engine runs and it's switched on: L switches it (toggle_headlight),
+## nightfall switches it on and dawn off (day_night.gd set_night). It fades
+## in and out.
 const HEADLIGHT_AT := Vector3(-0.955, -0.24, 0.0)   # model frame: just ahead of the panel
 const HEADLIGHT_DIP := 0.05      # radians below level
 const HEADLIGHT_ANGLE := 30.0    # degrees, half the cone
 const HEADLIGHT_FADE := 0.6      # seconds
 
 var _night := false
+var lights_on := false           # the headlight's switch
 var _headlight: SpotLight3D
 var _headlight_glow: OmniLight3D
 var _beam := 0.0
@@ -541,16 +544,24 @@ func _build_headlight() -> void:
 	var clock := get_tree().get_first_node_in_group("day_night")
 	if clock and clock.has_method("is_night"):
 		_night = clock.is_night()
+		lights_on = _night
 
 
 func set_night(night: bool) -> void:
 	_night = night
+	lights_on = night
+
+
+## L while riding: the headlight on or off.
+func toggle_headlight() -> void:
+	lights_on = not lights_on
+	_play_click()
 
 
 func _update_headlight(delta: float) -> void:
 	if _headlight == null:
 		return
-	_beam = move_toward(_beam, 1.0 if running and _night else 0.0, delta / HEADLIGHT_FADE)
+	_beam = move_toward(_beam, 1.0 if running and lights_on else 0.0, delta / HEADLIGHT_FADE)
 	var on := _beam > 0.0
 	_headlight.visible = on
 	_headlight_glow.visible = on
@@ -716,7 +727,7 @@ func _lean(delta: float, steer: float) -> void:
 # ------------------------------------------------------------------ saving
 
 func save_state() -> Dictionary:
-	return {"position": [global_position.x, global_position.y, global_position.z], "yaw": rotation.y, "running": running}
+	return {"position": [global_position.x, global_position.y, global_position.z], "yaw": rotation.y, "running": running, "lights": lights_on}
 
 
 func load_state(d: Dictionary) -> void:
@@ -727,6 +738,7 @@ func load_state(d: Dictionary) -> void:
 	velocity = Vector3.ZERO
 	speed = 0.0
 	running = bool(d.get("running", false))
+	lights_on = bool(d.get("lights", lights_on))
 	switches = [running, running]
 	_switch_at = [1.0 if running else 0.0, 1.0 if running else 0.0]
 	_since_start = 99.0 if running else -1.0
