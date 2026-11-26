@@ -182,6 +182,18 @@ func _run() -> void:
 	_check(bike.get("running") and _body_drop() < 0.02, "and stays running, hovering")
 	_check(run_sound != null and absf(run_sound.volume_db - idle_db) < 1.0, "stopped, the engine is quiet again (%.1f dB, idle %.1f)" % [run_sound.volume_db if run_sound else 0.0, idle_db])
 
+	# The headlight: off by day, on at night while it runs.
+	var lamp: SpotLight3D = bike.get("_headlight")
+	_check(lamp != null and not lamp.visible, "by day, the headlight is off")
+	if clock:
+		clock.skip_to(23.0)
+		await _wait(60)
+		_check(lamp != null and lamp.visible and lamp.light_energy > 10.0, "at night, running, the headlight is on (%.1f)" % (lamp.light_energy if lamp else 0.0))
+		await _shot("hoverbike_4_headlight")
+		clock.skip_to(14.0)
+		await _wait(60)
+		_check(lamp != null and not lamp.visible, "and off again by day")
+
 	# B brakes hard, pulling the lever in (facing the open ground again).
 	bike.rotation.y = yaw_start
 	await _hold(["move_forward"], 2.0)

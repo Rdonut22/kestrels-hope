@@ -25,6 +25,9 @@ extends CharacterBody3D
 @export var coasting := 3.5
 @export var turn_rate := 1.9       # radians a second at speed
 @export var grip := 6.0            # how fast sideways drift dies away
+## The headlight (on while running at night): brightness and reach.
+@export var headlight_energy := 16.0
+@export var headlight_range := 40.0
 
 const MODEL_NEAR := "res://world/vehicles/hoverbike/hoverbike.glb"
 const MODEL_FAR := "res://world/vehicles/hoverbike/hoverbike_far.glb"
@@ -58,12 +61,14 @@ var _t := 0.0
 
 func _ready() -> void:
 	add_to_group("hoverbike")
+	add_to_group("night_glow")      # day_night.gd tells it when night falls
 	# Smoothed between physics steps (see game_state.gd _ready).
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	_build_model()
 	_build_collision()
 	_build_power()
+	_build_headlight()
 	var seat := Node3D.new()
 	seat.name = "Seat"
 	seat.set_script(load("res://world/vehicles/hoverbike_seat.gd"))
@@ -492,6 +497,68 @@ func _engine_sounds(delta: float, throttle: float) -> void:
 			_start_sound.stop()
 
 
+# ------------------------------------------------------------------ headlight
+
+## A headlight from the light panel below the turbine intake, on while the
+## engine runs at night (day_night.gd set_night). It fades in and out.
+const HEADLIGHT_AT := Vector3(-0.955, -0.24, 0.0)   # model frame: just ahead of the panel
+const HEADLIGHT_DIP := 0.05      # radians below level
+const HEADLIGHT_ANGLE := 30.0    # degrees, half the cone
+const HEADLIGHT_FADE := 0.6      # seconds
+
+var _night := false
+var _headlight: SpotLight3D
+var _headlight_glow: OmniLight3D
+var _beam := 0.0
+
+
+func _build_headlight() -> void:
+	var at := _model.transform * HEADLIGHT_AT
+	_headlight = SpotLight3D.new()
+	_headlight.name = "Headlight"
+	_headlight.light_color = Color(1.0, 0.93, 0.8)
+	_headlight.spot_range = headlight_range
+	_headlight.spot_angle = HEADLIGHT_ANGLE
+	_headlight.spot_attenuation = 0.9
+	_headlight.spot_angle_attenuation = 1.6
+	_headlight.shadow_enabled = true
+	_headlight.light_energy = 0.0
+	_headlight.visible = false
+	_headlight.position = at
+	_headlight.rotation.x = -HEADLIGHT_DIP
+	_body.add_child(_headlight)
+	# A little light on the panel itself and the ground just ahead.
+	_headlight_glow = OmniLight3D.new()
+	_headlight_glow.name = "HeadlightGlow"
+	_headlight_glow.light_color = Color(1.0, 0.9, 0.75)
+	_headlight_glow.omni_range = 1.2
+	_headlight_glow.omni_attenuation = 1.5
+	_headlight_glow.shadow_enabled = false
+	_headlight_glow.light_energy = 0.0
+	_headlight_glow.visible = false
+	_headlight_glow.position = at + Vector3(0, 0, -0.12)
+	_body.add_child(_headlight_glow)
+	var clock := get_tree().get_first_node_in_group("day_night")
+	if clock and clock.has_method("is_night"):
+		_night = clock.is_night()
+
+
+func set_night(night: bool) -> void:
+	_night = night
+
+
+func _update_headlight(delta: float) -> void:
+	if _headlight == null:
+		return
+	_beam = move_toward(_beam, 1.0 if running and _night else 0.0, delta / HEADLIGHT_FADE)
+	var on := _beam > 0.0
+	_headlight.visible = on
+	_headlight_glow.visible = on
+	_headlight.light_energy = headlight_energy * _beam
+	_headlight.spot_range = headlight_range
+	_headlight_glow.light_energy = 0.8 * _beam
+
+
 # ------------------------------------------------------------------ riding
 
 func mount(player: Node3D) -> void:
@@ -535,6 +602,7 @@ func _physics_process(delta: float) -> void:
 		# On (or nearly on) the ground: it scrapes to a stop.
 		speed = move_toward(speed, 0.0, GROUND_FRICTION * delta)
 	_power(delta, twist, braking_hard)
+	_update_headlight(delta)
 	_hover(delta)
 	var before := velocity
 	move_and_slide()
