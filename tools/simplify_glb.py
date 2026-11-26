@@ -104,6 +104,10 @@ if keep_tex:
     g["materials"] = j["materials"]; g["textures"] = j["textures"]; g["images"] = images
     if "samplers" in j:
         g["samplers"] = j["samplers"]
+    # Texture formats that need an extension (e.g. EXT_texture_webp).
+    for k in ("extensionsUsed", "extensionsRequired"):
+        if k in j:
+            g[k] = j[k]
 else:
     g["materials"] = [{"pbrMetallicRoughness": {"baseColorFactor": [0.5, 0.5, 0.5, 1]}}]
 js = json.dumps(g).encode(); js += b" " * ((4 - len(js) % 4) % 4)

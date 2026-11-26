@@ -104,6 +104,82 @@ func _build_model() -> void:
 	shadow.material_override = mat
 	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 	_model.add_child(shadow)
+	_build_cockpit()
+
+
+# ------------------------------------------------------------------ cockpit
+
+## The rider's controls are separate, more detailed models (the near model
+## has its own grips and stem display cut out; the far and shadow ones keep
+## them, which can't be told apart from beyond NEAR_DISTANCE). Each model is
+## about 1.9 units long, centred on its origin.
+const PART_CONSOLE := "res://world/vehicles/hoverbike/parts/steering_console.glb"
+const PART_THROTTLE := "res://world/vehicles/hoverbike/parts/throttle_grip.glb"
+const PART_BRAKE := "res://world/vehicles/hoverbike/parts/brake_lever_grip.glb"
+const PART_LENGTH := 1.903
+## The handlebar's grip line in the model's frame: through this point (at
+## |z| = its z on each side), drooping 8 degrees outward.
+const BAR_POINT := Vector3(-0.1164, 0.2366, 0.4104)
+const BAR_DROOP := 0.1396
+## Each grip runs from `inner` to the bar's end (|z|); the throttle is on the
+## rider's right (-Z: he faces -X), the brake lever on his left.
+const BAR_END := 0.455
+const THROTTLE_INNER := 0.235
+const BRAKE_SCALE := 0.125
+## Where each grip's own axis is in its model (y, z): the brake's lever sits
+## on top, so its grip is below the middle.
+const THROTTLE_AXIS := Vector2(-0.016, 0.0)
+const BRAKE_AXIS := Vector2(-0.129, 0.036)
+## The brake grip turns forward about the bar so its lever (on top in the
+## model) is ahead of the grip, where the fingers reach it (radians).
+const BRAKE_ROLL := -1.0
+## The console stands on the stem, its screen tipped back toward the rider.
+const CONSOLE_SCALE := 0.105
+const CONSOLE_FOOT := Vector3(-0.06, 0.245, 0.0)   # middle of its bottom edge
+const CONSOLE_TILT := 0.44                         # radians back from upright
+const CONSOLE_HALF_HEIGHT := 0.823
+
+var _cockpit: Array[Node] = []
+
+
+func _build_cockpit() -> void:
+	# Throttle: its housing is at the model's -X end, its markings face +Z.
+	var t_scale := (BAR_END - THROTTLE_INNER) / cos(BAR_DROOP) / PART_LENGTH
+	_add_part("Throttle", PART_THROTTLE, _grip_transform(-1.0, THROTTLE_INNER, t_scale, THROTTLE_AXIS, false, 0.0))
+	# Brake lever grip: its housing is at +X, buttons facing +Z, lever on top.
+	var b_inner := BAR_END - BRAKE_SCALE * PART_LENGTH * cos(BAR_DROOP)
+	_add_part("BrakeLever", PART_BRAKE, _grip_transform(1.0, b_inner, BRAKE_SCALE, BRAKE_AXIS, true, BRAKE_ROLL))
+	# Console: screen (+Z) toward the rider (+X), its right (+X) to his right (-Z).
+	var n := Vector3(cos(CONSOLE_TILT), sin(CONSOLE_TILT), 0.0)
+	var up := Vector3(-sin(CONSOLE_TILT), cos(CONSOLE_TILT), 0.0)
+	var b := Basis(Vector3(0, 0, -1), up, n).scaled_local(Vector3.ONE * CONSOLE_SCALE)
+	_add_part("Console", PART_CONSOLE, Transform3D(b, CONSOLE_FOOT + up * CONSOLE_HALF_HEIGHT * CONSOLE_SCALE))
+
+
+## A grip on one side (`side` +1 or -1 in z), from |z| = inner out to the
+## bar's end, along the bar's line. `flipped`: the part's housing is at its +X.
+## `roll` turns it about the bar.
+func _grip_transform(side: float, inner: float, part_scale: float, axis: Vector2, flipped: bool, roll: float) -> Transform3D:
+	var out := Vector3(0, -sin(BAR_DROOP), side * cos(BAR_DROOP))   # along the bar, outward
+	var x_dir := -out if flipped else out
+	var z_dir := Vector3.RIGHT          # toward the rider
+	var b := (Basis(x_dir, roll) * Basis(x_dir, z_dir.cross(x_dir), z_dir)).scaled_local(Vector3.ONE * part_scale)
+	var mid := (inner + BAR_END) / 2.0
+	var start := Vector3(BAR_POINT.x, BAR_POINT.y, side * BAR_POINT.z)
+	var centre := start + out * ((mid - BAR_POINT.z) / cos(BAR_DROOP))
+	return Transform3D(b, centre - b * Vector3(0, axis.x, axis.y))
+
+
+func _add_part(part_name: String, path: String, xf: Transform3D) -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = part_name
+	mi.mesh = _glb_mesh(path)
+	mi.transform = xf
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_end = NEAR_DISTANCE
+	mi.visibility_range_end_margin = 1.0
+	_model.add_child(mi)
+	_cockpit.append(mi)
 
 
 func _glb_mesh(path: String) -> Mesh:
@@ -152,7 +228,9 @@ func eye_local() -> Transform3D:
 
 
 func outline_targets() -> Array[Node]:
-	return [_near_mesh]
+	var t: Array[Node] = [_near_mesh]
+	t.append_array(_cockpit)
+	return t
 
 
 # ------------------------------------------------------------------ riding
