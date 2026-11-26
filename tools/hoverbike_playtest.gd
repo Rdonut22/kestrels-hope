@@ -155,6 +155,7 @@ func _run() -> void:
 
 	# Ride forward (the bike starts facing east, away from the wreck).
 	var start: Vector3 = bike.global_position
+	var yaw_start: float = bike.rotation.y
 	Input.action_press("move_forward")
 	await _wait(60)
 	var grip: Node3D = bike.get("_twist_grip")
@@ -180,7 +181,8 @@ func _run() -> void:
 	_check(absf(float(bike.get("speed"))) < 1.0, "letting go, it coasts to a stop (%.1f m/s)" % float(bike.get("speed")))
 	_check(bike.get("running") and _body_drop() < 0.02, "and stays running, hovering")
 
-	# B brakes hard, pulling the lever in.
+	# B brakes hard, pulling the lever in (facing the open ground again).
+	bike.rotation.y = yaw_start
 	await _hold(["move_forward"], 2.0)
 	var fast: float = float(bike.get("speed"))
 	Input.action_press("brake")
