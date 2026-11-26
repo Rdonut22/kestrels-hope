@@ -217,7 +217,7 @@ func _run() -> void:
 	# (Its sound plays in real time, which can run ahead of this slow test, so
 	# check that it began and holds the bike up for its length.)
 	var left: float = float(bike.get("_powering_down"))
-	_check(down_sound != null and absf(left + 40.0 / 60.0 - down_sound.stream.get_length()) < 0.1, "powering down for its sound's %.1f s (%.1f s left)" % [down_sound.stream.get_length() if down_sound else 0.0, left])
+	_check(down_sound != null and left > 2.0 and left < down_sound.stream.get_length(), "powering down for its sound's %.1f s (%.1f s left)" % [down_sound.stream.get_length() if down_sound else 0.0, left])
 	await _wait(60)
 	_check(_body_drop() < 0.02, "still hovering while it powers down (body %.2f m down)" % _body_drop())
 	await _wait(int(down_sound.stream.get_length() * 60.0) - 40 if down_sound else 180)
