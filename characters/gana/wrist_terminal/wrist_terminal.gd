@@ -30,6 +30,12 @@ extends Node3D
 	set(v):
 		wear = v
 		_apply_wear()
+## Its parts cast shadows (off on Gana's arm: too small to see, and each
+## would cost a draw call per shadow pass).
+@export var cast_shadows := true
+## Join the parts that never move into a mesh per material when built
+## (world/static_batch.gd): fewer draw calls, same look.
+@export var batch := false
 @export_group("Controls")
 ## Rotary knob angle in degrees (turns about the knob's own axis).
 @export_range(-180.0, 180.0) var knob_angle := 0.0:
@@ -128,6 +134,19 @@ func _rebuild() -> void:
 	_apply_wear()
 	_pose_controls()
 	_update_indicator()
+	if not cast_shadows:
+		for g in find_children("*", "GeometryInstance3D", true, false):
+			(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if batch and not Engine.is_editor_hint():
+		# The parts that move or change stay separate; the rest of the unit is
+		# joined into a mesh per material (world/static_batch.gd).
+		for n in [_knob, _button_a, _button_b, _cover, unit.get_node_or_null("Screen"), find_child("StatusLamp", true, false)]:
+			if n:
+				(n as Node).set_meta("batch_keep", true)
+		var sb := Node.new()
+		sb.name = "Batch"
+		sb.set_script(load("res://world/static_batch.gd"))
+		unit.add_child(sb)
 
 
 # ---------------------------------------------------------------- materials
@@ -222,6 +241,8 @@ func _part(parent: Node, name: String, mb: ProcMesh.Builder) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = name
 	mi.mesh = mb.commit(_mats)
+	if not cast_shadows:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	return mi
 

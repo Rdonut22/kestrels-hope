@@ -39,6 +39,8 @@ const FOREARM := "mixamorig_RightForeArm"
 const HAND := "mixamorig_RightHand"
 const FINGERS := ["Thumb", "Index", "Middle", "Ring", "Pinky"]
 const SHADER := preload("res://characters/gana/wrist_terminal/wrist_wear.gdshader")
+## Parts that cast shadows (see _part).
+const SHADOW_PARTS := ["Forearm", "Palm"]
 
 ## The terminal (for the wrist-computer feature later).
 var terminal: WristTerminal
@@ -141,6 +143,10 @@ func _part(parent: Node3D, name: String, mb: ProcMesh.Builder) -> MeshInstance3D
 		table["Graphite"] = _mats["Cream"]
 		table["Cream"] = _mats["Graphite"]
 	mi.mesh = mb.commit(table)
+	# Only the forearm and palm cast shadows: the finger segments' are too
+	# small to see, and each would be another draw call per shadow pass.
+	if not name in SHADOW_PARTS:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	return mi
 
@@ -185,6 +191,8 @@ func _build_forearm(h: Node3D, length: float, dorsal: Vector3) -> void:
 		terminal.transform = Transform3D(tb.scaled_local(Vector3.ONE * terminal_scale), Vector3(0, l * terminal_position, 0))
 		# Its cuff hugs the forearm shell under it (~0.031 m at the middle).
 		terminal.arm_radius = 0.032 / terminal_scale
+		terminal.cast_shadows = false
+		terminal.batch = true
 		h.add_child(terminal)
 
 
