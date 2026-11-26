@@ -56,6 +56,8 @@ func _ready() -> void:
 	for n in ["Idle", "Walk", "QuickWalk", "Run"]:
 		if anim.has_animation(n):
 			anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+	for n in IN_PLACE:
+		_keep_in_place(n)
 	for side in ["L", "R"]:
 		var b := bone("Foot." + side)
 		if b >= 0:
@@ -84,6 +86,56 @@ func hold(name: String, time: float) -> void:
 		anim.play(name)
 		anim.seek(time, true)
 		anim.pause()
+
+
+## Clips whose hips wander across the ground and back: played where he
+## stands. (The catch-breath stumbles about 2 m forward, then, bent over
+## breathing, glides back to where it began: see PLAY_FROM.)
+const IN_PLACE := ["CatchBreath"]
+## Clips played from part-way in (seconds): the catch-breath's stumble
+## forward is skipped; he has already stopped when it plays.
+const PLAY_FROM := {"CatchBreath": 3.25}
+## The drift is the hips' movement averaged over this long (seconds); what's
+## quicker than that (the sway, the breathing) stays.
+const IN_PLACE_WINDOW := 1.2
+
+
+## Takes the slow drift of the hips across the ground out of a clip, so it
+## plays in place (start-to-end drift is already stripped on import:
+## tools/import_gana_meshy.gd, but this clip comes back to where it began).
+func _keep_in_place(n: String) -> void:
+	if not anim.has_animation(n):
+		return
+	var a := anim.get_animation(n)
+	if a.has_meta("in_place"):
+		return
+	a.set_meta("in_place", true)
+	for t in a.get_track_count():
+		if a.track_get_type(t) != Animation.TYPE_POSITION_3D or not String(a.track_get_path(t)).ends_with("Hips"):
+			continue
+		var count := a.track_get_key_count(t)
+		if count < 2:
+			return
+		var times: Array[float] = []
+		var vals: Array[Vector3] = []
+		for k in count:
+			times.append(a.track_get_key_time(t, k))
+			vals.append(a.track_get_key_value(t, k))
+		var start := vals[0]
+		var lo := 0
+		var hi := 0
+		var sum := Vector2.ZERO
+		for k in count:
+			# The average over the keys within half a window either side.
+			while hi < count and times[hi] <= times[k] + IN_PLACE_WINDOW / 2.0:
+				sum += Vector2(vals[hi].x, vals[hi].z)
+				hi += 1
+			while times[lo] < times[k] - IN_PLACE_WINDOW / 2.0:
+				sum -= Vector2(vals[lo].x, vals[lo].z)
+				lo += 1
+			var avg := sum / float(hi - lo)
+			a.track_set_key_value(t, k, vals[k] - Vector3(avg.x - start.x, 0.0, avg.y - start.z))
+		return
 
 
 func set_move(amount: float) -> void:
@@ -133,8 +185,11 @@ func play_jump(running: bool) -> void:
 func _start(a: String, speed: float, locked: bool) -> void:
 	_current = a
 	anim.play(a, 0.1)
+	var from: float = PLAY_FROM.get(a, 0.0)
+	if from > 0.0:
+		anim.seek(from, true)
 	anim.speed_scale = speed
-	_action_left = anim.get_animation(a).length / speed * 0.9
+	_action_left = (anim.get_animation(a).length - from) / speed * 0.9
 	_locked = locked
 
 
