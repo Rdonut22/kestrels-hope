@@ -38,6 +38,8 @@ const CELL := 12.0
 ## a second pass joins those.
 const SETTLE_FRAMES := 3
 const LATE_FRAMES := 60
+## Most time spent joining in one frame (milliseconds).
+const BUDGET_MS := 4.0
 
 var merged := 0        # pieces joined
 var meshes_made := 0
@@ -51,9 +53,9 @@ func _ready() -> void:
 		return
 	var root := get_parent() as Node3D
 	if root:
-		batch(root)
+		await batch(root)
 		if await _frames(LATE_FRAMES):
-			batch(root)
+			await batch(root)
 
 
 ## Waits `n` frames; false if this left the scene meanwhile (a scene change
@@ -67,6 +69,7 @@ func _frames(n: int) -> bool:
 
 
 func batch(root: Node3D) -> void:
+	var t0 := Time.get_ticks_usec()
 	var keep := _kept(root)
 	var to_root := root.global_transform.affine_inverse()
 	var groups := {}   # key -> [material, cast_shadow, layers, [[mesh, surface, transform]...]]
@@ -90,9 +93,11 @@ func batch(root: Node3D) -> void:
 		joined.append(mi)
 	if joined.is_empty():
 		return
-	var holder := Node3D.new()
-	holder.name = "StaticBatch" if not root.has_node("StaticBatch") else "StaticBatchLate"
-	root.add_child(holder)
+	var t1 := Time.get_ticks_usec()
+	# Build the joined meshes a few at a time (BUDGET_MS a frame), then swap
+	# them in at once: no hitch, and nothing half-done is ever drawn.
+	var made := []   # [mesh, group]
+	var slice := Time.get_ticks_usec()
 	for key in groups:
 		var g: Array = groups[key]
 		var st := SurfaceTool.new()
@@ -100,11 +105,23 @@ func batch(root: Node3D) -> void:
 		for part: Array in g[3]:
 			st.append_from(part[0], part[1], part[2])
 		var mesh := st.commit()
-		if mesh == null or mesh.get_surface_count() == 0:
-			continue
-		mesh.surface_set_material(0, g[0])
+		if mesh and mesh.get_surface_count() > 0:
+			mesh.surface_set_material(0, g[0])
+			made.append([mesh, g])
+		if Time.get_ticks_usec() - slice > BUDGET_MS * 1000:
+			if not await _frames(1):
+				return
+			slice = Time.get_ticks_usec()
+	for i in joined.size():
+		if not is_instance_valid(joined[i]):
+			return   # the scene changed meanwhile
+	var holder := Node3D.new()
+	holder.name = "StaticBatch" if not root.has_node("StaticBatch") else "StaticBatchLate"
+	root.add_child(holder)
+	for m: Array in made:
+		var g: Array = m[1]
 		var out := MeshInstance3D.new()
-		out.mesh = mesh
+		out.mesh = m[0]
 		out.cast_shadow = g[1]
 		out.layers = g[2]
 		holder.add_child(out)
@@ -115,7 +132,8 @@ func batch(root: Node3D) -> void:
 		mi.set_meta("batched_mesh", mi.mesh)
 		mi.mesh = null
 	merged += joined.size()
-	print("StaticBatch: %d pieces joined into %d meshes" % [merged, meshes_made])
+	print("StaticBatch: %d pieces joined into %d meshes (sorting %d ms, then joining over %d ms)" % [merged, meshes_made,
+		(t1 - t0) / 1000, (Time.get_ticks_usec() - t1) / 1000])
 
 
 func _process(_delta: float) -> void:
@@ -125,12 +143,18 @@ func _process(_delta: float) -> void:
 
 
 func _copy_range(out: MeshInstance3D, piece: MeshInstance3D) -> void:
-	out.visible = piece.visible
-	out.visibility_range_begin = piece.visibility_range_begin
-	out.visibility_range_end = piece.visibility_range_end
-	out.visibility_range_begin_margin = piece.visibility_range_begin_margin
-	out.visibility_range_end_margin = piece.visibility_range_end_margin
-	out.visibility_range_fade_mode = piece.visibility_range_fade_mode
+	if out.visible != piece.visible:
+		out.visible = piece.visible
+	if out.visibility_range_begin != piece.visibility_range_begin:
+		out.visibility_range_begin = piece.visibility_range_begin
+	if out.visibility_range_end != piece.visibility_range_end:
+		out.visibility_range_end = piece.visibility_range_end
+	if out.visibility_range_begin_margin != piece.visibility_range_begin_margin:
+		out.visibility_range_begin_margin = piece.visibility_range_begin_margin
+	if out.visibility_range_end_margin != piece.visibility_range_end_margin:
+		out.visibility_range_end_margin = piece.visibility_range_end_margin
+	if out.visibility_range_fade_mode != piece.visibility_range_fade_mode:
+		out.visibility_range_fade_mode = piece.visibility_range_fade_mode
 
 
 ## Which vertex data a surface has (pieces are only joined with alike ones).
