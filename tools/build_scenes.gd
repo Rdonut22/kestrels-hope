@@ -761,6 +761,13 @@ func _build_ship() -> void:
 	ext.set("crashed", crashed)
 	scene_root.add_child(ext)
 	ext.owner = scene_root
+	# Joins the fixed pieces into a few big meshes once it's built: thousands
+	# of draw calls fewer, same look (world/static_batch.gd).
+	var batcher := Node.new()
+	batcher.name = "Batcher"
+	batcher.set_script(load("res://world/static_batch.gd"))
+	scene_root.add_child(batcher)
+	batcher.owner = scene_root
 	if crashed:
 		_apply_crash_damage()
 		_save(scene_root, "res://ship/ship_crashed.tscn")
