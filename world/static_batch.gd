@@ -33,8 +33,11 @@ extends Node
 const BUILDERS := ["corridor_dressing.gd", "caged_sconce.gd", "kestrel_exterior.gd", "galley_windows.gd",
 	"tool_cart.gd", "room_floors.gd", "round_window.gd"]
 const CELL := 12.0
-## Frames to wait for the builders (they build in _ready or deferred).
+## Frames to wait for the builders (they build in _ready or deferred), and
+## then for what's added later (world/render_budget.gd's shadow twins):
+## a second pass joins those.
 const SETTLE_FRAMES := 3
+const LATE_FRAMES := 60
 
 var merged := 0        # pieces joined
 var meshes_made := 0
@@ -48,6 +51,9 @@ func _ready() -> void:
 		await get_tree().process_frame
 	var root := get_parent() as Node3D
 	if root:
+		batch(root)
+		for i in LATE_FRAMES:
+			await get_tree().process_frame
 		batch(root)
 
 
@@ -76,7 +82,7 @@ func batch(root: Node3D) -> void:
 	if joined.is_empty():
 		return
 	var holder := Node3D.new()
-	holder.name = "StaticBatch"
+	holder.name = "StaticBatch" if not root.has_node("StaticBatch") else "StaticBatchLate"
 	root.add_child(holder)
 	for key in groups:
 		var g: Array = groups[key]
@@ -99,7 +105,7 @@ func batch(root: Node3D) -> void:
 	for mi in joined:
 		mi.set_meta("batched_mesh", mi.mesh)
 		mi.mesh = null
-	merged = joined.size()
+	merged += joined.size()
 	print("StaticBatch: %d pieces joined into %d meshes" % [merged, meshes_made])
 
 
