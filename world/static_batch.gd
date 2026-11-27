@@ -47,14 +47,23 @@ var _follow := []      # [joined mesh, one of its pieces]
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
-	for i in SETTLE_FRAMES:
-		await get_tree().process_frame
+	if not await _frames(SETTLE_FRAMES):
+		return
 	var root := get_parent() as Node3D
 	if root:
 		batch(root)
-		for i in LATE_FRAMES:
-			await get_tree().process_frame
-		batch(root)
+		if await _frames(LATE_FRAMES):
+			batch(root)
+
+
+## Waits `n` frames; false if this left the scene meanwhile (a scene change
+## or a load), so there's nothing left to do.
+func _frames(n: int) -> bool:
+	for i in n:
+		if not is_inside_tree():
+			return false
+		await get_tree().process_frame
+	return is_inside_tree()
 
 
 func batch(root: Node3D) -> void:
