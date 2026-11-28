@@ -43,6 +43,7 @@ var _drop_ok := false
 var _held_prev := Vector3.ZERO
 var _held_outline: OutlineSet
 var _leaving := false
+var _quiet: Control
 var _t := 0.0
 
 
@@ -67,6 +68,13 @@ func start(k: Kitchen, p: Node) -> void:
 	await tw.finished
 	hud = CookHud.new()
 	add_child(hud)
+	# The game HUD (vitals, compass) steps aside while cooking: an empty
+	# overlay counts as busy for it (ui/hud.gd hides_chrome).
+	var game_hud := get_tree().get_first_node_in_group("hud")
+	if game_hud:
+		_quiet = Control.new()
+		_quiet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		game_hud.call("add_overlay", _quiet)
 	active = true
 	if Game.state().at_counter.is_empty():
 		var h := get_tree().get_first_node_in_group("hud")
@@ -301,6 +309,8 @@ func leave() -> void:
 		kitchen.highlight(_hover, false)
 	if hud:
 		hud.queue_free()
+	if _quiet:
+		_quiet.queue_free()
 	var back: Camera3D = player.get_node("CameraPivot/SpringArm3D/Camera3D")
 	var tw := create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(cam, "global_transform", back.global_transform, 0.7)

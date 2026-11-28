@@ -113,14 +113,14 @@ func _make_slot(parent: Control, id: String) -> Dictionary:
 	vp.add_child(cam)
 	var key := DirectionalLight3D.new()
 	key.rotation = Vector3(-0.7, 0.6, 0)
-	key.light_energy = 1.3
+	key.light_energy = 0.9
 	vp.add_child(key)
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_CLEAR_COLOR
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(1.0, 0.85, 0.7)
-	e.ambient_light_energy = 0.7
+	e.ambient_light_energy = 0.4
 	env.environment = e
 	vp.add_child(env)
 	var model := model_for(id)
