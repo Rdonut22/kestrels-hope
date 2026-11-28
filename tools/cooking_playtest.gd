@@ -101,7 +101,7 @@ func _run() -> void:
 		if c is SupplyHud:
 			supplies = c
 	_check(supplies != null, "the cupboard opens its supplies")
-	var stock_before := float(gs.stores.get("meal_pack", 0))
+	var stock_before: float = float(gs.stores.get("meal_pack", 0))
 	for b: Button in supplies.find_children("*", "Button", true, false):
 		pass
 	gs.set_counter_amount("coffee_grounds", 1.0)
@@ -133,7 +133,7 @@ func _run() -> void:
 	await _shot("cook_2_hover")
 
 	# A missed release uses nothing up and returns it.
-	var water0 := gs.counter_amount("water")
+	var water0: float = gs.counter_amount("water")
 	await _move_to("water", 4)
 	session.press()
 	await _wait(4)
@@ -256,7 +256,7 @@ func _run() -> void:
 	await _wait(60)
 	_check(player.get("_cooking") == null and (player.get_node("Model") as Node3D).visible, "E: back on his feet")
 	_check(gs.save_game(), "it saves")
-	var water_left := gs.counter_amount("water")
+	var water_left: float = gs.counter_amount("water")
 	gs.load_game()
 	await _wait(60)
 	_check(absf(Game.state().counter_amount("water") - water_left) < 0.001, "and loading keeps the water flask's level")
