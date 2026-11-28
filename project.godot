@@ -23,6 +23,7 @@ Screenshot="*res://ui/screenshot.gd"
 AmbientMusic="*res://world/ambient_music.gd"
 PerfOverlay="*res://ui/perf_overlay.gd"
 ShaderWarmup="*res://ui/shader_warmup.gd"
+RenderScale="*res://ui/render_scale.gd"
 
 [display]
 

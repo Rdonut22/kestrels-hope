@@ -6,7 +6,7 @@ extends CanvasLayer
 ##   While it's showing, these switch things off for a moment to see what the
 ##   lag comes from (nothing is saved; hiding the readout or a restart puts
 ##   them back). On a Mac the F keys need fn held, so each has a plain key too:
-##   1 / F4  sun shadows    2 / F5  grass     3 / F6  3D at half resolution
+##   1 / F4  sun shadows    2 / F5  grass     3 / F6  3D at half its resolution
 ##   4 / F7  trees          5 / F8  the wreck
 ##   C / F9  copy the readout to the clipboard
 ##
@@ -160,7 +160,10 @@ func _toggle(what: String) -> void:
 						l.shadow_enabled = true
 				_shadow_lights.clear()
 		"half_res":
-			get_viewport().scaling_3d_scale = 0.5 if off else 1.0
+			# Half of the automatic 3D resolution (ui/render_scale.gd).
+			var rs := get_node_or_null("/root/RenderScale")
+			var auto: float = rs.call("auto_scale") if rs else 1.0
+			get_viewport().scaling_3d_scale = auto * 0.5 if off else auto
 		"grass":
 			_show(scene, ["CrashSite/Grass", "CrashSite/GrassEast"], not off)
 		"trees":
