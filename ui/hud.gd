@@ -42,11 +42,9 @@ func _ready() -> void:
 	add_child(vitals)
 	move_child(vitals, fade.get_index())
 	# Its numbers are Gana's vitals (game_state.gd), which food changes.
-	var show_vitals := func() -> void:
-		for id in ["health", "hunger", "hydration", "temp"]:
-			vitals.call("set_value", id, float(Game.state().vitals.get(id, 0.0)))
-	Game.state().vitals_changed.connect(show_vitals)
-	show_vitals.call()
+	_vitals = vitals
+	Game.state().vitals_changed.connect(_show_vitals)
+	_show_vitals()
 	# Gana's wrist computer (Tab), ui/wrist_ui; its Discoveries section is
 	# ui/discoveries.
 	_wrist = (load("res://ui/wrist_ui/wrist_terminal_view.gd") as GDScript).new()
@@ -56,6 +54,18 @@ func _ready() -> void:
 	var objective: Control = (load("res://ui/discoveries/objective_hud.gd") as GDScript).new()
 	add_child(objective)
 	move_child(objective, _wrist.get_index() + 1)
+
+
+## The vitals panel (ui/vitals), showing Gana's vitals (a method, not a
+## lambda: the connection to the game state goes when the HUD does).
+var _vitals: Control
+
+
+func _show_vitals() -> void:
+	if not is_instance_valid(_vitals):
+		return
+	for id in ["health", "hunger", "hydration", "temp"]:
+		_vitals.call("set_value", id, float(Game.state().vitals.get(id, 0.0)))
 
 
 func _input(event: InputEvent) -> void:
