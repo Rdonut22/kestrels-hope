@@ -185,6 +185,7 @@ func press() -> void:
 		_held_outline.show(true)
 		_held_prev = proxy.global_position
 		hud.set_hover("")
+		hud.set_held(slot)
 		return
 	if _hover == "":
 		return
@@ -271,6 +272,7 @@ func release() -> void:
 	_drop_ok = false
 	hud.show_prompt("", Vector2.ZERO)
 	if held["type"] == "ingredient":
+		hud.set_held("")
 		if _held_outline:
 			_held_outline.show(false)
 		if ok:
