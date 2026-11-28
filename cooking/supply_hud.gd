@@ -11,7 +11,7 @@ extends Control
 
 const AMBER := Color(1.0, 0.62, 0.2)
 const FONT := "res://ui/fonts/barlow-condensed-latin-500-normal.woff2"
-const CARD := Vector2(300, 430)
+const CARD := Vector2(300, 370)
 
 var _font: Font
 var _cards := {}     # id -> {"detail": Label, "actions": HBoxContainer, "model": Node3D}
@@ -33,7 +33,7 @@ func _ready() -> void:
 	var page := VBoxContainer.new()
 	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	page.alignment = BoxContainer.ALIGNMENT_CENTER
-	page.add_theme_constant_override("separation", 34)
+	page.add_theme_constant_override("separation", 22)
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(page)
 	page.add_child(_title())
@@ -109,7 +109,7 @@ func _card(id: String) -> Control:
 	# The model, turning in its own little window.
 	var svc := SubViewportContainer.new()
 	svc.stretch = true
-	svc.custom_minimum_size = Vector2(CARD.x - 40, 210)
+	svc.custom_minimum_size = Vector2(CARD.x - 40, 170)
 	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(svc)
 	var vp := SubViewport.new()

@@ -155,8 +155,8 @@ func _make_slot(id: String) -> Dictionary:
 	svc.add_child(vp)
 	var cam := Camera3D.new()
 	cam.fov = 30
-	cam.position = Vector3(0, 0.12, 0.52)
-	cam.rotation.x = -0.12
+	cam.position = Vector3(0, 0.125, 0.62)
+	cam.rotation.x = -0.03
 	vp.add_child(cam)
 	var key := DirectionalLight3D.new()
 	key.rotation = Vector3(-0.7, 0.6, 0)
@@ -300,7 +300,12 @@ func show_prompt(text: String, at: Vector2, strong := true) -> void:
 	_prompt.set_glow(Color(AMBER, 0.45) if strong else Color(0, 0, 0, 0))
 	_prompt.modulate = Color(1, 1, 1, 1.0 if strong else 0.8)
 	_prompt.reset_size()
-	_prompt.position = at + Vector2(28, -_prompt.size.y - 22)
+	# Beside the target, kept on screen (flipped to its left near the edge).
+	var vp := get_viewport().get_visible_rect().size
+	var p := at + Vector2(28, -_prompt.size.y - 22)
+	if p.x + _prompt.size.x > vp.x - 16:
+		p.x = at.x - 28 - _prompt.size.x
+	_prompt.position = Vector2(clampf(p.x, 16, vp.x - _prompt.size.x - 16), clampf(p.y, 16, vp.y - _prompt.size.y - 16))
 	_prompt.visible = true
 
 
