@@ -89,6 +89,7 @@ var _t := 0.0
 
 
 func _ready() -> void:
+	add_to_group("kitchen")
 	mug = CookProps.mug()
 	add_child(mug)
 	mug.position = MUG_AT
