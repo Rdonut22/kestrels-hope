@@ -338,7 +338,7 @@ static func meal_pack() -> Node3D:
 
 ## The pack's contents: a pair of ration cubes (one model).
 static func ration_cubes() -> Node3D:
-	var n := model(RATION_CUBES, 0.032)
+	var n := model(RATION_CUBES, 0.05)
 	n.name = "RationCubes"
 	return n
 
