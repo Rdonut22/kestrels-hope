@@ -158,7 +158,7 @@ static func steam() -> CPUParticles3D:
 	p.lifetime = 2.2
 	p.emitting = false
 	var q := QuadMesh.new()
-	q.size = Vector2(0.06, 0.06)
+	q.size = Vector2(0.1, 0.1)
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

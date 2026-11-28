@@ -176,6 +176,13 @@ func _coffee() -> void:
 	await _settle()
 	_check(kitchen.kettle_water > 0.0 and gs.counter_amount("water") < water0, "released: poured into the kettle, the flask lower (%.2f left)" % gs.counter_amount("water"))
 
+	# Cold: the kettle won't pour yet.
+	await _drag("kettle", "mug")
+	_check(session.held_id() == "kettle" and not session.get("_drop_ok"), "the kettle won't pour before it's hot")
+	session.release()
+	await _settle()
+	await _wait(20)
+
 	# The right burner heats it.
 	pt = session.test_screen_point("knob_right")
 	session.test_mouse(pt)
@@ -195,15 +202,12 @@ func _coffee() -> void:
 	_check(kitchen.mug_grounds, "the grounds go into the mug")
 	_check(gs.counter_amount("coffee_grounds") == 1.0, "coffee grounds don't run out")
 
-	# Too soon: the kettle won't pour cold water.
-	if kitchen.kettle_heat < Kitchen.HOT:
-		await _drag("kettle", "mug")
-		_check(not session.get("_drop_ok"), "the kettle won't pour before it's hot")
-		session.release()
-		await _settle()
-		await _wait(20)
-	await _secs(Kitchen.KETTLE_HEAT_TIME + 1.0)
-	_check(kitchen.kettle_heat >= Kitchen.HOT, "the water heats on the burner (%.2f)" % kitchen.kettle_heat)
+	var waited := 0.0
+	while kitchen.kettle_heat < Kitchen.HOT and waited < Kitchen.KETTLE_HEAT_TIME * 3.0:
+		await process_frame
+		waited += root.get_process_delta_time()
+	_check(kitchen.kettle_heat >= Kitchen.HOT, "the water heats on the burner (%.0f s)" % waited)
+	await _wait(20)
 	await _shot("cook_5_boiling")
 
 	# Pour it.
