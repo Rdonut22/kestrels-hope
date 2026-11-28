@@ -3,8 +3,8 @@ shader_type canvas_item;
 // Frosted glass for the cooking HUD (cooking/glass_panel.gd): what's behind
 // it blurred and darkened, a soft sheen from the top, a thin light rim,
 // and optionally an outer glow (amber when selected) and diagonal hatching
-// (unavailable). The node is larger than the panel by `margin` on every
-// side, so the glow has room; `size` is the panel's own size in pixels.
+// (unavailable). Drawn on the panel's own style box, which reaches `margin`
+// past its edges so the glow has room; `size` is the panel's size.
 
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
 uniform vec2 size = vec2(100.0, 100.0);
@@ -18,14 +18,19 @@ uniform vec4 glow : source_color = vec4(1.0, 0.6, 0.2, 0.0);
 uniform float glow_width = 10.0;
 uniform float hatch = 0.0;
 
+varying vec2 local;
+
+void vertex() {
+	local = VERTEX;
+}
+
 float rounded_box(vec2 p, vec2 b, float r) {
 	vec2 q = abs(p) - b + r;
 	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
 void fragment() {
-	vec2 full = size + 2.0 * margin;
-	vec2 p = UV * full - full * 0.5;
+	vec2 p = local - size * 0.5;
 	float d = rounded_box(p, size * 0.5, radius);
 	// The blurred background: the screen's mipmaps, plus a ring of taps
 	// (smooth even where mipmaps are coarse).
