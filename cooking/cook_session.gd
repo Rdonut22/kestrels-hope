@@ -220,10 +220,16 @@ func _update_held(delta: float) -> void:
 	for tid: String in kitchen.targets:
 		if tid == id:
 			continue
+		if kitchen.drop_prompt(_held, tid) == "" and kitchen.drop_hint(_held, tid) == "":
+			continue
+		# Over it: the held thing above the vessel, or the cursor on it.
 		var tp := kitchen.target_point(tid)
-		var d := Vector2(goal.x - tp.x, goal.z - tp.z).length()
-		var reach := float(kitchen.targets[tid]["radius"]) + DROP_REACH
-		if d < reach and d < best and (kitchen.drop_prompt(_held, tid) != "" or kitchen.drop_hint(_held, tid) != ""):
+		var r := float(kitchen.targets[tid]["radius"])
+		var d := Vector2(goal.x - tp.x, goal.z - tp.z).length() / (r + DROP_REACH)
+		if not cam.is_position_behind(tp):
+			var on_screen := cam.unproject_position(tp).distance_to(_mouse) / (_screen_radius(tp, r + DROP_REACH) + HOVER_PX)
+			d = minf(d, on_screen)
+		if d < 1.0 and d < best:
 			drop = tid
 			best = d
 	if drop != _drop:

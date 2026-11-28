@@ -26,9 +26,9 @@ const BOWL_AT := Vector3(5.9, COUNTER_Y, -4.18)
 const SPATULA_AT := Vector3(5.64, COUNTER_Y + 0.012, -5.6)
 ## The cooking view: from in front of the counter, down over the stove to
 ## the window.
-const CAM_AT := Vector3(4.62, 1.78, -5.32)
-const CAM_LOOK := Vector3(6.5, 1.2, -4.95)
-const CAM_FOV := 64.0
+const CAM_AT := Vector3(4.86, 1.74, -5.26)
+const CAM_LOOK := Vector3(6.5, 1.3, -4.95)
+const CAM_FOV := 58.0
 ## In the stove's own frame (galley_windows.gd: STOVE_KNOBS_X, KETTLE_AT...).
 const BURNERS := {"left": Vector3(-0.345, 0.16, -0.1), "right": Vector3(0.4, 0.16, -0.1)}
 const KNOBS := {"left": Vector3(-0.5, 0.021, 0.572), "right": Vector3(0.535, 0.021, 0.572)}

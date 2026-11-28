@@ -5,9 +5,11 @@ extends SceneTree
 ## poured and stirred with the mouse, a missed release uses nothing up,
 ## coffee and the ship meal are made start to finish, and having them
 ## changes the vitals and finishes the "make something to eat" task.
-##   godot --path . -s tools/cooking_playtest.gd [-- <shots dir>]
+##   godot --path . -s tools/cooking_playtest.gd [-- <shots dir> [coffee|meal]]
+## (coffee or meal: just that sequence; both by default.)
 
 var out := "user://playtest_shots/"
+var part := "all"
 var fails := 0
 var player: Node
 var kitchen: Kitchen
@@ -18,6 +20,8 @@ func _initialize() -> void:
 	var a := OS.get_cmdline_user_args()
 	if a.size() > 0:
 		out = a[0]
+	if a.size() > 1:
+		part = a[1]
 	DirAccess.make_dir_recursive_absolute(out)
 	Game.state().reset()
 	change_scene_to_file("res://main.tscn")
@@ -126,6 +130,26 @@ func _run() -> void:
 	_check(Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "and a free mouse cursor")
 	await _shot("cook_1_view")
 
+	if part != "meal":
+		await _coffee()
+	if part != "coffee":
+		await _meal()
+
+	# Leaving, and saving what's left.
+	session.leave()
+	await _wait(60)
+	_check(player.get("_cooking") == null and (player.get_node("Model") as Node3D).visible, "E: back on his feet")
+	_check(gs.save_game(), "it saves")
+	var water_left: float = gs.counter_amount("water")
+	gs.load_game()
+	await _wait(60)
+	_check(absf(Game.state().counter_amount("water") - water_left) < 0.001, "and loading keeps the water flask's level")
+	_finish()
+
+
+func _coffee() -> void:
+	var gs := Game.state()
+	var pt: Vector2
 	# Hover: the spatula outlines white.
 	await _move_to("spatula")
 	await _wait(4)
@@ -153,7 +177,7 @@ func _run() -> void:
 	_check(kitchen.kettle_water > 0.0 and gs.counter_amount("water") < water0, "released: poured into the kettle, the flask lower (%.2f left)" % gs.counter_amount("water"))
 
 	# The right burner heats it.
-	var pt := session.test_screen_point("knob_right")
+	pt = session.test_screen_point("knob_right")
 	session.test_mouse(pt)
 	await _wait(4)
 	session.press()
@@ -202,6 +226,11 @@ func _run() -> void:
 	_check(gs.modifier("move_speed") > 1.0, "and a little quicker on his feet for a while")
 	_check(not kitchen.mug_grounds and kitchen.mug_fill == 0.0, "the mug is empty again")
 
+
+
+func _meal() -> void:
+	var gs := Game.state()
+	var pt: Vector2
 	# The meal: the pack into the wok.
 	await _drag("meal_pack", "pan")
 	_check(session.get("_drop_ok"), "a meal pack can go in the wok")
@@ -250,17 +279,6 @@ func _run() -> void:
 	await _settle()
 	_check(gs.vitals["hunger"] > hunger0, "eating it: hunger %.0f -> %.0f" % [hunger0, gs.vitals["hunger"]])
 	_check(gs.objective_done(gs.EAT_TASK) and gs.has_flag("ate_meal"), "and the \"make something to eat\" task is done")
-
-	# Leaving, and saving what's left.
-	session.leave()
-	await _wait(60)
-	_check(player.get("_cooking") == null and (player.get_node("Model") as Node3D).visible, "E: back on his feet")
-	_check(gs.save_game(), "it saves")
-	var water_left: float = gs.counter_amount("water")
-	gs.load_game()
-	await _wait(60)
-	_check(absf(Game.state().counter_amount("water") - water_left) < 0.001, "and loading keeps the water flask's level")
-	_finish()
 
 
 func _finish() -> void:
