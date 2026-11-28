@@ -1,19 +1,31 @@
-"""Draco-compressed .gltf + .bin -> plain .glb (textures kept as they are).
-usage: undraco.py in.gltf out.glb"""
+"""Draco-compressed .gltf + .bin, or .glb -> plain .glb (textures kept as
+they are). All of the mesh's primitives are joined into one (they share
+its one material).
+usage: undraco_gltf.py in.gltf|in.glb out.glb"""
 import json, struct, sys, os
 import numpy as np, DracoPy
 src, out = sys.argv[1], sys.argv[2]
-j = json.load(open(src))
-B = open(os.path.join(os.path.dirname(src), j["buffers"][0]["uri"]), "rb").read()
+if src.endswith(".glb"):
+    d = open(src, "rb").read()
+    n = struct.unpack("<I", d[12:16])[0]
+    j = json.loads(d[20:20 + n])
+    B = d[28 + n:28 + n + struct.unpack("<I", d[20 + n:24 + n])[0]]
+else:
+    j = json.load(open(src))
+    B = open(os.path.join(os.path.dirname(src), j["buffers"][0]["uri"]), "rb").read()
 def view(i):
     v = j["bufferViews"][i]; o = v.get("byteOffset", 0); return B[o:o + v["byteLength"]]
-pr = j["meshes"][0]["primitives"][0]
-ext = pr["extensions"]["KHR_draco_mesh_compression"]
-m = DracoPy.decode(view(ext["bufferView"]))
-pos = np.asarray(m.points, np.float32).reshape(-1, 3)
-nrm = np.asarray(m.normals, np.float32).reshape(-1, 3)
-uv = np.asarray(m.tex_coord, np.float32).reshape(-1, 2)
-idx = np.asarray(m.faces, np.uint32).ravel()
+P, N, T, I = [], [], [], []
+base = 0
+for pr in j["meshes"][0]["primitives"]:
+    ext = pr["extensions"]["KHR_draco_mesh_compression"]
+    m = DracoPy.decode(view(ext["bufferView"]))
+    P.append(np.asarray(m.points, np.float32).reshape(-1, 3))
+    N.append(np.asarray(m.normals, np.float32).reshape(-1, 3))
+    T.append(np.asarray(m.tex_coord, np.float32).reshape(-1, 2))
+    I.append(np.asarray(m.faces, np.uint32).ravel() + base)
+    base += len(P[-1])
+pos, nrm, uv, idx = np.vstack(P), np.vstack(N), np.vstack(T), np.concatenate(I).astype(np.uint32)
 print(os.path.basename(src), "verts", len(pos), len(nrm), len(uv), "tris", idx.size // 3)
 chunks, views = [], []
 def add(data, target=None):
@@ -30,7 +42,7 @@ acc = [
 ]
 imgs = []
 for im in j["images"]:
-    imgs.append({"name": im["name"], "mimeType": im["mimeType"], "bufferView": add(view(im["bufferView"]))})
+    imgs.append({"name": im.get("name", "image%d" % len(imgs)), "mimeType": im["mimeType"], "bufferView": add(view(im["bufferView"]))})
 pr2 = {"attributes": {"POSITION": 1, "NORMAL": 2, "TEXCOORD_0": 3}, "indices": 0, "material": 0, "mode": 4}
 name = os.path.splitext(os.path.basename(out))[0]
 g = {"asset": {"version": "2.0"}, "accessors": acc, "bufferViews": views, "buffers": [{"byteLength": sum(len(c) for c in chunks)}],

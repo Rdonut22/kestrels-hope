@@ -258,6 +258,19 @@ func _build() -> void:
 	under.omni_range = 1.8
 	under.position = Vector3((AFT_COUNTER_X0 + 5.505) * 0.5, SILL_Y + 0.45, aft - 0.3)
 	add_child(under)
+	# The cooking (cooking/kitchen.gd): the stove, the wok, the kettle and the
+	# cupboard are used, so they stay as they are (not joined into the
+	# ship's static meshes: world/static_batch.gd).
+	for part: Node3D in [stove, pan, kettle, cab]:
+		part.set_meta("batch_keep", true)
+	if not Engine.is_editor_hint():
+		var kitchen := Kitchen.new()
+		kitchen.name = "Kitchen"
+		kitchen.stove = stove
+		kitchen.pan = pan
+		kitchen.kettle = kettle
+		kitchen.cabinet = cab
+		add_child(kitchen)
 	var body := StaticBody3D.new()
 	body.name = "AftCounterBody"
 	var cs := CollisionShape3D.new()

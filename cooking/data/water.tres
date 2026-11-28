@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CookIngredient" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://cooking/ingredient_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "water"
+display_name = "Water"
+model_path = "res://cooking/models/water_flask.glb"
+supply = "volume"
+use_amount = 0.2
+low_at = 0.25
+nutrition = {"hydration": 4.0}
+interactions = Array[String](["pour"])
+destinations = Array[String](["kettle"])
+consumption = "on_use"
+prompt_verb = "pour in"

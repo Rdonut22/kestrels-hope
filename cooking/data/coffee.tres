@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CookRecipe" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://cooking/recipe_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "coffee"
+display_name = "Coffee"
+ingredients = Array[String](["coffee_grounds", "water"])
+vessel = "mug"
+conditions = {"water_hot": true}
+dish_model = ""
+nutrition = {"hydration": 12.0, "hunger": 2.0, "stamina": 15.0}
+modifiers = {"move_speed": 1.08, "stamina_regen": 1.15}
+effect_duration = 240.0
+on_consume = "Hot, black, recycled water. Perfect."
+first_time_flag = "drank_coffee"

@@ -18,6 +18,10 @@ signal vines_changed
 signal objective_added(id: String)
 signal objective_changed(id: String)
 signal objective_completed(id: String)
+## A vital changed (vitals), or a timed modifier began or ran out.
+signal vitals_changed
+## The cooking supplies changed (stores, at_counter).
+signal pantry_changed
 
 ## Everything that can be carried. Tools aren't used up by repairs.
 const ITEMS := {
@@ -74,6 +78,25 @@ var objective_focus := ""
 ## from the save file; {} = where the scene puts it.
 var hoverbike := {}
 
+## Gana's vitals, 0..100 except temp (°C), shown by ui/vitals/vitals_panel.gd.
+## "hunger" is how fed he is (100 = full). Food and drink change them
+## (cooking/recipe_def.gd nutrition).
+const VITALS := {"health": 100.0, "hunger": 80.0, "hydration": 75.0, "stamina": 100.0, "temp": 36.6}
+var vitals := VITALS.duplicate()
+## Temporary attribute modifiers from food and drink: each
+## {"stat": "move_speed", "mult": 1.1, "left": seconds}. modifier() gives
+## a stat's combined multiplier ("move_speed", "strength", "stamina_regen",
+## "env_resistance").
+var modifiers: Array = []
+
+## Cooking supplies. `stores`: what's in the galley cupboard (meal packs by
+## count; coffee and the water tap don't run out). `at_counter`: what Gana
+## has brought to the cooking counter: "coffee_grounds" 1 (the tin),
+## "water" the jug's fill 0..1, "meal_pack" a count.
+const STORES := {"meal_pack": 6}
+var stores := STORES.duplicate()
+var at_counter := {}
+
 const SAVE_PATH := "user://savegame.json"
 const SAVE_VERSION := 1
 ## Scenes you can save in (not the title screen or the intro).
@@ -107,7 +130,13 @@ func reset() -> void:
 	objectives.clear()
 	objective_focus = ""
 	hoverbike = {}
+	vitals = VITALS.duplicate()
+	modifiers.clear()
+	stores = STORES.duplicate()
+	at_counter = {}
 	inventory_changed.emit()
+	vitals_changed.emit()
+	pantry_changed.emit()
 
 
 ## The opening's first task: Gana makes something to eat.
@@ -323,6 +352,10 @@ func save_game() -> bool:
 		"cut_vines": Array(cut_vines),
 		"objectives": objectives,
 		"objective_focus": objective_focus,
+		"vitals": vitals,
+		"modifiers": modifiers,
+		"stores": stores,
+		"at_counter": at_counter,
 		"flags": flags.keys().filter(func(f: String) -> bool: return not f in TRANSIENT_FLAGS),
 		"player": {
 			"position": [player.global_position.x, player.global_position.y, player.global_position.z],
@@ -381,6 +414,23 @@ func load_game() -> bool:
 				continue  # an objective that no longer exists
 			objectives[id] = {"tracked": bool(o.get("tracked", true)), "done": bool(o.get("done", false)), "order": int(o.get("order", objectives.size()))}
 	objective_focus = String(data.get("objective_focus", ""))
+	var saved_vitals: Variant = data.get("vitals", {})
+	if saved_vitals is Dictionary:
+		for k: String in saved_vitals:
+			vitals[k] = float(saved_vitals[k])
+	for m: Variant in data.get("modifiers", []):
+		if m is Dictionary:
+			modifiers.append({"stat": String(m.get("stat", "")), "mult": float(m.get("mult", 1.0)), "left": float(m.get("left", 0.0))})
+	var saved_stores: Variant = data.get("stores", {})
+	if saved_stores is Dictionary:
+		for k: String in saved_stores:
+			stores[k] = float(saved_stores[k])
+	var saved_counter: Variant = data.get("at_counter", {})
+	if saved_counter is Dictionary:
+		for k: String in saved_counter:
+			at_counter[k] = float(saved_counter[k])
+	vitals_changed.emit()
+	pantry_changed.emit()
 	var saved_bike: Variant = data.get("hoverbike", {})
 	hoverbike = saved_bike if saved_bike is Dictionary else {}
 	# Saves from before Discoveries kept the eat task as a flag.
@@ -416,5 +466,75 @@ func _queue_autosave() -> void:
 
 
 func _process(delta: float) -> void:
+	_tick_modifiers(delta)
 	if power_restored and hale_file < HALE_FILE_CAP:
 		hale_file = minf(HALE_FILE_CAP, hale_file + delta * HALE_FILE_RATE)
+
+
+# ---------------------------------------------------------------- vitals
+
+## Changes a vital by `amount` (kept 0..100, except temp).
+func change_vital(id: String, amount: float) -> void:
+	if not vitals.has(id):
+		return
+	var v: float = vitals[id] + amount
+	vitals[id] = v if id == "temp" else clampf(v, 0.0, 100.0)
+	vitals_changed.emit()
+
+
+## Starts a timed modifier (a stat's multiplier for `secs` seconds).
+func add_modifier(stat: String, mult: float, secs: float) -> void:
+	modifiers.append({"stat": stat, "mult": mult, "left": secs})
+	vitals_changed.emit()
+
+
+## The combined multiplier of a stat's active modifiers (1 = none).
+func modifier(stat: String) -> float:
+	var m := 1.0
+	for e: Dictionary in modifiers:
+		if e["stat"] == stat:
+			m *= float(e["mult"])
+	return m
+
+
+func _tick_modifiers(delta: float) -> void:
+	if modifiers.is_empty() or get_tree().paused:
+		return
+	var expired := false
+	for e: Dictionary in modifiers:
+		e["left"] = float(e["left"]) - delta
+		expired = expired or float(e["left"]) <= 0.0
+	if expired:
+		modifiers = modifiers.filter(func(e: Dictionary) -> bool: return float(e["left"]) > 0.0)
+		vitals_changed.emit()
+
+
+## Eating or drinking a finished dish: its nutrition into the vitals, its
+## modifiers started, its first-time flag set.
+func consume_recipe(r: CookRecipe) -> void:
+	for id: String in r.nutrition:
+		change_vital(id, float(r.nutrition[id]))
+	for stat: String in r.modifiers:
+		add_modifier(stat, float(r.modifiers[stat]), r.effect_duration)
+	if r.first_time_flag != "" and not has_flag(r.first_time_flag):
+		set_flag(r.first_time_flag)
+
+
+# ---------------------------------------------------------------- pantry
+
+## How much of an ingredient Gana has at the counter (0 = none).
+func counter_amount(id: String) -> float:
+	return float(at_counter.get(id, 0.0))
+
+
+func set_counter_amount(id: String, amount: float) -> void:
+	if amount <= 0.0 and id != "water":
+		at_counter.erase(id)
+	else:
+		at_counter[id] = amount
+	pantry_changed.emit()
+
+
+func set_store_amount(id: String, amount: float) -> void:
+	stores[id] = maxf(amount, 0.0)
+	pantry_changed.emit()

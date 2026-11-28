@@ -23,6 +23,7 @@ var _seat: Node3D  # couch seat we're sitting on, if any
 var _sit_cam: Camera3D
 var _sit_look := Vector2.ZERO  # yaw, pitch offsets while seated
 var _bike: Node3D  # the hover bike we're riding, if any (world/vehicles/hoverbike.gd)
+var _cooking: Node  # the cooking view, while Gana is at the galley counter (cooking/cook_session.gd)
 var _ride_cam: Camera3D  # first-person view while riding
 var _ride_look := Vector2.ZERO  # yaw, pitch of the riding view off straight ahead
 var _look_idle := 0.0  # seconds since the mouse last turned the riding view
@@ -226,6 +227,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _bike:
 		_riding_input(event)
 		return
+	if _cooking:
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		pivot.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
 		pivot.rotation.x = clamp(pivot.rotation.x - event.relative.y * MOUSE_SENSITIVITY, deg_to_rad(-60), deg_to_rad(30))
@@ -249,6 +252,9 @@ func _physics_process(delta: float) -> void:
 	if _bike:
 		_riding_update(delta)
 		return
+	if _cooking:
+		hud.set_prompt("")
+		return
 
 	if not is_on_floor():
 		velocity += get_gravity() * delta
@@ -266,6 +272,7 @@ func _physics_process(delta: float) -> void:
 	if direction:
 		# Shift to walk instead of run.
 		var speed := WALK_SPEED if Input.is_action_pressed("walk") else SPEED
+		speed *= Game.state().modifier("move_speed")   # food and drink (game_state.gd)
 		velocity.x = direction.x * speed
 		velocity.z = direction.z * speed
 		mesh.rotation.y = lerp_angle(mesh.rotation.y, atan2(-direction.x, -direction.z), 10 * delta)
@@ -468,6 +475,29 @@ func _show_held() -> void:
 
 func _has_power(target: Interactable) -> bool:
 	return not target.needs_power or Game.state().power_restored
+
+
+# ---------- cooking ----------
+
+## At the galley counter (cooking/cook_session.gd runs the view): Gana
+## stands still, out of sight of the cooking camera, and the session takes
+## the mouse.
+func start_cooking(session: Node) -> void:
+	_cooking = session
+	velocity = Vector3.ZERO
+	mesh.set_move(0.0)
+	mesh.visible = false
+	if current_target and is_instance_valid(current_target):
+		current_target.set_highlighted(false)
+	current_target = null
+	_target_usable = false
+
+
+func stop_cooking() -> void:
+	_cooking = null
+	mesh.visible = true
+	($CameraPivot/SpringArm3D/Camera3D as Camera3D).make_current()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 # ---------- riding the hover bike ----------

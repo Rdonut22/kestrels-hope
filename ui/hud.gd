@@ -41,6 +41,12 @@ func _ready() -> void:
 	var vitals: Control = (load("res://ui/vitals/vitals_panel.gd") as GDScript).new()
 	add_child(vitals)
 	move_child(vitals, fade.get_index())
+	# Its numbers are Gana's vitals (game_state.gd), which food changes.
+	var show_vitals := func() -> void:
+		for id in ["health", "hunger", "hydration", "temp"]:
+			vitals.call("set_value", id, float(Game.state().vitals.get(id, 0.0)))
+	Game.state().vitals_changed.connect(show_vitals)
+	show_vitals.call()
 	# Gana's wrist computer (Tab), ui/wrist_ui; its Discoveries section is
 	# ui/discoveries.
 	_wrist = (load("res://ui/wrist_ui/wrist_terminal_view.gd") as GDScript).new()

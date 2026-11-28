@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CookIngredient" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://cooking/ingredient_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "coffee_grounds"
+display_name = "Coffee grounds"
+model_path = "res://cooking/models/coffee_sack.glb"
+supply = "unlimited"
+use_amount = 1.0
+nutrition = {}
+interactions = Array[String](["drop"])
+destinations = Array[String](["mug"])
+consumption = "on_use"
+prompt_verb = "add"
